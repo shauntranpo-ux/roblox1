@@ -453,6 +453,34 @@ function Builder.styleScroll(scroll)
     return scroll
 end
 
+-- Gentle infinite "floating in place" idle bob for a center-anchored panel (oscillates Position.Y only).
+function Builder.floatLoop(frame)
+    local p = frame.Position
+    local tween = TweenService:Create(
+        frame,
+        TweenInfo.new(2.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+        { Position = UDim2.new(p.X.Scale, p.X.Offset, p.Y.Scale - 0.012, p.Y.Offset) }
+    )
+    tween:Play()
+    return tween
+end
+
+-- A pop-in: snap to 0.85x then Back-ease up to full size. Call each time the panel opens.
+function Builder.popOpen(frame)
+    local target = frame:GetAttribute("PopTarget")
+    if target == nil then
+        target = frame.Size
+        frame:SetAttribute("PopTarget", target)
+    end
+    frame.Size = UDim2.new(
+        target.X.Scale * 0.85,
+        target.X.Offset * 0.85,
+        target.Y.Scale * 0.85,
+        target.Y.Offset * 0.85
+    )
+    TweenService:Create(frame, Theme.Tween.Open, { Size = target }):Play()
+end
+
 -- Builds the standard centered modal panel: a translucent gradient body with a thick dark outline,
 -- a glossy accent header (icon-less title + round red X), and a styled scrolling content area.
 -- `accentKey` (optional) picks the header gradient from Theme.Accents. Returns the ScrollingFrame.
@@ -463,7 +491,7 @@ function Builder.panel(parent, title, onClose, accentKey)
     local panel = Builder.create("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromScale(0.8, 0.64),
+        Size = UDim2.fromScale(0.86, 0.74),
         BackgroundColor3 = Theme.Colors.Background,
         BackgroundTransparency = Theme.BodyTransparency,
         BorderSizePixel = 0,
@@ -474,7 +502,7 @@ function Builder.panel(parent, title, onClose, accentKey)
             Thickness = Theme.Stroke.Width,
             Transparency = 0.2,
         }),
-        Builder.create("UISizeConstraint", { MaxSize = Vector2.new(520, 680) }),
+        Builder.create("UISizeConstraint", { MaxSize = Vector2.new(580, 760) }),
         Builder.create("UIGradient", {
             Rotation = 90,
             Color = ColorSequence.new(Color3.fromRGB(58, 36, 100), Theme.Colors.Background),
@@ -502,6 +530,17 @@ function Builder.panel(parent, title, onClose, accentKey)
     Builder.styleScroll(list)
 
     panel.Parent = parent
+    Builder.floatLoop(panel)
+    if parent ~= nil and parent:IsA("ScreenGui") then
+        parent:GetPropertyChangedSignal("Enabled"):Connect(function()
+            if parent.Enabled then
+                Builder.popOpen(panel)
+            end
+        end)
+        if parent.Enabled then
+            Builder.popOpen(panel)
+        end
+    end
     return list
 end
 
