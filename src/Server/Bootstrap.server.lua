@@ -77,6 +77,9 @@ local AdminService = require(script.Parent.AdminService)
 -- notification trigger layer (opt-in is a persisted setting; delivery is backend).
 local GroupRewardService = require(script.Parent.GroupRewardService)
 local NotificationService = require(script.Parent.NotificationService)
+-- TAP-TO-PROGRESS: the shared uncapped-tapping dispatcher (catch/steal/combat) -- owns the one batch
+-- remote + the human-max anti-cheat clamp. Requires WildSpawn/Steal/Boss (already required above).
+local TapService = require(script.Parent.TapService)
 -- Admin/troubleshooting: in-chat commands (allowlisted) + Studio command-bar API.
 local DevCommands = require(script.Parent.DevCommands)
 
@@ -160,6 +163,8 @@ start("SetService", SetService.Init)
 start("AdminService", AdminService.Init)
 -- M13.6: bind the group-reward remote (membership check + idempotent claim).
 start("GroupRewardService", GroupRewardService.Init)
+-- TAP-TO-PROGRESS: bind the single batch remote (after the gameplay services + Remotes exist).
+start("TapService", TapService.Init)
 -- Admin: register the allowlisted in-chat commands (hidden from chat).
 start("DevCommands", DevCommands.Init)
 
@@ -332,6 +337,8 @@ local function onPlayerRemoving(player)
     -- M13.6: drop the player's notification frequency-cap bookkeeping (the group perk is in Benefits,
     -- already wiped by MonetizationService.ClearPlayer above).
     NotificationService.ClearPlayer(player)
+    -- TAP-TO-PROGRESS: drop the player's token bucket + active tap-fill (no stuck progress on rejoin).
+    TapService.ClearPlayer(player)
     ProfileManager.ReleaseProfile(player)
 end
 

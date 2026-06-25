@@ -48,6 +48,7 @@ local FreeRewards = require(UI.FreeRewards)
 local Referral = require(UI.Referral)
 local Social = require(UI.Social)
 local Admin = require(UI.Admin)
+local TapInput = require(UI.TapInput) -- tap-to-progress: shared uncapped-tapping client (catch/steal/combat)
 
 local player = Players.LocalPlayer
 
@@ -104,6 +105,8 @@ local remotes = {
     ReportPlayer = remotesFolder:WaitForChild("ReportPlayer"),
     AdminBroadcast = remotesFolder:WaitForChild("AdminBroadcast"),
     GroupAction = remotesFolder:WaitForChild("GroupAction"),
+    TapBatch = remotesFolder:WaitForChild("TapBatch"),
+    TapUpdate = remotesFolder:WaitForChild("TapUpdate"),
 }
 
 local context = { player = player, remotes = remotes }
@@ -205,6 +208,9 @@ safeMount("ShieldWall", function()
 end)
 safeMount("WildCatch", function()
     WildCatch.mount(context)
+end)
+safeMount("TapInput", function()
+    TapInput.mount(context)
 end)
 safeMount("Biomes", function()
     Biomes.mount(context)

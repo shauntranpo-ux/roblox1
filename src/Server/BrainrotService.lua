@@ -205,10 +205,11 @@ local function attachStealPrompt(targetPart, owner, brainrot, def)
     end
     local prompt = Instance.new("ProximityPrompt")
     prompt.Name = "StealPrompt"
-    prompt.ActionText = "Steal"
+    prompt.ActionText = "Tap to Steal"
     prompt.ObjectText = def.DisplayName
-    -- M11.1 DEFENDER perks lengthen the hold vs THIS owner's base (per-victim, server-authoritative).
-    prompt.HoldDuration = StealConfig.HoldDuration * (holdMultByPlayer[owner] or 1)
+    -- TAP-TO-PROGRESS: the StealPrompt is now only a TARGET marker; stealing fills by TAPPING (the client
+    -- routes taps via TapBatch -> StealService.TapComplete). HoldDuration 0 = press shows the target.
+    prompt.HoldDuration = 0
     prompt.MaxActivationDistance = StealConfig.PromptMaxDistance
     prompt.RequiresLineOfSight = false
     prompt:SetAttribute("BrainrotId", brainrot.Id)
@@ -315,7 +316,7 @@ function BrainrotService.SetHoldMultiplier(player, mult)
     for _, instance in pairs(models) do
         local prompt = instance:FindFirstChildWhichIsA("ProximityPrompt", true)
         if prompt ~= nil then
-            prompt.HoldDuration = StealConfig.HoldDuration * mult
+            prompt.HoldDuration = 0 -- TAP-TO-PROGRESS: hold retired (a target marker only)
         end
     end
 end

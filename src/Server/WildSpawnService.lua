@@ -28,6 +28,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local WildConfig = require(ReplicatedStorage.Shared.WildConfig)
 local Catalog = require(ReplicatedStorage.Shared.Catalog)
 local Rarity = require(ReplicatedStorage.Shared.Rarity)
+local TapConfig = require(ReplicatedStorage.Shared.TapConfig) -- tap-to-progress: per-rarity taps-to-catch
 
 local ProfileManager = require(script.Parent.ProfileManager)
 local BrainrotFactory = require(script.Parent.BrainrotFactory)
@@ -39,7 +40,6 @@ local ProtectionService = require(script.Parent.ProtectionService)
 local PerkEffects = require(script.Parent.PerkEffects)
 local EvolutionService = require(script.Parent.EvolutionService)
 local Analytics = require(script.Parent.Analytics)
-local RateLimiter = require(script.Parent.RateLimiter)
 local Remotes = require(script.Parent.Remotes)
 local BiomeService = require(script.Parent.BiomeService) -- M10.2 biome rarity routing
 local NetService = require(script.Parent.NetService) -- M10.4 net catch-param bonuses
@@ -87,6 +87,7 @@ local function sendSpawn(spawn)
         Pos = spawn.Position,
         Hold = spawn.Hold,
         Range = spawn.Range,
+        Need = spawn.TapsToCatch, -- tap-to-progress: taps to fill the catch meter (client shows it)
         Revealed = spawn.Revealed,
         Name = spawn.DisplayName,
     })
@@ -154,6 +155,7 @@ local function spawnFor(player)
         SpawnTime = os.clock(),
         Caught = false,
         Hold = behavior.Hold * eff.HoldMult,
+        TapsToCatch = TapConfig.CatchTapsFor(rarity), -- tap-to-progress: taps to catch this spawn
         Range = WildConfig.CatchBaseRange + eff.RangeAdd,
         Revealed = huntReveal(player) and WildConfig.IsRarePlus(rarity),
     }
@@ -213,32 +215,45 @@ local function commitCatch(player, spawn)
     return true, def.DisplayName, unit.Mutation
 end
 
--- Catch handler (RemoteFunction). Client sends ONLY the target spawn id (intent).
-local function handleCatch(player, spawnId)
-    if not RateLimiter.check(player, "catch", 0.3) then
-        return { Result = "Miss", Message = "Slow down." }
-    end
-    if type(spawnId) ~= "string" or #spawnId == 0 or #spawnId > 40 then
-        return { Result = "Miss", Message = "Invalid target." }
-    end
-    local spawn = spawns[spawnId]
-    if spawn == nil or spawn.Owner ~= player or spawn.Caught then
-        return { Result = "Miss", Message = "It got away." }
-    end
-    -- Server distance check on the REAL character (anti-teleport / anti-spoof).
+-- The server-side in-range check on the REAL character (anti-teleport / anti-spoof), shared by the tap
+-- validate + complete. Fleeing OUT of range fails this -> TapService resets the catch fill cleanly.
+local function inCatchRange(player, spawn)
     local root = rootOf(player)
     if root == nil then
-        return { Result = "Miss", Message = "It got away." }
+        return false
     end
     local range = WildConfig.CatchBaseRange + NetService.EffectiveCatch(player).RangeAdd
-    if (root.Position - spawn.Position).Magnitude > range then
-        return { Result = "Miss", Message = "Too far -- get closer!" }
+    return (root.Position - spawn.Position).Magnitude <= range
+end
+
+-- TAP-TO-PROGRESS: is this catch interaction valid right now? Returns (ok, tapsNeeded). The client only
+-- accrues progress while ok; out-of-range/fled/gone -> not ok -> the fill resets.
+function WildSpawnService.TapValidate(player, spawnId)
+    local spawn = spawns[spawnId]
+    if spawn == nil or spawn.Owner ~= player or spawn.Caught then
+        return false, 0
     end
-    local ok, nameOrReason, mutation = commitCatch(player, spawn)
-    if ok then
-        return { Result = "Success", Name = nameOrReason, Mutation = mutation }
+    return inCatchRange(player, spawn), spawn.TapsToCatch
+end
+
+-- TAP-TO-PROGRESS completion: the tap meter filled -> re-validate range, then the EXISTING atomic
+-- factory-catch fires EXACTLY ONCE (commitCatch's spawn.Caught guard). Returns true on a real catch.
+function WildSpawnService.TapComplete(player, spawnId)
+    local spawn = spawns[spawnId]
+    if spawn == nil or spawn.Owner ~= player or spawn.Caught then
+        return false
     end
-    return { Result = "Miss", Message = nameOrReason }
+    if not inCatchRange(player, spawn) then
+        return false
+    end
+    local ok = commitCatch(player, spawn)
+    return ok == true
+end
+
+-- The old one-shot catch remote is RETIRED by the tap rework (a single call could bypass the human-max-
+-- clamped tap progress). It stays bound but INERT so a direct/injected call can never instant-catch.
+local function handleCatch(_player, _spawnId)
+    return { Result = "Miss", Message = "Tap to catch!" }
 end
 
 -- ── Behavior + despawn loop (server-driven; positions stream to the owner) ───────────────────
