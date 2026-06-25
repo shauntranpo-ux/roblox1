@@ -2,7 +2,7 @@
 
 Multiplayer Roblox idle/theft game. Players collect meme creatures ("brainrot") that generate passive cash, unlock rarer ones, and steal each other's units.
 
-Built in milestones. Current: **M3 — rarity roster + scaling economy**. A full, data-driven brainrot roster spans six rarity tiers (Common → Secret) on a sharply scaling price/income curve; the Shop renders it grouped by rarity with color-coded tiers and reactive Buy buttons; purchased units spawn rarity-tinted on a pad; per-player unlocked-pad capacity and a "discovered" set are saved (foundations for M5 pads and a later Index). (M2: code-generated mobile HUD + secure server-authoritative purchase flow. M1: passive income loop + ProfileStore saving. M0: toolchain.) Everything economic is server-authoritative — the client only sends an item id; the server reads every stat from its own roster.
+Built in milestones. Current: **M4 — steal mechanic + timer-based defense**. Players hold a "Hold to steal" prompt on another base's brainrot, carry it home, and deposit it on a free pad to take ownership — all server-authoritative, dupe-proof, and loss-proof (one guarded atomic transfer; every brainrot is owned by exactly one player at all times). A simple timer-based defense layer (new-player grace + post-robbery shield, with an M5-ready `ExtendProtection` hook) protects bases, plus cooldowns, per-unit immunity, a carry timeout, a kill-feed banner, and victim toasts. (M3: rarity roster + scaling economy. M2: mobile HUD + secure purchase. M1: income loop + ProfileStore. M0: toolchain.) Everything economic and every ownership change is server-authoritative — the client only requests; the server validates and mutates.
 
 ## Stack
 
@@ -30,19 +30,24 @@ src/
     PlayerStats.lua          Cash + IncomePerSec player Attributes for the HUD
     PurchaseService.lua      validates client buy requests (server-authoritative) + debounce
     InventoryService.lua     GetInventory RemoteFunction (server-truth owned list)
+    StealService.lua         steal state machine: INITIATE/DEPOSIT/REVERT + ownership invariant
+    ProtectionService.lua    timer-based plot protection (grace/post-robbery) + dome + M5 hook
+    TransitRegistry.lua      runtime set of in-transit (carried) brainrot Ids (income skips them)
     Lib/ProfileStore.luau    vendored third-party data lib (loleris)
   Client/                    → StarterPlayer > StarterPlayerScripts > Client
-    Client.client.lua        builds UI on spawn, wires remotes
+    Client.client.lua        builds UI on spawn, wires remotes, hides own steal prompts
     UI/Theme.lua             colors + fonts (single styling source)
     UI/Builder.lua           declarative instance/panel helpers
     UI/HUD.lua               top cash pill (count-up) + Shop/Inventory buttons
     UI/Shop.lua              data-driven catalog rows + reactive Buy buttons
     UI/Inventory.lua         owned list, fetched via RemoteFunction
-    UI/Notifications.lua     transient toast stack
+    UI/Notifications.lua     transient toast stack (victim "stole your X!" alerts)
+    UI/KillFeed.lua          everyone-sees steal banner (server broadcast)
   Shared/                    → ReplicatedStorage > Shared
     Config.lua               plot/world tuning (brainrot stats now live in Catalog)
     Rarity.lua               rarity ladder: tier names, colors, order (single source)
     Catalog.lua              full data-driven brainrot ROSTER + economy curve
+    StealConfig.lua          ALL steal/carry/defense tunables (one retune surface)
     Format.lua               compact number formatter (1.2K / 3.4M / 1B)
   StarterGui/                → StarterGui
   ServerStorage/             → ServerStorage > Assets  (plot/brainrot model templates later)
@@ -86,6 +91,35 @@ an entry's `ModelName` is dropped into `ServerStorage/Assets` (same forward-comp
 plots). Per-player **unlocked-pad count** is saved (`ProfileManager.SetUnlockedPads` is the hook
 M5's pad gamepass will call) and a **Discovered** set records every roster Id ever owned — both
 reconcile onto existing M1/M2 saves with no migration.
+
+### Steal mechanic & defense (M4)
+
+The core hook. A brainrot is always in one of two states, and **ownership only ever changes
+in one guarded, atomic function** so it can never be duplicated or lost:
+
+- **ON_PAD** → **IN_TRANSIT** (INITIATE): a server-side `ProximityPrompt` completion lifts the
+  unit off the victim's pad and welds a carried model to the thief. The unit *stays in the
+  victim's data* (flagged in-transit only via `TransitRegistry`, never saved) and earns for no
+  one. All preconditions are re-checked on the server.
+- **IN_TRANSIT** → **ON_PAD** (DEPOSIT): when a server-side distance check finds the thief near
+  their own **reserved** pad, `transferOwnership` does `table.remove(victim)` +
+  `table.insert(thief)` with no yields between — the only ownership change in the system.
+- **IN_TRANSIT** → **ON_PAD** (REVERT): on thief death/disconnect/timeout or victim leave, the
+  carry is torn down and the unit returns to the victim (a no-op on ownership).
+
+Leaving players are fully resolved (`StealService.ResolvePlayer`) **before** their profile is
+released/saved, so a save can never capture duped or half-moved state. The double-steal race is
+closed by an `ActiveSteals[id]` guard set before any yield. The invariant audit lives at the top
+of `StealService.lua`.
+
+**Defense** is simple and timer-based (`ProtectionService`): a new-player grace window and a
+post-robbery shield, shown as a translucent dome + countdown. While protected, steal prompts are
+disabled and the server rejects steals. `ProtectionService.ExtendProtection(player, seconds)` is
+the public hook M5's gamepass will call — no monetization is built this milestone.
+
+**Retune everything in one file — `src/Shared/StealConfig.lua`:** `HoldDuration`,
+`PromptMaxDistance`, `DepositRange`, `CarryTimeout`, `CarryWalkSpeedMult`, `CarryBob`,
+`StealCooldown`, `PostStealImmunity`, `NewPlayerGrace`, `PostRobberyProtection`.
 
 ### Data saving (ProfileStore)
 

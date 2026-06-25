@@ -6,14 +6,20 @@
 -- This is separate from the M1 leaderstats IntValue, which is intentionally kept for
 -- the Roblox player list.
 
+local TransitRegistry = require(script.Parent.TransitRegistry)
+
 local PlayerStats = {}
 
 local MAX_INT_VALUE = 2147483647
 
+-- A brainrot being carried (in-transit) earns for no one, so it is excluded from the
+-- displayed IncomePerSec exactly as IncomeService excludes it from cash accrual.
 local function totalIncome(profile)
     local sum = 0
     for _, brainrot in ipairs(profile.Data.OwnedBrainrots) do
-        sum += brainrot.IncomePerSec
+        if not TransitRegistry.Has(brainrot.Id) then
+            sum += brainrot.IncomePerSec
+        end
     end
     return sum
 end

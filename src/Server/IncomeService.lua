@@ -13,6 +13,7 @@ local RunService = game:GetService("RunService")
 local ProfileManager = require(script.Parent.ProfileManager)
 local Leaderstats = require(script.Parent.Leaderstats)
 local PlayerStats = require(script.Parent.PlayerStats)
+local TransitRegistry = require(script.Parent.TransitRegistry)
 
 local IncomeService = {}
 
@@ -37,7 +38,10 @@ function IncomeService.Start()
             if profile ~= nil then
                 local ratePerSec = 0
                 for _, brainrot in ipairs(profile.Data.OwnedBrainrots) do
-                    ratePerSec += brainrot.IncomePerSec
+                    -- Skip brainrots currently being carried in a steal -- they earn for no one.
+                    if not TransitRegistry.Has(brainrot.Id) then
+                        ratePerSec += brainrot.IncomePerSec
+                    end
                 end
                 if ratePerSec > 0 then
                     profile.Data.Cash += ratePerSec * deltaTime

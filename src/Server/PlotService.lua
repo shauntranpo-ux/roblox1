@@ -17,6 +17,7 @@ local PAD_SIZE = Vector3.new(6, 1, 6)
 
 local plots = {} -- array of plot records (see PlotService.Init)
 local assigned = {} -- [Player] = plot record
+local reserved = {} -- [Player] = { [padIndex] = true } pads held for an in-progress steal deposit
 local plotsFolder = nil
 
 -- Looks for an optional art Model in ServerStorage/Assets. Returns nil in M1.
@@ -121,6 +122,7 @@ function PlotService.Init()
             Model = model,
             Pads = pads,
             Owner = nil,
+            Origin = origin, -- plot center CFrame (used to place the protection dome)
             -- Where the player's character is placed so the plot reads as "their base".
             SpawnCFrame = origin * CFrame.new(0, 6, 14),
         }
@@ -143,13 +145,15 @@ function PlotService.AssignPlot(player)
     return nil
 end
 
--- Frees the player's plot on leave so the next player can use it.
+-- Frees the player's plot on leave so the next player can use it. Also drops any pad
+-- reservations they were holding.
 function PlotService.FreePlot(player)
     local plot = assigned[player]
     if plot ~= nil then
         plot.Owner = nil
         assigned[player] = nil
     end
+    reserved[player] = nil
 end
 
 function PlotService.GetPlot(player)
@@ -164,6 +168,64 @@ function PlotService.GetPads(player)
         return {}
     end
     return plot.Pads
+end
+
+-- Returns a single pad instance by index (nil if absent). Used for the server-side deposit
+-- distance check against the thief's real character position.
+function PlotService.GetPad(player, index)
+    local plot = assigned[player]
+    if plot == nil then
+        return nil
+    end
+    return plot.Pads[index]
+end
+
+-- Finds the lowest free PadIndex for a player: a pad that physically exists, is within the
+-- player's unlocked-pad cap, is NOT occupied by an owned brainrot, and is NOT reserved by an
+-- in-progress steal deposit. THE single free-pad authority used by both purchases and steals
+-- so the two can never hand out the same pad. Returns the index, or nil if the base is full.
+function PlotService.FindFreePad(player, profile)
+    local plot = assigned[player]
+    if plot == nil then
+        return nil
+    end
+
+    local used = {}
+    for _, brainrot in ipairs(profile.Data.OwnedBrainrots) do
+        used[brainrot.PadIndex] = true
+    end
+    local heldPads = reserved[player]
+    if heldPads ~= nil then
+        for index in pairs(heldPads) do
+            used[index] = true
+        end
+    end
+
+    local unlocked = profile.Data.UnlockedPads or Config.Plots.PadsPerPlot
+    local cap = math.min(unlocked, Config.Plots.PadsPerPlot)
+    for index = 1, cap do
+        if plot.Pads[index] ~= nil and not used[index] then
+            return index
+        end
+    end
+    return nil
+end
+
+-- Reserves a pad for an in-progress steal so nothing else (a purchase or another steal)
+-- can claim it before the carried unit is deposited there.
+function PlotService.ReservePad(player, index)
+    if reserved[player] == nil then
+        reserved[player] = {}
+    end
+    reserved[player][index] = true
+end
+
+-- Releases a previously reserved pad (on deposit success or any revert/failure).
+function PlotService.ReleasePad(player, index)
+    local heldPads = reserved[player]
+    if heldPads ~= nil then
+        heldPads[index] = nil
+    end
 end
 
 -- Teleports the player's character onto their assigned base.

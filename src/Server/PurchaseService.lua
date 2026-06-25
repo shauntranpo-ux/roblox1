@@ -6,13 +6,13 @@ local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Config = require(ReplicatedStorage.Shared.Config)
 local Catalog = require(ReplicatedStorage.Shared.Catalog)
 
 local Remotes = require(script.Parent.Remotes)
 local ProfileManager = require(script.Parent.ProfileManager)
 local PlotService = require(script.Parent.PlotService)
 local BrainrotService = require(script.Parent.BrainrotService)
+local ProtectionService = require(script.Parent.ProtectionService)
 local PlayerStats = require(script.Parent.PlayerStats)
 local Leaderstats = require(script.Parent.Leaderstats)
 
@@ -20,25 +20,6 @@ local PurchaseService = {}
 
 local PURCHASE_COOLDOWN = 0.5 -- seconds; blocks spam / double-spend races
 local lastPurchase = {} -- [Player] = os.clock()
-
--- Finds the lowest free PadIndex on the player's plot that actually has a pad part AND is
--- within the player's unlocked-pad count. The cap is min(UnlockedPads, physical pads), so
--- the M3 pad-capacity foundation is enforced here (M5 raises UnlockedPads to unlock more).
-local function findFreePad(player, profile)
-    local pads = PlotService.GetPads(player)
-    local used = {}
-    for _, brainrot in ipairs(profile.Data.OwnedBrainrots) do
-        used[brainrot.PadIndex] = true
-    end
-    local unlocked = profile.Data.UnlockedPads or Config.Plots.PadsPerPlot
-    local cap = math.min(unlocked, Config.Plots.PadsPerPlot)
-    for index = 1, cap do
-        if pads[index] ~= nil and not used[index] then
-            return index
-        end
-    end
-    return nil
-end
 
 local function onPurchase(player, itemId)
     -- Rate-limit before doing anything so spamming can't race the economy.
@@ -76,7 +57,9 @@ local function onPurchase(player, itemId)
         return
     end
 
-    local padIndex = findFreePad(player, profile)
+    -- Shared free-pad authority: excludes owned pads AND pads reserved for an in-progress
+    -- steal deposit, so a purchase and a steal can never be handed the same pad.
+    local padIndex = PlotService.FindFreePad(player, profile)
     if padIndex == nil then
         Remotes.NotifyPlayer(player, "error", "No free pads")
         return
@@ -97,6 +80,9 @@ local function onPurchase(player, itemId)
 
     -- Reuse M1's placement so spawn logic lives in exactly one place.
     BrainrotService.SpawnBrainrot(player, plot, brainrot)
+    -- If the buyer's plot is currently protected, the new unit's steal prompt must stay
+    -- disabled too (re-applies protection state to the freshly spawned prompt).
+    ProtectionService.RefreshPrompts(player)
 
     -- Refresh replicated display values + the player-list leaderstat. ProfileStore
     -- auto-saves; the deducted cash and new brainrot persist with no manual save.

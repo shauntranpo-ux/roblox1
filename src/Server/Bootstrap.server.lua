@@ -14,16 +14,20 @@ local Leaderstats = require(script.Parent.Leaderstats)
 local PlayerStats = require(script.Parent.PlayerStats)
 local PurchaseService = require(script.Parent.PurchaseService)
 local InventoryService = require(script.Parent.InventoryService)
+local ProtectionService = require(script.Parent.ProtectionService)
+local StealService = require(script.Parent.StealService)
 
-print("[BRAINROT] M3 starting -- rarity roster + scaling economy")
+print("[BRAINROT] M4 starting -- steal mechanic + timer-based defense")
 
--- Data layer, network surface, world, income loop, then the client-facing handlers.
+-- Data layer, network surface, world, defense, income loop, then the client-facing handlers.
 ProfileManager.Init()
 Remotes.Init()
 PlotService.Init()
+ProtectionService.Init()
 IncomeService.Start()
 PurchaseService.Init()
 InventoryService.Init()
+StealService.Init()
 
 local handled = {} -- [Player] = true, guards against double-joins (Studio Play Solo)
 
@@ -59,6 +63,10 @@ local function onPlayerAdded(player)
     BrainrotService.SetupPlayer(player, profile, plot)
     PlayerStats.Setup(player, profile)
 
+    -- New-player grace: protect the base on spawn (raises the dome + disables the steal
+    -- prompts on their units until the grace window expires).
+    ProtectionService.GrantGrace(player)
+
     -- 4) Place the character on the base now and on every respawn.
     player.CharacterAdded:Connect(function()
         onCharacterAdded(player)
@@ -70,6 +78,10 @@ end
 
 local function onPlayerRemoving(player)
     handled[player] = nil
+    -- ORDERING IS CRITICAL: settle every steal this player is in (as thief OR victim) FIRST,
+    -- while their profile is still loaded, so the save captures correct, un-duped ownership.
+    StealService.ResolvePlayer(player)
+    ProtectionService.ClearPlayer(player)
     BrainrotService.ClearPlayer(player)
     PlotService.FreePlot(player)
     ProfileManager.ReleaseProfile(player)

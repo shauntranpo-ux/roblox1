@@ -10,6 +10,7 @@ local Remotes = {}
 Remotes.PurchaseRequest = nil -- RemoteEvent  : client -> server, fires an item id only
 Remotes.GetInventory = nil -- RemoteFunction : client -> server, returns owned brainrots
 Remotes.Notify = nil -- RemoteEvent  : server -> client, toast { Kind, Message }
+Remotes.KillFeed = nil -- RemoteEvent  : server -> ALL clients, steal banner { Thief, Victim, Name, Rarity }
 
 local folder = nil
 
@@ -33,17 +34,30 @@ function Remotes.Init()
     notify.Name = "Notify"
     notify.Parent = folder
 
+    local killFeed = Instance.new("RemoteEvent")
+    killFeed.Name = "KillFeed"
+    killFeed.Parent = folder
+
     folder.Parent = ReplicatedStorage
 
     Remotes.PurchaseRequest = purchase
     Remotes.GetInventory = getInventory
     Remotes.Notify = notify
+    Remotes.KillFeed = killFeed
 end
 
 -- Sends a toast to a single player. kind = "success" | "error" | "info".
 function Remotes.NotifyPlayer(player, kind, message)
     if Remotes.Notify ~= nil then
         Remotes.Notify:FireClient(player, { Kind = kind, Message = message })
+    end
+end
+
+-- Broadcasts a steal to EVERY client for the kill-feed banner. payload =
+-- { Thief, Victim, Name, Rarity } (Rarity is a key the client colors via Shared/Rarity).
+function Remotes.BroadcastKillFeed(payload)
+    if Remotes.KillFeed ~= nil then
+        Remotes.KillFeed:FireAllClients(payload)
     end
 end
 

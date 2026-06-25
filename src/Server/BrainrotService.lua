@@ -1,11 +1,11 @@
--- BrainrotService: grants the starter brainrot to new players, restores owned brainrots
--- onto their saved pads, and spawns the in-world visuals.
+-- BrainrotService: grants the starter brainrot, restores owned brainrots onto their saved
+-- pads, and owns ALL brainrot visuals -- both the on-pad units and the carried model used
+-- during a steal.
 --
--- Until real art exists each unit is a placeholder anchored Part, TINTED to its rarity
--- color with a matching outline + a rarity-colored name/income BillboardGui, so tiers are
--- distinguishable at a glance. FORWARD-COMPAT (same pattern as plots): if a Model named
--- after the entry's ModelName exists in ServerStorage/Assets, that real art is cloned
--- instead; the placeholder is only the fallback.
+-- On-pad units are rarity-tinted placeholder parts (or cloned Assets models if present),
+-- each carrying a "Hold to steal" ProximityPrompt tagged with its owner + unique Id so the
+-- server can resolve a steal authoritatively. Models are tracked PER PLAYER, KEYED BY the
+-- brainrot's unique Id, so StealService can remove/respawn exactly one unit.
 
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -14,10 +14,11 @@ local ServerStorage = game:GetService("ServerStorage")
 local Catalog = require(ReplicatedStorage.Shared.Catalog)
 local Rarity = require(ReplicatedStorage.Shared.Rarity)
 local Format = require(ReplicatedStorage.Shared.Format)
+local StealConfig = require(ReplicatedStorage.Shared.StealConfig)
 
 local BrainrotService = {}
 
-local spawnedParts = {} -- [Player] = array of Instances to clean up on leave
+local spawnedModels = {} -- [Player] = { [brainrotId] = Instance } on-pad models
 
 -- Resolves a brainrot's definition from its Type (a roster Id). Unknown/stale types fall
 -- back to the starter entry so an old save can never error a lookup.
@@ -26,7 +27,6 @@ local function resolveDef(brainrotType)
 end
 
 -- Looks for an optional real-art Model in ServerStorage/Assets named after def.ModelName.
--- Returns nil while ModelName is unset (the M3 placeholder era).
 local function getModelTemplate(def)
     if def.ModelName == nil then
         return nil
@@ -38,12 +38,41 @@ local function getModelTemplate(def)
     return nil
 end
 
--- The world position for a unit sitting on a pad.
 local function placementCFrame(pad)
     return pad.CFrame * CFrame.new(0, pad.Size.Y / 2 + 2, 0)
 end
 
--- Builds the rarity-tinted placeholder visual for one brainrot on a pad.
+-- The main BasePart of a spawned instance (the part to host the prompt + adornees).
+local function mainPart(instance)
+    if instance:IsA("BasePart") then
+        return instance
+    end
+    return instance.PrimaryPart or instance:FindFirstChildWhichIsA("BasePart")
+end
+
+-- Adds the rarity-colored name/income BillboardGui to a part.
+local function addInfoLabel(part, def, incomePerSec)
+    local rarity = Rarity.Get(def.Rarity)
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "Info"
+    billboard.Size = UDim2.fromScale(4.5, 1.6)
+    billboard.StudsOffsetWorldSpace = Vector3.new(0, 3.2, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Adornee = part
+    billboard.Parent = part
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.fromScale(1, 1)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = rarity.Color
+    label.TextStrokeTransparency = 0.4
+    label.TextScaled = true
+    label.Font = Enum.Font.GothamBold
+    label.Text = def.DisplayName .. "\n+$" .. Format.short(incomePerSec) .. "/s"
+    label.Parent = billboard
+end
+
+-- Builds the rarity-tinted placeholder visual for one on-pad brainrot.
 local function makeBrainrotPart(def, brainrot, pad)
     local rarity = Rarity.Get(def.Rarity)
 
@@ -65,29 +94,32 @@ local function makeBrainrotPart(def, brainrot, pad)
     box.SurfaceTransparency = 0.85
     box.Parent = part
 
-    local billboard = Instance.new("BillboardGui")
-    billboard.Name = "Info"
-    billboard.Size = UDim2.fromScale(4.5, 1.6)
-    billboard.StudsOffsetWorldSpace = Vector3.new(0, 3.2, 0)
-    billboard.AlwaysOnTop = true
-    billboard.Adornee = part
-    billboard.Parent = part
-
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.fromScale(1, 1)
-    label.BackgroundTransparency = 1
-    label.TextColor3 = rarity.Color -- name + rate in the rarity color
-    label.TextStrokeTransparency = 0.4
-    label.TextScaled = true
-    label.Font = Enum.Font.GothamBold
-    label.Text = def.DisplayName .. "\n+$" .. Format.short(brainrot.IncomePerSec) .. "/s"
-    label.Parent = billboard
-
+    addInfoLabel(part, def, brainrot.IncomePerSec)
     return part
 end
 
--- Spawns a single brainrot onto its pad and tracks it for cleanup. Shared by both the
--- join-time restore and purchases, so placement lives in exactly one place.
+-- Attaches the "Hold to steal" prompt to an on-pad unit. The prompt is tagged with the
+-- owner + brainrot Id; StealService re-validates EVERYTHING on the server when it fires, so
+-- this prompt is only a trigger, never a source of truth. Owner-side hiding and protection
+-- disabling are layered on top (see StealController / ProtectionService).
+local function attachStealPrompt(targetPart, owner, brainrot, def)
+    if targetPart == nil then
+        return
+    end
+    local prompt = Instance.new("ProximityPrompt")
+    prompt.Name = "StealPrompt"
+    prompt.ActionText = "Steal"
+    prompt.ObjectText = def.DisplayName
+    prompt.HoldDuration = StealConfig.HoldDuration
+    prompt.MaxActivationDistance = StealConfig.PromptMaxDistance
+    prompt.RequiresLineOfSight = false
+    prompt:SetAttribute("BrainrotId", brainrot.Id)
+    prompt:SetAttribute("OwnerUserId", owner.UserId)
+    prompt.Parent = targetPart
+end
+
+-- Spawns a single on-pad brainrot and tracks it by Id for steal lookups + cleanup. Shared by
+-- the join-time restore, purchases, and steal deposits, so placement lives in one place.
 function BrainrotService.SpawnBrainrot(player, plot, brainrot)
     local pad = plot.Pads[brainrot.PadIndex]
     if pad == nil then
@@ -103,25 +135,101 @@ function BrainrotService.SpawnBrainrot(player, plot, brainrot)
     if template ~= nil then
         instance = template:Clone()
         instance.Name = "Brainrot_" .. brainrot.Id
+        local part = mainPart(instance)
+        if part ~= nil then
+            addInfoLabel(part, def, brainrot.IncomePerSec)
+        end
         if instance:IsA("Model") then
             instance:PivotTo(placementCFrame(pad))
         end
     else
         instance = makeBrainrotPart(def, brainrot, pad)
     end
+
+    attachStealPrompt(mainPart(instance), player, brainrot, def)
     instance.Parent = plot.Model
 
-    if spawnedParts[player] == nil then
-        spawnedParts[player] = {}
+    if spawnedModels[player] == nil then
+        spawnedModels[player] = {}
     end
-    table.insert(spawnedParts[player], instance)
+    spawnedModels[player][brainrot.Id] = instance
+end
+
+-- Removes one on-pad model by Id (used when a steal lifts it off the pad). Safe if missing.
+function BrainrotService.RemoveModel(player, brainrotId)
+    local models = spawnedModels[player]
+    if models == nil then
+        return
+    end
+    local instance = models[brainrotId]
+    if instance ~= nil then
+        instance:Destroy()
+        models[brainrotId] = nil
+    end
+end
+
+function BrainrotService.GetModel(player, brainrotId)
+    local models = spawnedModels[player]
+    if models == nil then
+        return nil
+    end
+    return models[brainrotId]
+end
+
+-- Enables/disables the steal prompts on all of a player's on-pad units (used by
+-- ProtectionService to lock a protected plot). Server re-validates regardless.
+function BrainrotService.SetPromptsEnabled(player, enabled)
+    local models = spawnedModels[player]
+    if models == nil then
+        return
+    end
+    for _, instance in pairs(models) do
+        local prompt = instance:FindFirstChildWhichIsA("ProximityPrompt", true)
+        if prompt ~= nil then
+            prompt.Enabled = enabled
+        end
+    end
+end
+
+-- Builds the carried model for a steal: a lightweight rarity-tinted part welded above the
+-- thief's HumanoidRootPart. Server-created so the weld replicates to every client. The weld
+-- is named "CarryWeld" so StealService can bob it. Returns the part (nil if no HRP).
+function BrainrotService.MakeCarriedModel(character, brainrotType, incomePerSec)
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if hrp == nil then
+        return nil
+    end
+    local def = resolveDef(brainrotType)
+    local rarity = Rarity.Get(def.Rarity)
+
+    local part = Instance.new("Part")
+    part.Name = "CarriedBrainrot"
+    part.Anchored = false
+    part.CanCollide = false
+    part.Massless = true -- never affect the thief's movement physics
+    part.Size = Vector3.new(3, 3, 3)
+    part.Material = Enum.Material.SmoothPlastic
+    part.Color = rarity.Color
+    part.CFrame = hrp.CFrame * CFrame.new(0, 3, 0)
+
+    addInfoLabel(part, def, incomePerSec)
+
+    local weld = Instance.new("Weld")
+    weld.Name = "CarryWeld"
+    weld.Part0 = hrp
+    weld.Part1 = part
+    weld.C0 = CFrame.new(0, 3, 0)
+    weld.Parent = part
+
+    part.Parent = character
+    return part
 end
 
 -- Grants a brand-new player exactly one starter brainrot (the cheapest Common in the
 -- roster) at pad 1, or leaves an existing roster untouched. Then spawns every owned
 -- brainrot on its pad and records each as discovered.
 function BrainrotService.SetupPlayer(player, profile, plot)
-    spawnedParts[player] = {}
+    spawnedModels[player] = {}
 
     if #profile.Data.OwnedBrainrots == 0 then
         local starter = Catalog.GetStarter()
@@ -141,14 +249,15 @@ function BrainrotService.SetupPlayer(player, profile, plot)
     end
 end
 
--- Destroys the player's spawned brainrot visuals on leave.
+-- Destroys the player's spawned on-pad brainrot visuals on leave. (The carried model, if
+-- any, is owned by StealService and resolved separately before this runs.)
 function BrainrotService.ClearPlayer(player)
-    local list = spawnedParts[player]
-    if list ~= nil then
-        for _, instance in ipairs(list) do
+    local models = spawnedModels[player]
+    if models ~= nil then
+        for _, instance in pairs(models) do
             instance:Destroy()
         end
-        spawnedParts[player] = nil
+        spawnedModels[player] = nil
     end
 end
 

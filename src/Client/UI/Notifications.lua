@@ -67,6 +67,7 @@ function Notifications.show(kind, message)
             Size = UDim2.new(1, -14, 0, 0),
             AutomaticSize = Enum.AutomaticSize.Y,
             Font = Theme.FontBold,
+            RichText = true, -- lets server-sent messages rarity-color a name span
             Text = tostring(message),
             TextColor3 = Theme.Colors.Text,
             TextSize = 18,
@@ -90,8 +91,9 @@ function Notifications.show(kind, message)
     end)
 end
 
--- FUTURE (M4): the server will call this channel for steal alerts, e.g.
---   Notifications.show("error", "Someone stole your " .. name .. "!")
--- No steal logic exists yet -- this is only a wiring reminder.
+-- M4: the server drives steal alerts through this same channel -- StealService sends the
+-- victim an "error" toast ("<Thief> stole your <rarity-colored Name>!") via the Notify
+-- remote, rendered here with RichText. (The everyone-sees kill-feed banner is separate; see
+-- UI/KillFeed.)
 
 return Notifications
