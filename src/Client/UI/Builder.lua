@@ -1,5 +1,8 @@
--- Builder: tiny declarative helpers for constructing UI in code. Keeps every screen
--- terse and consistent. No Studio-authored GUI anywhere.
+-- Builder: declarative UI construction helpers + the THEMED COMPONENT KIT (the glossy "simulator"
+-- look). Everything reads Theme tokens, so the whole game restyles from Theme. No Studio-authored
+-- GUI anywhere. Click ripple + click sound are global (see ClickFX), so buttons only need the squish.
+
+local TweenService = game:GetService("TweenService")
 
 local Theme = require(script.Parent.Theme)
 
@@ -43,8 +46,7 @@ function Builder.padding(pixels)
     })
 end
 
--- A ScreenGui with sensible, safe-area-aware defaults. ScreenInsets is set defensively
--- in case an older client lacks the enum value.
+-- A ScreenGui with sensible, safe-area-aware defaults.
 function Builder.screenGui(name, parent, enabled)
     local gui = Builder.create("ScreenGui", {
         Name = name,
@@ -59,60 +61,257 @@ function Builder.screenGui(name, parent, enabled)
     return gui
 end
 
--- Builds a standard centered modal panel: dark background, a titled header with a close
--- button, and a scrolling content area. Returns the ScrollingFrame to fill with rows.
-function Builder.panel(parent, title, onClose)
+-- ===========================================================================================
+-- Themed component kit (chunky font + dark outline + gloss; reads Theme)
+-- ===========================================================================================
+
+-- Applies the signature recipe to a text label: chunky display font + a heavy dark glyph outline +
+-- a soft built-in text shadow. opts: { font, stroke, softShadow }.
+function Builder.applyChrome(label, opts)
+    opts = opts or {}
+    label.Font = opts.font or Theme.FontDisplay
+    label.TextStrokeColor3 = Theme.Colors.Outline
+    label.TextStrokeTransparency = opts.softShadow == false and 1 or 0.35
+    Builder.create("UIStroke", {
+        Color = Theme.Stroke.Color,
+        Thickness = opts.stroke or Theme.Stroke.Width,
+        Transparency = Theme.Stroke.Transparency,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
+        Parent = label,
+    })
+    return label
+end
+
+-- A glossy rounded button that squishes on press (ripple + sound are handled globally by ClickFX).
+-- props: Size/Position/AnchorPoint/LayoutOrder/Parent/Text/color/textColor/radius/maxText/font.
+function Builder.glossButton(props, onClick)
+    props = props or {}
+    local radius = props.radius or Theme.Radius.Button
+    local button = Builder.create("TextButton", {
+        Size = props.Size or UDim2.fromOffset(120, 48),
+        Position = props.Position,
+        AnchorPoint = props.AnchorPoint,
+        LayoutOrder = props.LayoutOrder,
+        BackgroundColor3 = props.color or Theme.Colors.Accent,
+        BorderSizePixel = 0,
+        AutoButtonColor = false,
+        Font = props.font or Theme.FontDisplay,
+        Text = props.Text or "",
+        TextColor3 = props.textColor or Theme.Colors.Text,
+        TextScaled = props.TextScaled ~= false,
+        Parent = props.Parent,
+    }, {
+        Builder.corner(radius),
+        Builder.create("UIStroke", {
+            Color = Theme.Colors.Outline,
+            Thickness = 2.5,
+            Transparency = 0.15,
+        }),
+        Builder.create("UITextSizeConstraint", { MaxTextSize = props.maxText or 22 }),
+        -- Glossy top sheen (non-interactive; sits behind the text).
+        Builder.create("Frame", {
+            Size = UDim2.fromScale(1, 0.45),
+            BackgroundColor3 = Theme.Colors.GlossTop,
+            BackgroundTransparency = 0.8,
+            BorderSizePixel = 0,
+            ZIndex = 0,
+        }, { Builder.corner(radius) }),
+    })
+    button.TextStrokeColor3 = Theme.Colors.Outline
+    button.TextStrokeTransparency = 0.4
+
+    local function squish()
+        if button:GetAttribute("BaseSize") == nil then
+            button:SetAttribute("BaseSize", button.Size)
+        end
+        local base = button:GetAttribute("BaseSize")
+        local k = Theme.Juice.ButtonSquish
+        button.Size =
+            UDim2.new(base.X.Scale * k, base.X.Offset * k, base.Y.Scale * k, base.Y.Offset * k)
+    end
+    local function restore()
+        local base = button:GetAttribute("BaseSize")
+        if base ~= nil then
+            TweenService:Create(button, Theme.Tween.Squish, { Size = base }):Play()
+        end
+    end
+    button.InputBegan:Connect(function(input)
+        if
+            input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch
+        then
+            squish()
+        end
+    end)
+    button.InputEnded:Connect(function(input)
+        if
+            input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch
+        then
+            restore()
+        end
+    end)
+    if onClick ~= nil then
+        button.Activated:Connect(onClick)
+    end
+    return button
+end
+
+-- A glossy gradient header bar (its own accent), chunky title on the left, round red X on the right.
+function Builder.glossHeader(parent, title, accentKey, onClose)
+    local header = Builder.create("Frame", {
+        Position = UDim2.fromOffset(8, 8),
+        Size = UDim2.new(1, -16, 0, Theme.HeaderHeight),
+        BackgroundColor3 = Theme.accentColor(accentKey),
+        BorderSizePixel = 0,
+        Parent = parent,
+    }, {
+        Builder.corner(Theme.Radius.Card),
+        Theme.gradient(accentKey),
+        Builder.create("UIStroke", {
+            Color = Theme.Colors.Outline,
+            Thickness = 2,
+            Transparency = 0.25,
+        }),
+        Builder.create("Frame", { -- top gloss sheen
+            Size = UDim2.fromScale(1, 0.5),
+            BackgroundColor3 = Theme.Colors.GlossTop,
+            BackgroundTransparency = 0.78,
+            BorderSizePixel = 0,
+            ZIndex = 0,
+        }, { Builder.corner(Theme.Radius.Card) }),
+    })
+
+    local titleLabel = Builder.create("TextLabel", {
+        Position = UDim2.fromOffset(16, 0),
+        Size = UDim2.new(1, -72, 1, 0),
+        BackgroundTransparency = 1,
+        Text = title,
+        TextColor3 = Theme.Colors.Text,
+        TextScaled = true,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = header,
+    }, { Builder.create("UITextSizeConstraint", { MaxTextSize = 30 }) })
+    Builder.applyChrome(titleLabel)
+
+    Builder.glossButton({
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -8, 0.5, 0),
+        Size = UDim2.fromOffset(38, 38),
+        color = Theme.Colors.Danger,
+        Text = "X",
+        radius = UDim.new(1, 0),
+        maxText = 22,
+        Parent = header,
+    }, onClose)
+    return header
+end
+
+-- A rounded glossy PILL tab button. Pair with setPillSelected for the selected state.
+function Builder.pillTab(parent, text, order, onClick)
+    local tab = Builder.create("TextButton", {
+        LayoutOrder = order,
+        Size = UDim2.fromScale(0, 1),
+        AutomaticSize = Enum.AutomaticSize.X,
+        BackgroundColor3 = Theme.Colors.Row,
+        BackgroundTransparency = 0.2,
+        BorderSizePixel = 0,
+        AutoButtonColor = false,
+        Font = Theme.FontDisplay,
+        Text = "  " .. text .. "  ",
+        TextColor3 = Theme.Colors.SubText,
+        TextSize = 18,
+        Parent = parent,
+    }, {
+        Builder.corner(Theme.Radius.Pill),
+        Builder.create("UIStroke", {
+            Color = Theme.Colors.Outline,
+            Thickness = 2,
+            Transparency = 0.3,
+        }),
+    })
+    if onClick ~= nil then
+        tab.Activated:Connect(onClick)
+    end
+    return tab
+end
+
+-- Sets a pill tab's selected look (accent-filled vs muted).
+function Builder.setPillSelected(tab, accentKey, selected)
+    tab.BackgroundColor3 = selected and Theme.accentColor(accentKey) or Theme.Colors.Row
+    tab.BackgroundTransparency = selected and 0 or 0.25
+    tab.TextColor3 = selected and Theme.Colors.Text or Theme.Colors.SubText
+end
+
+-- Adds a rarity-colored border + translucent rounded card look to an existing frame (once).
+function Builder.rarityCard(frame, rarityColor)
+    if frame:GetAttribute("Carded") then
+        return frame
+    end
+    frame:SetAttribute("Carded", true)
+    frame.BackgroundColor3 = Theme.Colors.Row
+    frame.BackgroundTransparency = 0.25
+    if frame:FindFirstChildOfClass("UICorner") == nil then
+        Builder.corner(Theme.Radius.Card).Parent = frame
+    end
+    Builder.create("UIStroke", {
+        Color = rarityColor,
+        Thickness = 2.5,
+        Transparency = 0.1,
+        Parent = frame,
+    })
+    return frame
+end
+
+-- Consistent scroll styling (subtle accent bar, smooth, auto canvas).
+function Builder.styleScroll(scroll)
+    scroll.ScrollBarThickness = 5
+    scroll.ScrollBarImageColor3 = Theme.Colors.Accent
+    scroll.ScrollBarImageTransparency = 0.25
+    scroll.ScrollingDirection = Enum.ScrollingDirection.Y
+    scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    scroll.CanvasSize = UDim2.new()
+    scroll.ElasticBehavior = Enum.ElasticBehavior.Always
+    return scroll
+end
+
+-- Builds the standard centered modal panel: a translucent gradient body with a thick dark outline,
+-- a glossy accent header (icon-less title + round red X), and a styled scrolling content area.
+-- `accentKey` (optional) picks the header gradient from Theme.Accents. Returns the ScrollingFrame.
+function Builder.panel(parent, title, onClose, accentKey)
+    -- Each panel's title matches a Theme.Accents key (Shop/Index/Trade/...), so the accent is
+    -- auto-derived -- no per-panel wiring. Pass accentKey explicitly to override.
+    accentKey = accentKey or (Theme.Accents[title] ~= nil and title) or "Default"
     local panel = Builder.create("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0.5, 0.5),
         Size = UDim2.fromScale(0.8, 0.64),
         BackgroundColor3 = Theme.Colors.Background,
+        BackgroundTransparency = Theme.BodyTransparency,
         BorderSizePixel = 0,
     }, {
-        Builder.corner(UDim.new(0, 18)),
-        Builder.create("UISizeConstraint", { MaxSize = Vector2.new(500, 660) }),
+        Builder.corner(Theme.Radius.Panel),
+        Builder.create("UIStroke", {
+            Color = Theme.Colors.Outline,
+            Thickness = Theme.Stroke.Width,
+            Transparency = 0.2,
+        }),
+        Builder.create("UISizeConstraint", { MaxSize = Vector2.new(520, 680) }),
+        Builder.create("UIGradient", {
+            Rotation = 90,
+            Color = ColorSequence.new(Color3.fromRGB(58, 36, 100), Theme.Colors.Background),
+        }),
     })
+    -- Mark as already glassed so PanelManager's UIStyle.applyGlass skips it (no double styling).
+    panel:SetAttribute("Glassed", true)
 
-    local header = Builder.create("Frame", {
-        Size = UDim2.new(1, 0, 0, 56),
-        BackgroundTransparency = 1,
-        Parent = panel,
-    })
-
-    Builder.create("TextLabel", {
-        BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(18, 0),
-        Size = UDim2.new(1, -76, 1, 0),
-        Font = Theme.FontBold,
-        Text = title,
-        TextColor3 = Theme.Colors.Text,
-        TextSize = 26,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Parent = header,
-    })
-
-    local close = Builder.create("TextButton", {
-        AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -12, 0.5, 0),
-        Size = UDim2.fromOffset(42, 42),
-        BackgroundColor3 = Theme.Colors.Danger,
-        BorderSizePixel = 0,
-        Font = Theme.FontBold,
-        Text = "X",
-        TextColor3 = Theme.Colors.Text,
-        TextSize = 22,
-        Parent = header,
-    }, { Builder.corner(UDim.new(1, 0)) })
-    close.Activated:Connect(onClose)
+    Builder.glossHeader(panel, title, accentKey, onClose)
 
     local list = Builder.create("ScrollingFrame", {
-        Position = UDim2.fromOffset(0, 56),
-        Size = UDim2.new(1, 0, 1, -56),
+        Position = UDim2.fromOffset(8, Theme.HeaderHeight + 16),
+        Size = UDim2.new(1, -16, 1, -(Theme.HeaderHeight + 24)),
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        ScrollBarThickness = 4,
-        CanvasSize = UDim2.new(),
-        AutomaticCanvasSize = Enum.AutomaticSize.Y,
         Parent = panel,
     }, {
         Builder.create("UIListLayout", {
@@ -120,8 +319,9 @@ function Builder.panel(parent, title, onClose)
             SortOrder = Enum.SortOrder.LayoutOrder,
             HorizontalAlignment = Enum.HorizontalAlignment.Center,
         }),
-        Builder.padding(12),
+        Builder.padding(8),
     })
+    Builder.styleScroll(list)
 
     panel.Parent = parent
     return list

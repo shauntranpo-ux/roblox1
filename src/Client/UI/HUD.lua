@@ -8,7 +8,6 @@ local TweenService = game:GetService("TweenService")
 
 local Builder = require(script.Parent.Builder)
 local Theme = require(script.Parent.Theme)
-local UIStyle = require(script.Parent.UIStyle)
 local PanelManager = require(script.Parent.PanelManager)
 local Format = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Format"))
 
@@ -30,32 +29,25 @@ local function readRate()
     return player:GetAttribute("IncomePerSec") or 0
 end
 
--- Rounded, stroked nav button. Plain text labels (no symbol glyphs -- the old "☰" rendered as a
--- missing-glyph box on some devices). The selected state is driven by PanelManager.onChange.
-local function makeButton(parent, text, order, onClick)
-    local button = Builder.create("TextButton", {
+-- Glossy nav button. Idle = muted grape; when its panel is open it lights up in that panel's accent
+-- (driven by PanelManager.onChange). The press ripple + click sound are global (ClickFX).
+local function makeNavButton(parent, label, accentKey, order, widthScale, onClick)
+    local button = Builder.glossButton({
         LayoutOrder = order,
-        Size = UDim2.fromScale(0.3, 1),
-        BackgroundColor3 = UIStyle.Colors.NavIdle,
-        BorderSizePixel = 0,
-        AutoButtonColor = true,
-        Font = Theme.FontBold,
-        Text = text,
-        TextColor3 = UIStyle.Colors.Text,
-        TextScaled = true,
+        Size = UDim2.fromScale(widthScale, 1),
+        color = Theme.Colors.Disabled,
+        Text = label,
+        radius = UDim.new(0, 14),
+        maxText = 22,
         Parent = parent,
-    }, {
-        Builder.corner(UDim.new(0, 14)),
-        Builder.padding(10),
-        Builder.create("UITextSizeConstraint", { MaxTextSize = 24 }),
-        Builder.create("UIStroke", {
-            Color = UIStyle.Colors.Stroke,
-            Thickness = 1.5,
-            Transparency = 0.35,
-        }),
-    })
-    button.Activated:Connect(onClick)
+    }, onClick)
+    button:SetAttribute("Accent", accentKey)
     return button
+end
+
+local function setNavActive(button, active)
+    local accentKey = button:GetAttribute("Accent")
+    button.BackgroundColor3 = active and Theme.accentColor(accentKey) or Theme.Colors.Disabled
 end
 
 function HUD.mount(context, actions)
@@ -91,6 +83,7 @@ function HUD.mount(context, actions)
         TextScaled = true,
         Parent = pill,
     }, { Builder.padding(4) })
+    Builder.applyChrome(cashLabel) -- chunky display font + heavy dark outline (the big dopamine number)
 
     rateLabel = Builder.create("TextLabel", {
         Name = "Rate",
@@ -103,6 +96,7 @@ function HUD.mount(context, actions)
         TextScaled = true,
         Parent = pill,
     })
+    Builder.applyChrome(rateLabel, { font = Theme.FontDisplay })
     rateBase = rateLabel.Size
 
     -- Bottom button bar (thumb-friendly on phones).
@@ -123,25 +117,40 @@ function HUD.mount(context, actions)
         Builder.create("UISizeConstraint", { MaxSize = Vector2.new(560, 84) }),
     })
 
-    local navButtons = {
-        Shop = makeButton(bar, "Shop", 1, actions.onShop),
-        Inventory = makeButton(bar, "Items", 2, actions.onInventory),
+    local navDefs = {
+        { key = "Shop", label = "Shop", accent = "Shop", click = actions.onShop },
+        { key = "Inventory", label = "Items", accent = "Inventory", click = actions.onInventory },
+        { key = "Index", label = "Index", accent = "Index", click = actions.onIndex },
+        { key = "Menu", label = "Menu", accent = "Menu", click = actions.onMenu },
     }
-    if actions.onMenu ~= nil then
-        navButtons.Menu = makeButton(bar, "Menu", 3, actions.onMenu)
+    local navButtons = {}
+    local count = 0
+    for _, def in ipairs(navDefs) do
+        if def.click ~= nil then
+            count += 1
+        end
+    end
+    local widthScale = 1 / math.max(1, count) - 0.015
+    local order = 0
+    for _, def in ipairs(navDefs) do
+        if def.click ~= nil then
+            order += 1
+            navButtons[def.key] =
+                makeNavButton(bar, def.label, def.accent, order, widthScale, def.click)
+        end
     end
     -- Highlight the nav button whose panel is currently open; revert when it closes.
     PanelManager.onChange(function(active)
-        for name, button in pairs(navButtons) do
-            UIStyle.setNavActive(button, name == active)
+        for key, button in pairs(navButtons) do
+            setNavActive(button, key == active)
         end
     end)
 
     -- Initial values + live listeners.
     targetCash = readCash()
     displayedCash = targetCash
-    cashLabel.Text = "$" .. Format.short(displayedCash)
-    rateLabel.Text = "+$" .. Format.short(readRate()) .. "/s"
+    cashLabel.Text = "$" .. Format.full(displayedCash)
+    rateLabel.Text = "+$" .. Format.full(readRate()) .. "/s"
 
     player:GetAttributeChangedSignal("Cash"):Connect(function()
         targetCash = readCash()
@@ -149,7 +158,7 @@ function HUD.mount(context, actions)
     local prevRate = readRate()
     player:GetAttributeChangedSignal("IncomePerSec"):Connect(function()
         local r = readRate()
-        rateLabel.Text = "+$" .. Format.short(r) .. "/s"
+        rateLabel.Text = "+$" .. Format.full(r) .. "/s"
         -- Juice: punch the rate label whenever income goes UP (a buy / steal landing).
         if r > prevRate then
             rateLabel.Size = UDim2.new(
@@ -173,7 +182,7 @@ function HUD.mount(context, actions)
             if math.abs(targetCash - displayedCash) < 1 then
                 displayedCash = targetCash
             end
-            cashLabel.Text = "$" .. Format.short(displayedCash)
+            cashLabel.Text = "$" .. Format.full(displayedCash)
         end
     end)
 end

@@ -19,6 +19,8 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 
 local UIStyle = require(script.Parent.UIStyle)
+local Theme = require(script.Parent.Theme)
+local Effects = require(script.Parent.Effects)
 
 local PanelManager = {}
 
@@ -63,6 +65,15 @@ local function animateIn(frame)
         { Size = base }
     )
     openTween:Play()
+
+    -- Quick fade-in alongside the scale pop.
+    local target = frame:GetAttribute("PMBaseTransparency")
+    if target == nil then
+        target = frame.BackgroundTransparency
+        frame:SetAttribute("PMBaseTransparency", target)
+    end
+    frame.BackgroundTransparency = math.min(1, target + 0.35)
+    TweenService:Create(frame, Theme.Tween.Fade, { BackgroundTransparency = target }):Play()
 end
 
 -- Reacts to ANY registered panel's Enabled flipping -- the single point that enforces the invariant.
@@ -81,10 +92,12 @@ local function onEnabledChanged(name)
             panels[prev].gui.Enabled = false
         end
         animateIn(entry.frame)
+        Effects.playSfx("open")
         notify(name)
     else
         if current == name then
             current = nil
+            Effects.playSfx("close")
             notify(nil)
         end
     end

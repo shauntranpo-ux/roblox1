@@ -10,7 +10,6 @@ local Theme = require(script.Parent.Theme)
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Format = require(Shared:WaitForChild("Format"))
 local Rarity = require(Shared:WaitForChild("Rarity"))
-local UIStyle = require(script.Parent.UIStyle)
 
 local Inventory = {}
 
@@ -34,20 +33,17 @@ local function addRow(entry, order)
 
     local row = Builder.create("Frame", {
         Size = UDim2.new(1, 0, 0, 62),
-        BackgroundColor3 = Theme.Colors.Row,
         BorderSizePixel = 0,
         LayoutOrder = order,
-    }, { Builder.corner(UDim.new(0, 12)), Builder.padding(10) })
-    -- Translucent card with a rarity-colored left accent bar (Common reads differently from rarer).
-    UIStyle.accentRow(row, rarity.Color)
+    }, { Builder.padding(10) })
+    Builder.rarityCard(row, rarity.Color) -- rarity-colored border + translucent rounded card
 
     -- Name (line 1) + rarity (line 2, rarity-colored) on the left; income on the right.
-    Builder.create("TextLabel", {
+    local nameLabel = Builder.create("TextLabel", {
         Name = "ItemName",
         BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(2, 4),
-        Size = UDim2.new(1, -132, 0, 26),
-        Font = Theme.FontBold,
+        Position = UDim2.fromOffset(4, 4),
+        Size = UDim2.new(1, -134, 0, 26),
         Text = entry.Name,
         TextColor3 = Theme.Colors.Text,
         TextSize = 18,
@@ -55,6 +51,7 @@ local function addRow(entry, order)
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = row,
     })
+    Builder.applyChrome(nameLabel, { stroke = 2 })
 
     Builder.create("TextLabel", {
         Name = "Rarity",
@@ -75,8 +72,8 @@ local function addRow(entry, order)
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, -2, 0.5, 0),
         Size = UDim2.fromOffset(122, 40),
-        Font = Theme.Font,
-        Text = "+$" .. Format.short(entry.IncomePerSec) .. "/s",
+        Font = Theme.FontBody,
+        Text = "+$" .. Format.full(entry.IncomePerSec) .. "/s",
         TextColor3 = Theme.Colors.Positive,
         TextSize = 16,
         TextXAlignment = Enum.TextXAlignment.Right,

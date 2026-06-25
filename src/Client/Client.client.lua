@@ -24,6 +24,7 @@ local Trade = require(UI.Trade)
 local Events = require(UI.Events)
 local Seasons = require(UI.Seasons)
 local PanelManager = require(UI.PanelManager)
+local ClickFX = require(UI.ClickFX)
 
 local player = Players.LocalPlayer
 
@@ -72,6 +73,9 @@ safeMount("PanelManager", function() -- the single panel authority + shared scri
 end)
 safeMount("Effects", function() -- first, so settings can apply music/shake immediately
     Effects.mount(context)
+end)
+safeMount("ClickFX", function() -- global bubble-pop ripple + click sound on every press
+    ClickFX.mount(context)
 end)
 safeMount("Notifications", function()
     Notifications.mount(context)
@@ -127,9 +131,6 @@ safeMount("Menu", function()
     Menu.addButton("⭐ Rebirth", function()
         PanelManager.open("Rebirth")
     end)
-    Menu.addButton("📖 Index", function()
-        PanelManager.open("Index")
-    end)
     Menu.addButton("🎁 Codes", function()
         PanelManager.open("Codes")
     end)
@@ -145,6 +146,9 @@ safeMount("HUD", function()
         end,
         onInventory = function()
             PanelManager.toggle("Inventory")
+        end,
+        onIndex = function()
+            PanelManager.toggle("Index")
         end,
         onMenu = function()
             PanelManager.toggle("Menu")

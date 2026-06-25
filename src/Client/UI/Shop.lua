@@ -18,7 +18,6 @@ local Format = require(Shared:WaitForChild("Format"))
 local Catalog = require(Shared:WaitForChild("Catalog"))
 local Rarity = require(Shared:WaitForChild("Rarity"))
 local Monetization = require(Shared:WaitForChild("Monetization"))
-local UIStyle = require(script.Parent.UIStyle)
 
 local Shop = {}
 
@@ -62,73 +61,76 @@ local function buildRow(item, order, parent)
 
     local row = Builder.create("Frame", {
         Size = UDim2.new(1, 0, 0, 78),
-        BackgroundColor3 = Theme.Colors.Row,
         BorderSizePixel = 0,
         LayoutOrder = order,
-    }, { Builder.corner(UDim.new(0, 12)), Builder.padding(10) })
-    -- Translucent card; the rarity-tinted icon swatch (below) already carries the rarity color.
-    UIStyle.glassRow(row)
+    }, { Builder.padding(10) })
+    Builder.rarityCard(row, rarity.Color) -- rarity-colored border + translucent rounded card
 
-    Builder.create("Frame", {
+    -- Icon swatch (roster IconId would slot in here later; rarity-tinted placeholder for now).
+    Builder.create("ImageLabel", {
         Name = "Icon",
         AnchorPoint = Vector2.new(0, 0.5),
         Position = UDim2.fromScale(0, 0.5),
         Size = UDim2.fromOffset(56, 56),
         BackgroundColor3 = rarity.Color,
         BorderSizePixel = 0,
+        Image = item.IconId ~= nil and ("rbxassetid://" .. tostring(item.IconId)) or "",
         Parent = row,
-    }, { Builder.corner(UDim.new(0, 10)) })
+    }, {
+        Builder.corner(UDim.new(0, 10)),
+        Builder.create("UIStroke", {
+            Color = Theme.Colors.Outline,
+            Thickness = 2,
+            Transparency = 0.3,
+        }),
+    })
 
-    Builder.create("TextLabel", {
+    local nameLabel = Builder.create("TextLabel", {
         Name = "ItemName",
         BackgroundTransparency = 1,
         Position = UDim2.fromOffset(68, 4),
-        Size = UDim2.new(1, -210, 0, 28),
-        Font = Theme.FontBold,
+        Size = UDim2.new(1, -232, 0, 28),
         Text = item.DisplayName,
         TextColor3 = Theme.Colors.Text,
         TextSize = 20,
+        TextScaled = false,
         TextTruncate = Enum.TextTruncate.AtEnd,
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = row,
     })
+    Builder.applyChrome(nameLabel, { stroke = 2 })
 
     Builder.create("TextLabel", {
         Name = "Detail",
         BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(68, 38),
-        Size = UDim2.new(1, -210, 0, 22),
-        Font = Theme.Font,
+        Position = UDim2.fromOffset(68, 40),
+        Size = UDim2.new(1, -232, 0, 22),
+        Font = Theme.FontBody,
         RichText = true,
         Text = string.format(
             '<font color="%s"><b>%s</b></font>   +$%s/s',
             toHex(rarity.Color),
             rarity.DisplayName,
-            Format.short(item.IncomePerSec)
+            Format.full(item.IncomePerSec)
         ),
         TextColor3 = Theme.Colors.Positive,
-        TextSize = 16,
+        TextSize = 15,
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = row,
     })
 
-    local buyButton = Builder.create("TextButton", {
-        Name = "Buy",
+    local buyButton = Builder.glossButton({
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.fromScale(1, 0.5),
-        Size = UDim2.fromOffset(122, 54),
-        BackgroundColor3 = Theme.Colors.Positive,
-        BorderSizePixel = 0,
-        Font = Theme.FontBold,
-        Text = "$" .. Format.short(item.Price),
-        TextColor3 = Theme.Colors.Text,
-        TextSize = 18,
+        Size = UDim2.fromOffset(150, 56),
+        color = Theme.Colors.Positive,
+        Text = "$" .. Format.full(item.Price),
+        maxText = 20,
         Parent = row,
-    }, { Builder.corner(UDim.new(0, 10)) })
-
-    buyButton.Activated:Connect(function()
+    }, function()
         remotes.PurchaseRequest:FireServer(item.Id)
     end)
+    buyButton.Name = "Buy"
 
     rowsById[item.Id] = { buyButton = buyButton, price = item.Price }
     row.Parent = parent
@@ -174,19 +176,16 @@ local function buildRobuxRow(entry, kind, parent)
         Parent = row,
     })
 
-    local button = Builder.create("TextButton", {
-        Name = "Action",
+    local button = Builder.glossButton({
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.fromScale(1, 0.5),
         Size = UDim2.fromOffset(120, 52),
-        BackgroundColor3 = Theme.Colors.Accent,
-        BorderSizePixel = 0,
-        Font = Theme.FontBold,
+        color = Theme.Colors.Accent,
         Text = "Buy",
-        TextColor3 = Theme.Colors.Text,
-        TextSize = 18,
+        maxText = 20,
         Parent = row,
-    }, { Builder.corner(UDim.new(0, 10)) })
+    })
+    button.Name = "Action"
 
     if kind == "Pass" then
         button.Activated:Connect(function()
@@ -256,54 +255,37 @@ function Shop.refreshAfford()
     end
 end
 
--- Builds the tabbed modal shell and returns the three content ScrollingFrames.
+-- Builds the glossy tabbed shell (gold accent) and returns the three content ScrollingFrames.
 local function buildShell()
     local panel = Builder.create("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0.5, 0.5),
         Size = UDim2.fromScale(0.82, 0.74),
         BackgroundColor3 = Theme.Colors.Background,
+        BackgroundTransparency = Theme.BodyTransparency,
         BorderSizePixel = 0,
     }, {
-        Builder.corner(UDim.new(0, 18)),
+        Builder.corner(Theme.Radius.Panel),
+        Builder.create("UIStroke", {
+            Color = Theme.Colors.Outline,
+            Thickness = Theme.Stroke.Width,
+            Transparency = 0.2,
+        }),
         Builder.create("UISizeConstraint", { MaxSize = Vector2.new(520, 720) }),
+        Builder.create("UIGradient", {
+            Rotation = 90,
+            Color = ColorSequence.new(Color3.fromRGB(58, 36, 100), Theme.Colors.Background),
+        }),
     })
+    panel:SetAttribute("Glassed", true) -- PanelManager.applyGlass skips it (no double styling)
 
-    local header = Builder.create("Frame", {
-        Size = UDim2.new(1, 0, 0, 52),
-        BackgroundTransparency = 1,
-        Parent = panel,
-    })
-    Builder.create("TextLabel", {
-        BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(18, 0),
-        Size = UDim2.new(1, -72, 1, 0),
-        Font = Theme.FontBold,
-        Text = "Shop",
-        TextColor3 = Theme.Colors.Text,
-        TextSize = 26,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Parent = header,
-    })
-    local close = Builder.create("TextButton", {
-        AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -12, 0.5, 0),
-        Size = UDim2.fromOffset(40, 40),
-        BackgroundColor3 = Theme.Colors.Danger,
-        BorderSizePixel = 0,
-        Font = Theme.FontBold,
-        Text = "X",
-        TextColor3 = Theme.Colors.Text,
-        TextSize = 22,
-        Parent = header,
-    }, { Builder.corner(UDim.new(1, 0)) })
-    close.Activated:Connect(function()
+    Builder.glossHeader(panel, "Shop", "Shop", function()
         gui.Enabled = false
     end)
 
     local tabBar = Builder.create("Frame", {
-        Position = UDim2.fromOffset(12, 54),
-        Size = UDim2.new(1, -24, 0, 40),
+        Position = UDim2.fromOffset(8, Theme.HeaderHeight + 16),
+        Size = UDim2.new(1, -16, 0, 34),
         BackgroundTransparency = 1,
         Parent = panel,
     }, {
@@ -314,9 +296,10 @@ local function buildShell()
         }),
     })
 
+    local contentTop = Theme.HeaderHeight + 16 + 34 + 10
     local contentHolder = Builder.create("Frame", {
-        Position = UDim2.fromOffset(0, 100),
-        Size = UDim2.new(1, 0, 1, -100),
+        Position = UDim2.fromOffset(8, contentTop),
+        Size = UDim2.new(1, -16, 1, -(contentTop + 10)),
         BackgroundTransparency = 1,
         Parent = panel,
     })
@@ -334,33 +317,20 @@ local function buildShell()
             scroll.Visible = (tabKey == key)
         end
         for tabKey, btn in pairs(tabButtons) do
-            local active = (tabKey == key)
-            btn.BackgroundColor3 = active and Theme.Colors.Accent or Theme.Colors.Row
-            btn.TextColor3 = active and Theme.Colors.Text or Theme.Colors.SubText
+            Builder.setPillSelected(btn, "Shop", tabKey == key)
         end
     end
 
     for i, tab in ipairs(tabDefs) do
-        local btn = Builder.create("TextButton", {
-            Size = UDim2.new(1 / 3, -6, 1, 0),
-            BackgroundColor3 = Theme.Colors.Row,
-            BorderSizePixel = 0,
-            Font = Theme.FontBold,
-            Text = tab.Title,
-            TextColor3 = Theme.Colors.SubText,
-            TextSize = 16,
-            LayoutOrder = i,
-            Parent = tabBar,
-        }, { Builder.corner(UDim.new(0, 10)) })
+        local btn = Builder.pillTab(tabBar, tab.Title, i, function()
+            setActive(tab.Key)
+        end)
 
         local scroll = Builder.create("ScrollingFrame", {
             Visible = false,
             Size = UDim2.fromScale(1, 1),
             BackgroundTransparency = 1,
             BorderSizePixel = 0,
-            ScrollBarThickness = 4,
-            CanvasSize = UDim2.new(),
-            AutomaticCanvasSize = Enum.AutomaticSize.Y,
             Parent = contentHolder,
         }, {
             Builder.create("UIListLayout", {
@@ -368,14 +338,12 @@ local function buildShell()
                 SortOrder = Enum.SortOrder.LayoutOrder,
                 HorizontalAlignment = Enum.HorizontalAlignment.Center,
             }),
-            Builder.padding(12),
+            Builder.padding(6),
         })
+        Builder.styleScroll(scroll)
 
         built[tab.Key] = scroll
         tabButtons[tab.Key] = btn
-        btn.Activated:Connect(function()
-            setActive(tab.Key)
-        end)
     end
 
     panel.Parent = gui

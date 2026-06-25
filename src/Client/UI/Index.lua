@@ -73,61 +73,157 @@ local function isMet(discovered, milestone)
 end
 
 local function clearRows()
+    -- Destroy ALL content (frames, labels, buttons); UIListLayout/UIPadding are UIComponents, not
+    -- GuiObjects, so they survive. (Previously only Frames were cleared, so headers accumulated.)
     for _, child in ipairs(list:GetChildren()) do
-        if child:IsA("Frame") then
+        if child:IsA("GuiObject") then
             child:Destroy()
         end
     end
 end
 
 local function header(text, order)
-    Builder.create("TextLabel", {
-        Size = UDim2.new(1, 0, 0, 30),
+    local label = Builder.create("TextLabel", {
+        Size = UDim2.new(1, 0, 0, 32),
         BackgroundTransparency = 1,
-        Font = Theme.FontBold,
         Text = text,
         TextColor3 = Theme.Colors.Text,
-        TextSize = 18,
+        TextSize = 19,
         TextXAlignment = Enum.TextXAlignment.Left,
         LayoutOrder = order,
         Parent = list,
     })
+    Builder.applyChrome(label, { stroke = 2 })
+end
+
+-- Compact reward text for the "collect X for +Y" callout.
+local function rewardText(reward)
+    if reward.Type == "Multiplier" then
+        return string.format("+%d%% cash", math.floor(reward.Bonus * 100 + 0.5))
+    elseif reward.Type == "Cash" then
+        return "$" .. Format.full(reward.Amount)
+    elseif reward.Type == "Brainrot" then
+        return "a brainrot"
+    end
+    return "a reward"
+end
+
+-- The headline progress card: overall completion bar + the next unclaimed set's perk.
+local function progressCard(state, order)
+    local found = countDiscovered(state.Discovered)
+    local total = #allFreeIds
+    local pct = total > 0 and math.clamp(found / total, 0, 1) or 0
+
+    local card = Builder.create("Frame", {
+        Size = UDim2.new(1, 0, 0, 88),
+        BorderSizePixel = 0,
+        LayoutOrder = order,
+    }, { Builder.padding(10) })
+    Builder.rarityCard(card, Theme.Colors.Accent)
+
+    local title = Builder.create("TextLabel", {
+        Size = UDim2.new(1, 0, 0, 24),
+        BackgroundTransparency = 1,
+        Text = string.format("Collection   %d / %d", found, total),
+        TextColor3 = Theme.Colors.Text,
+        TextSize = 20,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = card,
+    })
+    Builder.applyChrome(title, { stroke = 2 })
+
+    local barBg = Builder.create("Frame", {
+        Position = UDim2.fromOffset(0, 30),
+        Size = UDim2.new(1, 0, 0, 16),
+        BackgroundColor3 = Theme.Colors.Background,
+        BorderSizePixel = 0,
+        Parent = card,
+    }, { Builder.corner(UDim.new(1, 0)) })
+    Builder.create("Frame", {
+        Size = UDim2.fromScale(pct, 1),
+        BackgroundColor3 = Theme.Colors.Positive,
+        BorderSizePixel = 0,
+        Parent = barBg,
+    }, { Builder.corner(UDim.new(1, 0)) })
+
+    local nextPerk = nil
+    for _, milestone in ipairs(IndexConfig.Milestones) do
+        if not state.Claimed[milestone.Id] then
+            nextPerk = milestone
+            break
+        end
+    end
+    Builder.create("TextLabel", {
+        Position = UDim2.fromOffset(0, 52),
+        Size = UDim2.new(1, 0, 0, 22),
+        BackgroundTransparency = 1,
+        Font = Theme.FontBody,
+        Text = nextPerk ~= nil and ("Collect " .. nextPerk.Name .. "  ->  " .. rewardText(
+            nextPerk.Reward
+        )) or "All sets complete!",
+        TextColor3 = Theme.Colors.Positive,
+        TextSize = 15,
+        TextWrapped = true,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = card,
+    })
+
+    card.Parent = list
 end
 
 local function rosterRow(item, discovered, order)
     local rarity = Rarity.Get(item.Rarity)
     local row = Builder.create("Frame", {
-        Size = UDim2.new(1, 0, 0, 44),
-        BackgroundColor3 = Theme.Colors.Row,
+        Size = UDim2.new(1, 0, 0, 46),
         BorderSizePixel = 0,
         LayoutOrder = order,
-    }, { Builder.corner(UDim.new(0, 8)), Builder.padding(8) })
+    }, { Builder.padding(8) })
+    -- Discovered = rarity-bordered card; locked = muted/disabled border (reads as a silhouette slot).
+    Builder.rarityCard(row, discovered and rarity.Color or Theme.Colors.Disabled)
+
     Builder.create("Frame", {
         AnchorPoint = Vector2.new(0, 0.5),
         Position = UDim2.fromScale(0, 0.5),
-        Size = UDim2.fromOffset(28, 28),
+        Size = UDim2.fromOffset(30, 30),
         BackgroundColor3 = discovered and rarity.Color or Theme.Colors.Disabled,
         BorderSizePixel = 0,
         Parent = row,
-    }, { Builder.corner(UDim.new(0, 6)) })
-    Builder.create("TextLabel", {
+    }, {
+        Builder.corner(UDim.new(0, 8)),
+        Builder.create("UIStroke", {
+            Color = Theme.Colors.Outline,
+            Thickness = 2,
+            Transparency = 0.3,
+        }),
+    })
+
+    local label = Builder.create("TextLabel", {
         BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(38, 0),
-        Size = UDim2.new(1, -42, 1, 0),
-        Font = Theme.Font,
+        Position = UDim2.fromOffset(40, 0),
+        Size = UDim2.new(1, -44, 1, 0),
+        Font = Theme.FontBody,
         RichText = true,
-        Text = discovered and string.format(
-            '%s  <font color="%s">%s</font>  +$%s/s',
-            item.DisplayName,
-            toHex(rarity.Color),
-            rarity.DisplayName,
-            Format.short(item.IncomePerSec)
-        ) or ('??? <font color="' .. toHex(rarity.Color) .. '">' .. rarity.DisplayName .. "</font>"),
+        Text = discovered
+                and string.format(
+                    '%s  <font color="%s">%s</font>  +$%s/s',
+                    item.DisplayName,
+                    toHex(rarity.Color),
+                    rarity.DisplayName,
+                    Format.full(item.IncomePerSec)
+                )
+            or (
+                '🔒 ??? <font color="'
+                .. toHex(rarity.Color)
+                .. '">'
+                .. rarity.DisplayName
+                .. "</font>"
+            ),
         TextColor3 = discovered and Theme.Colors.Text or Theme.Colors.SubText,
         TextSize = 15,
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = row,
     })
+    Builder.applyChrome(label, { font = Theme.FontBody, stroke = 2, softShadow = false })
     row.Parent = list
 end
 
@@ -209,15 +305,7 @@ function Index.refresh()
         return order
     end
 
-    header(
-        string.format(
-            "Collection score: %s   (%d/%d found)",
-            Format.short(state.Score or 0),
-            countDiscovered(state.Discovered),
-            #allFreeIds
-        ),
-        nextOrder()
-    )
+    progressCard(state, nextOrder())
 
     header("Milestones", nextOrder())
     for _, milestone in ipairs(IndexConfig.Milestones) do

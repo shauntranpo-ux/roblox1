@@ -11,6 +11,17 @@ local Format = {}
 
 local SUFFIXES = { "", "K", "M", "B", "T", "Qa", "Qi" }
 
+-- FULL, comma-grouped integer (NO abbreviation): 2500 -> "2,500", 1500000 -> "1,500,000".
+-- Used for the big HUD readouts where seeing every digit tick up is the point (max dopamine).
+function Format.full(value)
+    value = math.floor(tonumber(value) or 0)
+    local negative = value < 0
+    local digits = tostring(math.abs(value))
+    -- Insert a comma every 3 digits from the right, then strip any leading comma.
+    local grouped = digits:reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
+    return (negative and "-" or "") .. grouped
+end
+
 function Format.short(value)
     value = tonumber(value) or 0
     local negative = value < 0
