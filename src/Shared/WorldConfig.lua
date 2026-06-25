@@ -62,6 +62,25 @@ WorldConfig.Assets = {
 
 WorldConfig.Seed = 20260625 -- deterministic scatter (same config -> same world)
 
+-- NEON FIX: true downgrades the old blanket-glow blocks (hub caps, biome scatter, lava/crystals) to
+-- solid SmoothPlastic so nothing blinds; only a FEW `Glow` accents (shield rim, mystery block, gate
+-- glow) stay neon. Flip to false to restore the old all-neon look.
+WorldConfig.ReduceNeon = true
+
+-- TERRAIN FIX: blocky ELEVATION + decoration per biome (capped for perf; same Seed -> same world). Tune
+-- height/variation/density here. Hills are merged larger parts scattered AWAY from the flat spawn/arena.
+WorldConfig.Terrain = {
+    HillCount = 14, -- capped sculpted hills per biome (form + life without exploding part count)
+    HillMinSize = 14,
+    HillMaxSize = 34,
+    HillMinHeight = 4,
+    HillMaxHeight = 20, -- max mound height (stepped/gentle -> still walkable around)
+    RockCount = 10, -- scattered blocky rocks per biome
+    ClearRadius = 62, -- keep this radius around the biome center (spawn) + the arena FLAT
+    ColorJitter = 14, -- +/- RGB jitter so surfaces aren't one dead-flat color
+    PlotPadColor = rgb(70, 76, 96), -- the clean raised level platform under each base
+    PlotPadInset = 8, -- the platform extends this far past the plot footprint (a clean margin)
+}
 -- ── RADIAL LAYOUT (bases in the MIDDLE; biomes encircle + march outward) ─────────────────────
 WorldConfig.Center = Vector3.new(0, 0, 0)
 WorldConfig.Radial = {

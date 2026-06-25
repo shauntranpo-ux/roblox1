@@ -51,8 +51,10 @@ local function part(props, parent)
     p.BottomSurface = Enum.SurfaceType.Smooth
     p.Size = props.Size
     p.Color = props.Color or Color3.fromRGB(235, 235, 235)
-    p.Material = props.Neon and Enum.Material.Neon
-        or (props.Material or Enum.Material.SmoothPlastic)
+    -- NEON FIX: `Glow` is a FEW intentional accents that always glow; `Neon` is the old blanket glow that
+    -- WorldConfig.ReduceNeon downgrades to solid SmoothPlastic (kept bright via the color, just not blinding).
+    local glow = props.Glow == true or (props.Neon == true and not WorldConfig.ReduceNeon)
+    p.Material = glow and Enum.Material.Neon or (props.Material or Enum.Material.SmoothPlastic)
     p.CFrame = props.CFrame or CFrame.new(props.Position or Vector3.zero)
     if props.Transparency ~= nil then
         p.Transparency = props.Transparency
@@ -294,11 +296,20 @@ local function buildDistrict(folder)
     }, folder)
 
     local ringR = WorldConfig.Radial.PlotRingRadius
+    local T = WorldConfig.Terrain
     for index = 1, Config.Plots.Count do
         local angle = math.rad((index - 1) * (360 / Config.Plots.Count))
+        local pos = Vector3.new(math.cos(angle) * ringR, 0, math.sin(angle) * ringR)
+        -- PLOT FIX: a clean, raised, LEVEL platform under each base (sized to the 40x30 plot + a margin,
+        -- rotated to face center like the plot) so every base reads as its own distinct, separated pad.
+        part({
+            Size = Vector3.new(40 + T.PlotPadInset * 2, 3, 30 + T.PlotPadInset * 2),
+            CFrame = CFrame.lookAt(pos + Vector3.new(0, -1, 0), Vector3.new(0, -1, 0)),
+            Color = T.PlotPadColor,
+        }, folder)
         local anchor = part({
             Size = Vector3.new(2, 1, 2),
-            Position = Vector3.new(math.cos(angle) * ringR, 0.5, math.sin(angle) * ringR),
+            Position = pos + Vector3.new(0, 0.5, 0),
             Transparency = 1,
             CanCollide = false,
         }, folder)
@@ -377,7 +388,7 @@ local function buildPlotTemplate()
         Size = Vector3.new(46, 1, 1.2),
         Position = Vector3.new(0, 17, 9),
         Color = P.ShieldRim,
-        Neon = true,
+        Glow = true, -- intentional accent: the shield-wall rim stays a subtle glow
         CanCollide = false,
     }, model)
 
@@ -403,7 +414,7 @@ local function buildPlotTemplate()
         Size = Vector3.new(5, 5, 5),
         Position = Vector3.new(16, 3, -3),
         Color = P.Gold,
-        Neon = true,
+        Glow = true, -- intentional accent: the mystery reward block stays a subtle glow
     }, model)
     mystery.Name = "MysteryBlock"
     tag(mystery, "MysteryBlock")
@@ -571,6 +582,74 @@ local function biomeProps(folder, cfg)
     end
 end
 
+-- ── TERRAIN: blocky ELEVATION + rocks per biome (Problem 1 fix) ──────────────────────────────
+-- Slightly jitters an RGB color so big surfaces aren't one dead-flat shade.
+local function jitterColor(base, amount)
+    local function j(v)
+        return math.clamp(v * 255 + rng:NextInteger(-amount, amount), 0, 255)
+    end
+    return Color3.fromRGB(j(base.R), j(base.G), j(base.B))
+end
+
+-- Scatters capped sculpted HILLS (stepped/tiered larger blocks) + rocks across a biome, kept AWAY from
+-- the flat spawn center + the boss arena + the inner gate entrance (those stay open + walkable). Voxel,
+-- efficient (a bounded number of larger parts), deterministic (seeded). Gives the land form + life.
+local function terrainFeatures(folder, cfg)
+    local T = WorldConfig.Terrain
+    local c = cfg.Center
+    local half = cfg.Size.X / 2
+    local arena = c + cfg.BossArenaOffset
+    local spawnArea = c + cfg.SpawnAreaOffset
+    local outward = outwardDir(c)
+    local function placeable(pos)
+        return (pos - c).Magnitude > T.ClearRadius -- keep the spawn center flat
+            and (pos - arena).Magnitude > 46 -- keep the boss arena open
+            and (pos - spawnArea).Magnitude > 40 -- keep the wild-spawn area flat
+            and (pos - c):Dot(outward) > -12 -- bias outward so the inner gate entrance stays clear
+    end
+    local function scatterPos(margin)
+        return c
+            + Vector3.new(
+                rng:NextNumber(-half + margin, half - margin),
+                0,
+                rng:NextNumber(-half + margin, half - margin)
+            )
+    end
+    for _ = 1, T.HillCount do
+        local pos = scatterPos(16)
+        if placeable(pos) then
+            local w = rng:NextNumber(T.HillMinSize, T.HillMaxSize)
+            local d = rng:NextNumber(T.HillMinSize, T.HillMaxSize)
+            local h = rng:NextNumber(T.HillMinHeight, T.HillMaxHeight)
+            part({
+                Size = Vector3.new(w, h, d),
+                Position = pos + Vector3.new(0, h / 2 - 1, 0),
+                Color = jitterColor(cfg.GroundColor, T.ColorJitter),
+                Material = cfg.GroundMaterial,
+            }, folder)
+            if h > 11 then -- a stacked smaller cap -> a stepped/tiered mound (still walkable around)
+                part({
+                    Size = Vector3.new(w * 0.6, h * 0.5, d * 0.6),
+                    Position = pos + Vector3.new(0, h - 1, 0),
+                    Color = jitterColor(cfg.GroundColor, T.ColorJitter),
+                    Material = cfg.GroundMaterial,
+                }, folder)
+            end
+        end
+    end
+    for _ = 1, T.RockCount do
+        local pos = scatterPos(12)
+        if placeable(pos) then
+            local s = rng:NextNumber(3, 8)
+            part({
+                Size = Vector3.new(s, s * 0.8, s),
+                Position = pos + Vector3.new(0, s * 0.4, 0),
+                Color = jitterColor(P.Dirt, T.ColorJitter),
+            }, folder)
+        end
+    end
+end
+
 -- ── ONE BIOME (ground + invisible zone VOLUME + spawn points + boss arena + sign + props) ───
 local function buildBiome(folder, cfg)
     local c = cfg.Center
@@ -627,6 +706,7 @@ local function buildBiome(folder, cfg)
     local signPos = outwardDir(cfg.Center) * (cfg.Radius - cfg.Size.Z / 2 - 24)
     worldSign(folder, signPos, string.upper(cfg.Name), cfg.Accent)
 
+    terrainFeatures(folder, cfg) -- Problem 1: blocky elevation + rocks (keeps spawn/arena/entrance clear)
     biomeProps(folder, cfg)
 end
 
@@ -659,7 +739,7 @@ local function buildGate(folder, cfg)
         Size = Vector3.new(w + 4, 2, 5),
         CFrame = cf * CFrame.new(0, h / 2 + 1, 0),
         Color = P.Gold,
-        Neon = true,
+        Glow = true, -- intentional accent: a subtle gate glow
     }, folder)
     for _, sx in ipairs({ -1, 1 }) do
         part({

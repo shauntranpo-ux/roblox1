@@ -73,7 +73,7 @@ local function buildProceduralPlot(index, origin)
         pad.Size = PAD_SIZE
         pad.CFrame = origin * CFrame.new(offsetX, PLOT_SIZE.Y / 2 + PAD_SIZE.Y / 2, 0)
         pad.Color = Color3.fromRGB(120, 200, 130)
-        pad.Material = Enum.Material.Neon
+        pad.Material = Enum.Material.SmoothPlastic -- NEON FIX: no blinding glow on pads
         pad.Parent = model
         addPadLabel(pad, padIndex)
     end
