@@ -28,6 +28,8 @@ Remotes.WhatsNew = nil -- RemoteEvent  : server -> client, show the changelog on
 Remotes.RequestRebirth = nil -- RemoteFunction : client -> server (no args) -> { Result, Message }
 Remotes.GetIndex = nil -- RemoteFunction : client -> server -> { Discovered, Claimed, Score }
 Remotes.ClaimIndexReward = nil -- RemoteFunction : client -> server (milestoneId) -> { Result, Message }
+-- M9.4 set perks. Client sends INTENT ONLY (a set Key); server verifies completion + grants once.
+Remotes.ClaimSetPerk = nil -- RemoteFunction : client -> server (setKey) -> { Result, Message }
 -- M8.2 trading. Client sends INTENT ONLY ({ Action, ... }); server owns all session state.
 Remotes.TradeAction = nil -- RemoteEvent  : client -> server, { Action, TargetUserId?, BrainrotId?, Amount?, Accept?, Ready? }
 Remotes.TradeUpdate = nil -- RemoteEvent  : server -> client, authoritative session snapshot / request / closed
@@ -66,6 +68,7 @@ Remotes.ExpectedNames = {
     "RequestRebirth",
     "GetIndex",
     "ClaimIndexReward",
+    "ClaimSetPerk",
     "TradeAction",
     "TradeUpdate",
     "GetEvents",
@@ -153,6 +156,10 @@ function Remotes.Init()
     claimIndexReward.Name = "ClaimIndexReward"
     claimIndexReward.Parent = folder
 
+    local claimSetPerk = Instance.new("RemoteFunction")
+    claimSetPerk.Name = "ClaimSetPerk"
+    claimSetPerk.Parent = folder
+
     local tradeAction = Instance.new("RemoteEvent")
     tradeAction.Name = "TradeAction"
     tradeAction.Parent = folder
@@ -215,6 +222,7 @@ function Remotes.Init()
     Remotes.RequestRebirth = requestRebirth
     Remotes.GetIndex = getIndex
     Remotes.ClaimIndexReward = claimIndexReward
+    Remotes.ClaimSetPerk = claimSetPerk
     Remotes.TradeAction = tradeAction
     Remotes.TradeUpdate = tradeUpdate
     Remotes.GetEvents = getEvents

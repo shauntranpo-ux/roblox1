@@ -47,6 +47,7 @@ Analytics.Events = { -- custom (retention/engagement) event names
     FusionFail = "fusion_fail", -- M9.2 a soft-fail (value = fodder lost)
     Deploy = "deploy", -- M9.3 a unit deployed to a role (value = unit rarity order)
     Undeploy = "undeploy", -- M9.3 a unit unassigned from a role
+    SetComplete = "set_complete", -- M9.4 a themed-set perk claimed
 }
 
 Analytics.Funnel = { -- new-player onboarding funnel steps { stepNumber, stepName }

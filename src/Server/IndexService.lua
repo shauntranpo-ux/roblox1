@@ -191,11 +191,18 @@ function IndexService.GetState(player)
     for key in pairs(profile.Data.MutationsDiscovered) do
         mutations[key] = true
     end
+    -- M9.4: the claimed set-perk Keys, so the Index UI can render the Sets track from the same state
+    -- query (completion itself is derived client-side from SetsConfig + the Discovered set above).
+    local setsClaimed = {}
+    for key in pairs(profile.Data.ClaimedSetPerks or {}) do
+        setsClaimed[key] = true
+    end
     return {
         Discovered = discovered,
         Claimed = claimed,
         Score = collectionScore(profile),
         Mutations = mutations,
+        SetsClaimed = setsClaimed,
     }
 end
 

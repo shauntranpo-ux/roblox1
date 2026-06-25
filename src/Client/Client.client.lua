@@ -49,6 +49,7 @@ local remotes = {
     RequestRebirth = remotesFolder:WaitForChild("RequestRebirth"),
     GetIndex = remotesFolder:WaitForChild("GetIndex"),
     ClaimIndexReward = remotesFolder:WaitForChild("ClaimIndexReward"),
+    ClaimSetPerk = remotesFolder:WaitForChild("ClaimSetPerk"),
     TradeAction = remotesFolder:WaitForChild("TradeAction"),
     TradeUpdate = remotesFolder:WaitForChild("TradeUpdate"),
     GetEvents = remotesFolder:WaitForChild("GetEvents"),

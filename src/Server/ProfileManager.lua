@@ -56,6 +56,10 @@ local PROFILE_TEMPLATE = {
     -- M8.1 INDEX: set of completion-milestone Ids already claimed (Id -> true). The grant + this
     -- record commit together so a completion reward is granted EXACTLY once. Reconciles as empty.
     ClaimedIndexRewards = {},
+    -- M9.4 SET PERKS: set of themed-set Keys whose permanent perk was already claimed (Key -> true).
+    -- Grant + this record commit in the SAME mutation, so a set perk is granted EXACTLY once across
+    -- rejoins / servers / restarts. Reconciles as empty (existing saves have no claims).
+    ClaimedSetPerks = {},
     -- M8.2 TRADING: capped per-player history of completed trades (partner + what was given/received
     -- + when), for support/disputes. Trimmed to TradeConfig.MaxHistory. Reconciles as empty.
     TradeHistory = {},

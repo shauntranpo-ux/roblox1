@@ -39,6 +39,8 @@ local SellService = require(script.Parent.SellService)
 local FusionService = require(script.Parent.FusionService)
 -- M9.3: deploy/roles (units become an arsenal).
 local DeployService = require(script.Parent.DeployService)
+-- M9.4: set perks (themed Index sets -> permanent passive perks).
+local SetService = require(script.Parent.SetService)
 -- VM0: boot/join health check + the dev-only sacred-invariant validator.
 local Diagnostics = require(script.Parent.Diagnostics)
 local InvariantValidator = require(script.Parent.InvariantValidator)
@@ -93,6 +95,8 @@ start("SellService", SellService.Init)
 start("FusionService", FusionService.Init)
 -- M9.3: deploy/roles (binds DeployRequest).
 start("DeployService", DeployService.Init)
+-- M9.4: set perks (binds ClaimSetPerk).
+start("SetService", SetService.Init)
 -- Admin: register the allowlisted in-chat commands (hidden from chat).
 start("DevCommands", DevCommands.Init)
 
@@ -164,6 +168,8 @@ local function onPlayerAdded(player)
     -- multiplier sources (both idempotent) so income reflects them on join.
     RebirthService.SetupPlayer(player, profile)
     IndexService.SetupPlayer(player, profile)
+    -- M9.4: re-apply permanent set perks (income/luck sources) from claimed sets (idempotent; keyed).
+    SetService.SetupPlayer(player, profile)
     -- M8.4: apply any currently-active event modifiers (idempotent) + prune stale event data.
     EventService.SetupPlayer(player, profile)
     -- M9.3: re-derive deployed role buffs + re-lock deployed units from saved data (idempotent;

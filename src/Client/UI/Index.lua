@@ -14,6 +14,7 @@ local Catalog = require(Shared:WaitForChild("Catalog"))
 local Rarity = require(Shared:WaitForChild("Rarity"))
 local IndexConfig = require(Shared:WaitForChild("IndexConfig"))
 local MutationConfig = require(Shared:WaitForChild("MutationConfig"))
+local SetsConfig = require(Shared:WaitForChild("SetsConfig"))
 
 local Index = {}
 
@@ -38,7 +39,8 @@ for _, item in ipairs(Catalog.Items) do
 end
 
 -- Rail filters: All + each rarity (data-backed) + Mutations (the variant strip).
-local FILTERS = { "All", "Common", "Rare", "Epic", "Legendary", "Mythic", "Secret", "Mutations" }
+local FILTERS =
+    { "All", "Sets", "Common", "Rare", "Epic", "Legendary", "Mythic", "Secret", "Mutations" }
 
 local function countDiscovered(discovered)
     local n = 0
@@ -53,6 +55,8 @@ local function rewardText(reward)
         return string.format("+%d%% cash", math.floor(reward.Bonus * 100 + 0.5))
     elseif reward.Type == "Cash" then
         return "$" .. Format.full(reward.Amount)
+    elseif reward.Type == "Luck" then
+        return string.format("x%.2g luck", reward.Mult)
     elseif reward.Type == "Brainrot" then
         return "a brainrot"
     end
@@ -130,6 +134,98 @@ local function gridCard(order, opts)
 end
 
 -- ===========================================================================================
+-- A single SET card (M9.4): progress N/M, the perk, and a CLAIM button when complete + unclaimed.
+-- ===========================================================================================
+local function setCard(order, set, state)
+    local total = #set.Members
+    local got = 0
+    for _, id in ipairs(set.Members) do
+        if state.Discovered[id] then
+            got += 1
+        end
+    end
+    local claimed = (state.SetsClaimed or {})[set.Key] == true
+    local claimable = got >= total and not claimed
+    local color = claimed and Theme.Colors.Positive
+        or (claimable and Theme.Colors.Accent or Theme.Colors.Disabled)
+
+    local card = Builder.create("Frame", {
+        Size = UDim2.fromOffset(104, 128),
+        BorderSizePixel = 0,
+        LayoutOrder = order,
+    }, { Builder.padding(6) })
+    Builder.rarityCard(card, color)
+
+    local nameLabel = Builder.create("TextLabel", {
+        Size = UDim2.new(1, 0, 0, 32),
+        BackgroundTransparency = 1,
+        Text = set.Name .. (set.Premium and "  [P]" or ""),
+        TextColor3 = Theme.Colors.Text,
+        TextSize = 14,
+        TextWrapped = true,
+        Parent = card,
+    })
+    Builder.applyChrome(nameLabel, { stroke = 2 })
+
+    Builder.create("TextLabel", {
+        Position = UDim2.fromOffset(0, 34),
+        Size = UDim2.new(1, 0, 0, 26),
+        BackgroundTransparency = 1,
+        Font = Theme.FontDisplay,
+        Text = string.format("%d / %d", got, total),
+        TextColor3 = Theme.Colors.Text,
+        TextSize = 20,
+        Parent = card,
+    })
+
+    Builder.create("TextLabel", {
+        Position = UDim2.fromOffset(0, 60),
+        Size = UDim2.new(1, 0, 0, 30),
+        BackgroundTransparency = 1,
+        Font = Theme.FontBody,
+        Text = rewardText(set.Reward),
+        TextColor3 = Theme.Colors.Positive,
+        TextSize = 12,
+        TextWrapped = true,
+        Parent = card,
+    })
+
+    if claimable then
+        Builder.glossButton({
+            AnchorPoint = Vector2.new(0.5, 1),
+            Position = UDim2.fromScale(0.5, 1),
+            Size = UDim2.new(1, 0, 0, 30),
+            color = Theme.Colors.Positive,
+            Text = "CLAIM",
+            maxText = 16,
+            Parent = card,
+        }, function()
+            local ok, result = pcall(function()
+                return remotes.ClaimSetPerk:InvokeServer(set.Key)
+            end)
+            if ok and type(result) == "table" and result.Result == "Success" then
+                Index.refresh()
+            end
+        end)
+    else
+        local stateLabel = Builder.create("TextLabel", {
+            AnchorPoint = Vector2.new(0.5, 1),
+            Position = UDim2.fromScale(0.5, 1),
+            Size = UDim2.new(1, 0, 0, 22),
+            BackgroundTransparency = 1,
+            Font = Theme.FontDisplay,
+            Text = claimed and "CLAIMED" or (set.Premium and "PREMIUM" or "LOCKED"),
+            TextColor3 = claimed and Theme.Colors.Positive or Theme.Colors.SubText,
+            TextSize = 14,
+            Parent = card,
+        })
+        Builder.applyChrome(stateLabel, { stroke = 2 })
+    end
+
+    card.Parent = grid
+end
+
+-- ===========================================================================================
 -- Render the grid for the current filter.
 -- ===========================================================================================
 local function renderGrid(state)
@@ -151,6 +247,11 @@ local function renderGrid(state)
                     sublabel = "x" .. tostring(mutation.IncomeMultiplier),
                 })
             end
+        end
+    elseif filter == "Sets" then
+        for _, set in ipairs(SetsConfig.Sets) do
+            order += 1
+            setCard(order, set, state)
         end
     else
         for _, item in ipairs(Catalog.GetSorted()) do
@@ -211,6 +312,15 @@ local function renderBottom(state)
     elseif filter == "All" then
         milestone = nextUnclaimed(state)
         found, total = countDiscovered(state.Discovered), #allFreeIds
+    elseif filter == "Sets" then
+        -- Sets are claimed per-card above; the bar just shows how many sets are done.
+        local got = 0
+        for _, set in ipairs(SetsConfig.Sets) do
+            if (state.SetsClaimed or {})[set.Key] then
+                got += 1
+            end
+        end
+        found, total = got, #SetsConfig.Sets
     else
         milestone = setMilestoneFor(filter)
         local ids = rarityIds[filter] or {}
@@ -311,6 +421,7 @@ function Index.refresh()
     state.Discovered = state.Discovered or {}
     state.Claimed = state.Claimed or {}
     state.Mutations = state.Mutations or {}
+    state.SetsClaimed = state.SetsClaimed or {}
     lastState = state
     setFilter(filter, state)
 end
