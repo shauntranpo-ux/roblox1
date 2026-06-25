@@ -1,13 +1,14 @@
--- ClickFX: the code-built "bubble-pop" click feedback. A small POOLED, CAPPED set of translucent
--- circles that expand + fade on every press for a soft, satisfying ripple -- universal with zero
--- per-button wiring via one global input hook. The same hook plays the soft click sound whenever a
--- GuiButton sits under the press (so world taps ripple silently, button taps also pop).
+-- ClickFX: the code-built press "pop" -- a punchy burst (a bright overshoot ring + a flash core +
+-- flying sparks) at the EXACT press point, on every tap, plus the soft click sound when a button is
+-- under the press. POOLED + CAPPED (never leaks). Tune everything in Theme.Juice.
 --
--- PERFORMANCE: a fixed ring pool reused round-robin (never leaks/uncaps), each tween cancelled +
--- reused. Tune intensity/size/color/everywhere in Theme.Juice.
+-- ALIGNMENT: the overlay ignores the GUI inset, so we add GuiService:GetGuiInset() to the
+-- inset-relative input.Position. That lands the burst exactly under the cursor / finger on both
+-- desktop and mobile (the previous version was offset up by the ~36px top-bar inset).
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local GuiService = game:GetService("GuiService")
 local TweenService = game:GetService("TweenService")
 
 local Theme = require(script.Parent.Theme)
@@ -15,46 +16,127 @@ local Effects = require(script.Parent.Effects)
 
 local ClickFX = {}
 
-local POOL_SIZE = 16
+local POOL_SIZE = 14
+local SPARK_COUNT = 6
+local SPARK_COLORS = {
+    Color3.fromRGB(255, 240, 150), -- gold
+    Color3.fromRGB(150, 230, 255), -- cyan
+    Color3.fromRGB(255, 150, 220), -- pink
+    Color3.fromRGB(190, 160, 255), -- purple
+    Color3.fromRGB(255, 255, 255), -- white
+}
+
 local overlay = nil
 local pool = {}
 local poolIndex = 0
 local mounted = false
 
-local function nextRing()
+local function circle(diameter, color, zIndex)
+    local frame = Instance.new("Frame")
+    frame.AnchorPoint = Vector2.new(0.5, 0.5)
+    frame.Size = UDim2.fromOffset(diameter, diameter)
+    frame.BackgroundColor3 = color
+    frame.BackgroundTransparency = 1
+    frame.BorderSizePixel = 0
+    frame.Visible = false
+    frame.ZIndex = zIndex
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = frame
+    return frame
+end
+
+local function nextSlot()
     poolIndex = (poolIndex % POOL_SIZE) + 1
     return pool[poolIndex]
 end
 
--- Spawns one expanding bubble at a screen-space pixel position.
+-- Spawns the full burst at a screen-space pixel position (already inset-adjusted).
 function ClickFX.ripple(x, y)
     if overlay == nil then
         return
     end
-    local ring = nextRing()
-    if ring.Tween ~= nil then
-        ring.Tween:Cancel()
+    local slot = nextSlot()
+    for _, tween in ipairs(slot.Tweens) do
+        tween:Cancel()
     end
-    local frame = ring.Frame
-    frame.Position = UDim2.fromOffset(x, y)
-    frame.Size = UDim2.fromOffset(10, 10)
-    frame.BackgroundTransparency = Theme.Juice.RippleStartTransparency
-    ring.Stroke.Transparency = 0.25
-    frame.Visible = true
+    table.clear(slot.Tweens)
 
+    local at = UDim2.fromOffset(x, y)
     local size = Theme.Juice.RippleSize
-    local info =
-        TweenInfo.new(Theme.Juice.RippleTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-    TweenService:Create(ring.Stroke, info, { Transparency = 1 }):Play()
-    local tween = TweenService:Create(frame, info, {
-        Size = UDim2.fromOffset(size, size),
-        BackgroundTransparency = 1,
-    })
-    ring.Tween = tween
-    tween:Play()
-    tween.Completed:Once(function()
-        frame.Visible = false
+    local time = Theme.Juice.RippleTime
+
+    -- Expanding ring (overshoot pop) with a bright stroke.
+    local ring = slot.Ring
+    ring.Position = at
+    ring.Size = UDim2.fromOffset(12, 12)
+    ring.BackgroundTransparency = 1
+    slot.RingStroke.Color = Theme.Juice.RippleColor
+    slot.RingStroke.Transparency = 0.05
+    ring.Visible = true
+    local ringTween = TweenService:Create(
+        ring,
+        TweenInfo.new(time, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+        { Size = UDim2.fromOffset(size, size) }
+    )
+    local ringFade = TweenService:Create(
+        slot.RingStroke,
+        TweenInfo.new(time, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        { Transparency = 1 }
+    )
+    ringTween:Play()
+    ringFade:Play()
+    table.insert(slot.Tweens, ringTween)
+    table.insert(slot.Tweens, ringFade)
+    ringTween.Completed:Once(function()
+        ring.Visible = false
     end)
+
+    -- Bright flash core that puffs out and fades fast.
+    local core = slot.Core
+    core.Position = at
+    core.Size = UDim2.fromOffset(10, 10)
+    core.BackgroundColor3 = Theme.Juice.RippleColor
+    core.BackgroundTransparency = 0.15
+    core.Visible = true
+    local coreTween = TweenService:Create(
+        core,
+        TweenInfo.new(time * 0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        { Size = UDim2.fromOffset(size * 0.55, size * 0.55), BackgroundTransparency = 1 }
+    )
+    coreTween:Play()
+    table.insert(slot.Tweens, coreTween)
+    coreTween.Completed:Once(function()
+        core.Visible = false
+    end)
+
+    -- Sparks fly outward.
+    for i, spark in ipairs(slot.Sparks) do
+        local angle = (i / SPARK_COUNT) * math.pi * 2 + math.random() * 0.6
+        local radius = size * (0.45 + math.random() * 0.35)
+        spark.Position = at
+        spark.Size = UDim2.fromOffset(9, 9)
+        spark.BackgroundColor3 = SPARK_COLORS[((i - 1) % #SPARK_COLORS) + 1]
+        spark.BackgroundTransparency = 0
+        spark.Visible = true
+        local sparkTween = TweenService:Create(
+            spark,
+            TweenInfo.new(time, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {
+                Position = UDim2.fromOffset(
+                    x + math.cos(angle) * radius,
+                    y + math.sin(angle) * radius
+                ),
+                Size = UDim2.fromOffset(2, 2),
+                BackgroundTransparency = 1,
+            }
+        )
+        sparkTween:Play()
+        table.insert(slot.Tweens, sparkTween)
+        sparkTween.Completed:Once(function()
+            spark.Visible = false
+        end)
+    end
 end
 
 function ClickFX.mount(context)
@@ -68,31 +150,32 @@ function ClickFX.mount(context)
     overlay = Instance.new("ScreenGui")
     overlay.Name = "ClickFX"
     overlay.ResetOnSpawn = false
-    overlay.IgnoreGuiInset = true -- positions match raw input.Position
-    overlay.DisplayOrder = 100 -- above every panel
+    overlay.IgnoreGuiInset = true
+    overlay.DisplayOrder = 100
     overlay.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     overlay.Parent = playerGui
 
     for i = 1, POOL_SIZE do
-        local frame = Instance.new("Frame")
-        frame.Name = "Ripple" .. i
-        frame.AnchorPoint = Vector2.new(0.5, 0.5)
-        frame.Size = UDim2.fromOffset(10, 10)
-        frame.BackgroundColor3 = Theme.Juice.RippleColor
-        frame.BackgroundTransparency = 1
-        frame.BorderSizePixel = 0
-        frame.Visible = false
-        frame.ZIndex = 10
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(1, 0)
-        corner.Parent = frame
-        local stroke = Instance.new("UIStroke")
-        stroke.Color = Theme.Juice.RippleColor
-        stroke.Thickness = 2
-        stroke.Transparency = 1
-        stroke.Parent = frame
-        frame.Parent = overlay
-        pool[i] = { Frame = frame, Stroke = stroke, Tween = nil }
+        local ring = circle(12, Theme.Juice.RippleColor, 10)
+        local ringStroke = Instance.new("UIStroke")
+        ringStroke.Color = Theme.Juice.RippleColor
+        ringStroke.Thickness = 3
+        ringStroke.Transparency = 1
+        ringStroke.Parent = ring
+        ring.Parent = overlay
+
+        local core = circle(10, Theme.Juice.RippleColor, 11)
+        core.Parent = overlay
+
+        local sparks = {}
+        for s = 1, SPARK_COUNT do
+            local spark = circle(9, Color3.new(1, 1, 1), 12)
+            spark.Parent = overlay
+            sparks[s] = spark
+        end
+
+        pool[i] =
+            { Ring = ring, RingStroke = ringStroke, Core = core, Sparks = sparks, Tweens = {} }
     end
 
     UserInputService.InputBegan:Connect(function(input)
@@ -102,19 +185,21 @@ function ClickFX.mount(context)
         then
             return
         end
-        local pos = input.Position
+        -- input.Position is inset-relative; the overlay ignores the inset, so add it back.
+        local inset = GuiService:GetGuiInset()
+        local x = input.Position.X + inset.X
+        local y = input.Position.Y + inset.Y
         if Theme.Juice.RippleEverywhere then
-            ClickFX.ripple(pos.X, pos.Y)
+            ClickFX.ripple(x, y)
         end
-        -- Soft click sound only when a button is under the press point.
         local ok, objects = pcall(function()
-            return playerGui:GetGuiObjectsAtPosition(pos.X, pos.Y)
+            return playerGui:GetGuiObjectsAtPosition(input.Position.X, input.Position.Y)
         end)
         if ok and objects ~= nil then
             for _, object in ipairs(objects) do
                 if object:IsA("GuiButton") then
                     if not Theme.Juice.RippleEverywhere then
-                        ClickFX.ripple(pos.X, pos.Y)
+                        ClickFX.ripple(x, y)
                     end
                     Effects.playSfx("click")
                     break

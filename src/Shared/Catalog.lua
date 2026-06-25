@@ -20,8 +20,12 @@
 --                 as an event system (that arrives in a later milestone).
 --   ModelName     RESERVED: clone this Model from ServerStorage/Assets once real art exists
 --                 (BrainrotService falls back to a tinted placeholder while it is nil).
---   IconId        RESERVED: shop/inventory thumbnail asset id (nil placeholder for now).
---   SoundId       RESERVED: purchase/idle sound asset id (nil placeholder for now).
+--   IconId        THE 2D IMAGE for this brainrot. Used on the shop / index / inventory cards AND
+--                 as the in-world unit (a flat picture on a BillboardGui that always faces the
+--                 camera -- a "2D brainrot", not a 3D model). PASTE the decal/image asset NUMBER
+--                 here (the digits from "rbxassetid://12345"). 0 = no image yet -> a rarity-tinted
+--                 placeholder is shown instead, so the game is fully playable before you add art.
+--   SoundId       RESERVED: purchase/idle sound asset id (0 placeholder for now).
 --
 -- ECONOMY CURVE (retune the numbers, keep the SHAPE):
 --   Every tier is a sharp jump -- roughly 5x the previous tier's price, and a touch MORE
@@ -45,6 +49,8 @@ local Rarity = require(Shared:WaitForChild("Rarity"))
 
 local Catalog = {}
 
+-- NOTE: Ids are saved in player data -- NEVER rename or reuse an existing Id. IconId = 0 means
+-- "no art yet" (rarity-tinted placeholder); paste the image asset number to give it a 2D picture.
 Catalog.Items = {
     -- COMMON -- the early game. The cheapest Common is the free starter (see StarterId).
     {
@@ -53,6 +59,7 @@ Catalog.Items = {
         Rarity = "Common",
         Price = 50,
         IncomePerSec = 3,
+        IconId = 0,
     },
     {
         Id = "trippi_troppi",
@@ -60,6 +67,15 @@ Catalog.Items = {
         Rarity = "Common",
         Price = 80,
         IncomePerSec = 9,
+        IconId = 0,
+    },
+    {
+        Id = "frigo_camelo",
+        DisplayName = "Frigo Camelo",
+        Rarity = "Common",
+        Price = 150,
+        IncomePerSec = 18,
+        IconId = 0,
     },
     {
         Id = "brr_patapim",
@@ -67,6 +83,15 @@ Catalog.Items = {
         Rarity = "Common",
         Price = 300,
         IncomePerSec = 38,
+        IconId = 0,
+    },
+    {
+        Id = "boneca_ambalabu",
+        DisplayName = "Boneca Ambalabu",
+        Rarity = "Common",
+        Price = 600,
+        IncomePerSec = 78,
+        IconId = 0,
     },
     {
         Id = "bombombini",
@@ -74,6 +99,15 @@ Catalog.Items = {
         Rarity = "Common",
         Price = 1100,
         IncomePerSec = 150,
+        IconId = 0,
+    },
+    {
+        Id = "trulimero",
+        DisplayName = "Trulimero Trulicina",
+        Rarity = "Common",
+        Price = 2400,
+        IncomePerSec = 330,
+        IconId = 0,
     },
 
     -- RARE
@@ -83,6 +117,7 @@ Catalog.Items = {
         Rarity = "Rare",
         Price = 5000,
         IncomePerSec = 140,
+        IconId = 0,
     },
     {
         Id = "lirili_larila",
@@ -90,6 +125,7 @@ Catalog.Items = {
         Rarity = "Rare",
         Price = 12000,
         IncomePerSec = 350,
+        IconId = 0,
     },
     {
         Id = "chimpanzini",
@@ -97,6 +133,23 @@ Catalog.Items = {
         Rarity = "Rare",
         Price = 25000,
         IncomePerSec = 760,
+        IconId = 0,
+    },
+    {
+        Id = "burbaloni",
+        DisplayName = "Burbaloni Luliloli",
+        Rarity = "Rare",
+        Price = 48000,
+        IncomePerSec = 1500,
+        IconId = 0,
+    },
+    {
+        Id = "girafa_celestre",
+        DisplayName = "Girafa Celestre",
+        Rarity = "Rare",
+        Price = 78000,
+        IncomePerSec = 2500,
+        IconId = 0,
     },
 
     -- EPIC
@@ -106,6 +159,15 @@ Catalog.Items = {
         Rarity = "Epic",
         Price = 120000,
         IncomePerSec = 4200,
+        IconId = 0,
+    },
+    {
+        Id = "orcalero_orcala",
+        DisplayName = "Orcalero Orcala",
+        Rarity = "Epic",
+        Price = 220000,
+        IncomePerSec = 8000,
+        IconId = 0,
     },
     {
         Id = "glorbo",
@@ -113,6 +175,15 @@ Catalog.Items = {
         Rarity = "Epic",
         Price = 300000,
         IncomePerSec = 10800,
+        IconId = 0,
+    },
+    {
+        Id = "rhino_toasterino",
+        DisplayName = "Rhino Toasterino",
+        Rarity = "Epic",
+        Price = 460000,
+        IncomePerSec = 17000,
+        IconId = 0,
     },
     {
         Id = "ballerina",
@@ -120,6 +191,15 @@ Catalog.Items = {
         Rarity = "Epic",
         Price = 650000,
         IncomePerSec = 24000,
+        IconId = 0,
+    },
+    {
+        Id = "bananita_dolphinita",
+        DisplayName = "Bananita Dolphinita",
+        Rarity = "Epic",
+        Price = 1400000,
+        IncomePerSec = 56000,
+        IconId = 0,
     },
 
     -- LEGENDARY
@@ -129,6 +209,15 @@ Catalog.Items = {
         Rarity = "Legendary",
         Price = 3000000,
         IncomePerSec = 138000,
+        IconId = 0,
+    },
+    {
+        Id = "cocosini_mama",
+        DisplayName = "Cocosini Mama",
+        Rarity = "Legendary",
+        Price = 5000000,
+        IncomePerSec = 235000,
+        IconId = 0,
     },
     {
         Id = "la_vacca",
@@ -136,6 +225,15 @@ Catalog.Items = {
         Rarity = "Legendary",
         Price = 7500000,
         IncomePerSec = 352000,
+        IconId = 0,
+    },
+    {
+        Id = "tortuginni_dragonfruitini",
+        DisplayName = "Tortuginni Dragonfruitini",
+        Rarity = "Legendary",
+        Price = 15000000,
+        IncomePerSec = 720000,
+        IconId = 0,
     },
 
     -- MYTHIC
@@ -145,6 +243,15 @@ Catalog.Items = {
         Rarity = "Mythic",
         Price = 40000000,
         IncomePerSec = 2250000,
+        IconId = 0,
+    },
+    {
+        Id = "pandaccini",
+        DisplayName = "Pandaccini Bananini",
+        Rarity = "Mythic",
+        Price = 62000000,
+        IncomePerSec = 3600000,
+        IconId = 0,
     },
     {
         Id = "los_tralaleritos",
@@ -152,6 +259,15 @@ Catalog.Items = {
         Rarity = "Mythic",
         Price = 95000000,
         IncomePerSec = 5500000,
+        IconId = 0,
+    },
+    {
+        Id = "graipuss_medussi",
+        DisplayName = "Graipuss Medussi",
+        Rarity = "Mythic",
+        Price = 180000000,
+        IncomePerSec = 11000000,
+        IconId = 0,
     },
 
     -- SECRET -- the chase. Astronomical price; best income/price ratio in the game.
@@ -161,6 +277,15 @@ Catalog.Items = {
         Rarity = "Secret",
         Price = 600000000,
         IncomePerSec = 42000000,
+        IconId = 0,
+    },
+    {
+        Id = "nuclearo_dinossauro",
+        DisplayName = "Nuclearo Dinossauro",
+        Rarity = "Secret",
+        Price = 950000000,
+        IncomePerSec = 70000000,
+        IconId = 0,
     },
     {
         Id = "la_grande",
@@ -168,6 +293,15 @@ Catalog.Items = {
         Rarity = "Secret",
         Price = 1500000000,
         IncomePerSec = 110000000,
+        IconId = 0,
+    },
+    {
+        Id = "los_combinasos",
+        DisplayName = "Los Combinasos",
+        Rarity = "Secret",
+        Price = 3200000000,
+        IncomePerSec = 240000000,
+        IconId = 0,
     },
 
     -- PREMIUM / LIMITED -- purchase-gated (Robux), NOT cash-buyable, NOT random. Acquired only
@@ -182,6 +316,7 @@ Catalog.Items = {
         IncomePerSec = 90000000,
         Buyable = false,
         Premium = true,
+        IconId = 0,
     },
 }
 

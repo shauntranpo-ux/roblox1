@@ -74,7 +74,10 @@ local function buildRow(item, order, parent)
         Size = UDim2.fromOffset(56, 56),
         BackgroundColor3 = rarity.Color,
         BorderSizePixel = 0,
-        Image = item.IconId ~= nil and ("rbxassetid://" .. tostring(item.IconId)) or "",
+        Image = (item.IconId ~= nil and item.IconId ~= 0) and ("rbxassetid://" .. tostring(
+            item.IconId
+        )) or "",
+        ScaleType = Enum.ScaleType.Fit,
         Parent = row,
     }, {
         Builder.corner(UDim.new(0, 10)),

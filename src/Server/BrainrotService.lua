@@ -87,8 +87,41 @@ local function addInfoLabel(part, def, unit)
     label.Parent = billboard
 end
 
--- Builds the rarity-tinted (and, if mutated, mutation-styled) placeholder visual for one on-pad
--- brainrot. A mutated unit overrides the tint + material + accent so it reads at a glance.
+-- True if a roster entry has a real 2D image to show.
+local function hasArt(def)
+    return def.IconId ~= nil and def.IconId ~= 0
+end
+
+-- Adds the brainrot's 2D PICTURE: an ImageLabel on a BillboardGui, which always faces the camera,
+-- so the unit reads as a flat "2D brainrot" rather than a 3D model. A mutated unit gets a colored
+-- outline so Shiny/Rainbow/etc. still read at a glance. Only used when the entry has an IconId.
+local function addArtBillboard(part, def, mutation)
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "Art"
+    billboard.Size = UDim2.fromScale(5.5, 6)
+    billboard.StudsOffsetWorldSpace = Vector3.new(0, 1.5, 0)
+    billboard.LightInfluence = 0
+    billboard.MaxDistance = 130
+    billboard.Adornee = part
+    billboard.Parent = part
+
+    local image = Instance.new("ImageLabel")
+    image.Size = UDim2.fromScale(1, 1)
+    image.BackgroundTransparency = 1
+    image.Image = "rbxassetid://" .. tostring(def.IconId)
+    image.ScaleType = Enum.ScaleType.Fit
+    image.Parent = billboard
+    if mutation ~= nil then
+        local stroke = Instance.new("UIStroke")
+        stroke.Color = mutation.Color
+        stroke.Thickness = 3
+        stroke.Transparency = 0.1
+        stroke.Parent = image
+    end
+end
+
+-- Builds the on-pad visual for one brainrot: the 2D picture (if it has an IconId) or, until art is
+-- added, a rarity-tinted placeholder cube. A mutated unit overrides the tint/accent so it reads.
 local function makeBrainrotPart(def, brainrot, pad)
     local rarity = Rarity.Get(def.Rarity)
     local mutation = brainrot.Mutation ~= nil and MutationConfig.Get(brainrot.Mutation) or nil
@@ -103,15 +136,20 @@ local function makeBrainrotPart(def, brainrot, pad)
     part.Color = tint
     part.CFrame = placementCFrame(pad)
 
-    -- Accent outline + faint glow (mutation-colored when mutated, else rarity-colored). A mutated
-    -- unit gets a thicker, brighter accent so a Rainbow/Diamond is unmistakable.
-    local box = Instance.new("SelectionBox")
-    box.Adornee = part
-    box.LineThickness = mutation ~= nil and 0.14 or 0.06
-    box.Color3 = tint
-    box.SurfaceColor3 = tint
-    box.SurfaceTransparency = mutation ~= nil and 0.55 or 0.85
-    box.Parent = part
+    if hasArt(def) then
+        -- 2D picture path: the cube is an invisible anchor; the billboard image IS the unit.
+        part.Transparency = 1
+        addArtBillboard(part, def, mutation)
+    else
+        -- Placeholder path: rarity/mutation-colored accent outline + faint glow.
+        local box = Instance.new("SelectionBox")
+        box.Adornee = part
+        box.LineThickness = mutation ~= nil and 0.14 or 0.06
+        box.Color3 = tint
+        box.SurfaceColor3 = tint
+        box.SurfaceTransparency = mutation ~= nil and 0.55 or 0.85
+        box.Parent = part
+    end
 
     addInfoLabel(part, def, brainrot)
     return part
@@ -244,6 +282,11 @@ function BrainrotService.MakeCarriedModel(character, unit)
     part.Material = mutation ~= nil and mutation.Material or Enum.Material.SmoothPlastic
     part.Color = mutation ~= nil and mutation.Color or rarity.Color
     part.CFrame = hrp.CFrame * CFrame.new(0, 3, 0)
+
+    if hasArt(def) then
+        part.Transparency = 1
+        addArtBillboard(part, def, mutation)
+    end
 
     addInfoLabel(part, def, unit)
 

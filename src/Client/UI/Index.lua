@@ -64,22 +64,25 @@ end
 -- ===========================================================================================
 local function gridCard(order, opts)
     local card = Builder.create("Frame", {
-        Size = UDim2.fromOffset(96, 104),
+        Size = UDim2.fromOffset(104, 128),
         BorderSizePixel = 0,
         LayoutOrder = order,
-    }, { Builder.padding(4) })
+    }, { Builder.padding(6) })
     Builder.rarityCard(card, opts.discovered and opts.color or Theme.Colors.Disabled)
 
     local portrait = Builder.create("ImageLabel", {
         Position = UDim2.fromScale(0, 0),
-        Size = UDim2.new(1, 0, 0, 54),
+        Size = UDim2.new(1, 0, 0, 70),
         BackgroundColor3 = opts.discovered and opts.color or Theme.Colors.Disabled,
-        BackgroundTransparency = opts.discovered and 0 or 0.3,
+        BackgroundTransparency = opts.discovered and 0 or 0.35,
         BorderSizePixel = 0,
-        Image = opts.iconId ~= nil and ("rbxassetid://" .. tostring(opts.iconId)) or "",
+        Image = (opts.iconId ~= nil and opts.iconId ~= 0) and ("rbxassetid://" .. tostring(
+            opts.iconId
+        )) or "",
+        ScaleType = Enum.ScaleType.Fit,
         Parent = card,
     }, {
-        Builder.corner(UDim.new(0, 8)),
+        Builder.corner(UDim.new(0, 10)),
         Builder.create("UIStroke", {
             Color = Theme.Colors.Outline,
             Thickness = 2,
@@ -95,17 +98,17 @@ local function gridCard(order, opts)
             TextColor3 = Theme.Colors.SubText,
             TextScaled = true,
             Parent = portrait,
-        }, { Builder.padding(12) })
+        }, { Builder.padding(16) })
         Builder.applyChrome(lock)
     end
 
     local nameLabel = Builder.create("TextLabel", {
-        Position = UDim2.fromOffset(0, 56),
-        Size = UDim2.new(1, 0, 0, 24),
+        Position = UDim2.fromOffset(0, 74),
+        Size = UDim2.new(1, 0, 0, 26),
         BackgroundTransparency = 1,
         Text = opts.discovered and opts.title or "???",
         TextColor3 = opts.discovered and Theme.Colors.Text or Theme.Colors.SubText,
-        TextSize = 14,
+        TextSize = 15,
         TextScaled = false,
         TextTruncate = Enum.TextTruncate.AtEnd,
         Parent = card,
@@ -113,7 +116,7 @@ local function gridCard(order, opts)
     Builder.applyChrome(nameLabel, { stroke = 2 })
 
     Builder.create("TextLabel", {
-        Position = UDim2.fromOffset(0, 80),
+        Position = UDim2.fromOffset(0, 100),
         Size = UDim2.new(1, 0, 0, 16),
         BackgroundTransparency = 1,
         Font = Theme.FontBody,
@@ -383,12 +386,12 @@ local function buildShell()
         Parent = panel,
     }, {
         Builder.create("UIGridLayout", {
-            CellSize = UDim2.fromOffset(96, 104),
-            CellPadding = UDim2.fromOffset(8, 8),
+            CellSize = UDim2.fromOffset(104, 128),
+            CellPadding = UDim2.fromOffset(14, 14),
             SortOrder = Enum.SortOrder.LayoutOrder,
             HorizontalAlignment = Enum.HorizontalAlignment.Center,
         }),
-        Builder.padding(4),
+        Builder.padding(8),
     })
     Builder.styleScroll(grid)
 

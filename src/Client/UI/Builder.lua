@@ -250,14 +250,14 @@ function Builder.rarityCard(frame, rarityColor)
     end
     frame:SetAttribute("Carded", true)
     frame.BackgroundColor3 = Theme.Colors.Row
-    frame.BackgroundTransparency = 0.25
+    frame.BackgroundTransparency = Theme.RowTransparency
     if frame:FindFirstChildOfClass("UICorner") == nil then
         Builder.corner(Theme.Radius.Card).Parent = frame
     end
     Builder.create("UIStroke", {
         Color = rarityColor,
-        Thickness = 2.5,
-        Transparency = 0.1,
+        Thickness = 3,
+        Transparency = 0.05,
         Parent = frame,
     })
     return frame
@@ -315,11 +315,11 @@ function Builder.panel(parent, title, onClose, accentKey)
         Parent = panel,
     }, {
         Builder.create("UIListLayout", {
-            Padding = UDim.new(0, 10),
+            Padding = UDim.new(0, 14),
             SortOrder = Enum.SortOrder.LayoutOrder,
             HorizontalAlignment = Enum.HorizontalAlignment.Center,
         }),
-        Builder.padding(8),
+        Builder.padding(12),
     })
     Builder.styleScroll(list)
 

@@ -20,16 +20,16 @@ Theme.Font = Enum.Font.GothamMedium
 
 -- ── Palette (grape glass base; kept keys so existing screens inherit) ──────────────────────
 Theme.Colors = {
-    Background = Color3.fromRGB(34, 17, 65), -- deep grape (panel bodies glassed over this)
-    Panel = Color3.fromRGB(46, 26, 84),
-    Row = Color3.fromRGB(48, 30, 86),
-    Accent = Color3.fromRGB(155, 77, 255), -- electric purple
-    Positive = Color3.fromRGB(70, 224, 138), -- income green
+    Background = Color3.fromRGB(48, 30, 92), -- cleaner indigo-grape (panel bodies glassed over this)
+    Panel = Color3.fromRGB(64, 42, 116),
+    Row = Color3.fromRGB(82, 58, 140), -- brighter card so rows pop on the translucent body
+    Accent = Color3.fromRGB(167, 99, 255), -- electric purple
+    Positive = Color3.fromRGB(74, 232, 150), -- income green
     Danger = Color3.fromRGB(255, 84, 112), -- close-button pink
-    Text = Color3.fromRGB(245, 245, 252),
-    SubText = Color3.fromRGB(186, 178, 214),
-    Disabled = Color3.fromRGB(70, 58, 98),
-    Outline = Color3.fromRGB(20, 10, 38), -- the heavy dark text/▮ outline color
+    Text = Color3.fromRGB(248, 248, 255),
+    SubText = Color3.fromRGB(198, 190, 226),
+    Disabled = Color3.fromRGB(86, 72, 120),
+    Outline = Color3.fromRGB(24, 12, 44), -- the heavy dark text/border outline color
     GlossTop = Color3.fromRGB(255, 255, 255), -- white sheen overlay top for the glossy look
 }
 
@@ -41,8 +41,9 @@ Theme.Radius = {
     Pill = UDim.new(1, 0), -- fully rounded pill
 }
 Theme.Stroke = { Width = 3, Color = Theme.Colors.Outline, Transparency = 0.1 }
-Theme.BodyTransparency = 0.4 -- panel body see-through (world shows faintly; no dim backdrop)
-Theme.HeaderHeight = 52
+Theme.BodyTransparency = 0.5 -- panel body see-through (world shows through; no dim backdrop)
+Theme.RowTransparency = 0.34 -- translucent cards/rows
+Theme.HeaderHeight = 54
 
 -- ── Per-panel accent gradients (the glossy header bar color, top -> bottom) ─────────────────
 Theme.Accents = {
@@ -83,12 +84,12 @@ Theme.Tween = {
 
 -- ── Click juice tuning ───────────────────────────────────────────────────────────────────
 Theme.Juice = {
-    RippleEverywhere = true, -- ripple on EVERY tap (set false for buttons-only)
-    RippleSize = 84, -- px diameter the ripple expands to
-    RippleTime = 0.42, -- s expand+fade duration
-    RippleColor = Color3.fromRGB(255, 255, 255),
-    RippleStartTransparency = 0.55, -- lower = stronger; keep subtle
-    ButtonSquish = 0.92, -- press scale before the back-ease pop to 1.0
+    RippleEverywhere = true, -- ripple/burst on EVERY tap (set false for buttons-only)
+    RippleSize = 110, -- px diameter the burst expands to (bigger = punchier)
+    RippleTime = 0.4, -- s expand+fade duration
+    RippleColor = Color3.fromRGB(255, 248, 205), -- bright warm white (the ring + flash core)
+    RippleStartTransparency = 0.3, -- lower = stronger
+    ButtonSquish = 0.9, -- press scale before the back-ease pop to 1.0
 }
 
 return Theme
