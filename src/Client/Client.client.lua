@@ -55,6 +55,7 @@ local remotes = {
     EventsUpdate = remotesFolder:WaitForChild("EventsUpdate"),
     GetSeasons = remotesFolder:WaitForChild("GetSeasons"),
     SeasonsUpdate = remotesFolder:WaitForChild("SeasonsUpdate"),
+    SellRequest = remotesFolder:WaitForChild("SellRequest"),
 }
 
 local context = { player = player, remotes = remotes }

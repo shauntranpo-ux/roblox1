@@ -33,6 +33,8 @@ local TradeService = require(script.Parent.TradeService)
 local EventService = require(script.Parent.EventService)
 local SeasonService = require(script.Parent.SeasonService)
 local SeasonRewardService = require(script.Parent.SeasonRewardService)
+-- M9.1: selling (the economy floor sink).
+local SellService = require(script.Parent.SellService)
 -- VM0: boot/join health check + the dev-only sacred-invariant validator.
 local Diagnostics = require(script.Parent.Diagnostics)
 local InvariantValidator = require(script.Parent.InvariantValidator)
@@ -81,6 +83,8 @@ start("EventService", EventService.Init)
 -- M8.5: competitive seasons + pull-based end-of-season reward claims.
 start("SeasonService", SeasonService.Init)
 start("SeasonRewardService", SeasonRewardService.Init)
+-- M9.1: the sell sink (binds SellRequest).
+start("SellService", SellService.Init)
 -- Admin: register the allowlisted in-chat commands (hidden from chat).
 start("DevCommands", DevCommands.Init)
 

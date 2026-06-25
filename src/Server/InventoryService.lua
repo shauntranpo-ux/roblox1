@@ -6,6 +6,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Catalog = require(ReplicatedStorage.Shared.Catalog)
 local TradeConfig = require(ReplicatedStorage.Shared.TradeConfig)
 local UnitIncome = require(ReplicatedStorage.Shared.UnitIncome)
+local SellConfig = require(ReplicatedStorage.Shared.SellConfig)
+local MutationConfig = require(ReplicatedStorage.Shared.MutationConfig)
 
 local Remotes = require(script.Parent.Remotes)
 local ProfileManager = require(script.Parent.ProfileManager)
@@ -34,6 +36,15 @@ local function getInventory(player)
     local owned = {}
     for _, brainrot in ipairs(profile.Data.OwnedBrainrots) do
         local def = resolveDef(brainrot.Type)
+        -- M9.1: server-computed sell value (DISPLAY ONLY -- SellService recomputes on the real sell).
+        local sellable = not (def.Premium and not SellConfig.AllowSellPremium)
+        local sellValue = sellable
+                and SellConfig.ComputeValue(
+                    def,
+                    MutationConfig.MultiplierFor(brainrot.Mutation),
+                    brainrot.Star
+                )
+            or 0
         table.insert(owned, {
             Id = brainrot.Id, -- unique per-unit Id (the trade picker offers by this)
             Name = def.DisplayName,
@@ -42,6 +53,8 @@ local function getInventory(player)
             Type = brainrot.Type,
             Tradeable = TradeConfig.IsTradeable(def),
             Mutation = brainrot.Mutation, -- mutation key (nil = Normal)
+            Sellable = sellable, -- M9.1: false for premium (protected)
+            SellValue = sellValue, -- M9.1: display value (server recomputes on sell)
         })
     end
     return owned

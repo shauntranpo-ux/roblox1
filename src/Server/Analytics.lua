@@ -24,6 +24,7 @@ Analytics.Tx = { -- economy transaction-type strings (Enum.AnalyticsEconomyTrans
     Shop = "Shop", -- cash purchases (sink)
     IAP = "IAP", -- Robux dev-product grants
     TimedReward = "TimedReward", -- code rewards / boosts
+    Sell = "Sell", -- M9.1 selling a brainrot back for cash (source)
 }
 
 Analytics.Events = { -- custom (retention/engagement) event names
@@ -40,6 +41,7 @@ Analytics.Events = { -- custom (retention/engagement) event names
     EventQuestClaim = "event_quest_claim", -- M8.4 an event quest reward claimed
     EventShopBuy = "event_shop_buy", -- M8.4 an event-shop purchase
     SeasonReward = "season_reward", -- M8.5 end-of-season reward granted (value = total cash)
+    Sell = "sell", -- M9.1 a sell committed (value = count of units sold)
 }
 
 Analytics.Funnel = { -- new-player onboarding funnel steps { stepNumber, stepName }

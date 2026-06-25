@@ -39,6 +39,8 @@ Remotes.EventsUpdate = nil -- RemoteEvent  : server -> ALL clients, "events chan
 -- M8.5 seasons. Client renders replicated season state only; server owns time/score/rewards.
 Remotes.GetSeasons = nil -- RemoteFunction : client -> server -> season id, countdown, top-N, my rank/score, tiers
 Remotes.SeasonsUpdate = nil -- RemoteEvent  : server -> ALL clients, "season rolled over" ping
+-- M9.1 sell. Client sends INTENT ONLY (a unit Id, or a bulk filter); server computes value + sells.
+Remotes.SellRequest = nil -- RemoteFunction : client -> server ({ Action, Id?/Mode?, Confirm? }) -> result
 
 -- Every remote name this module creates -- the SINGLE list the boot diagnostic verifies the
 -- ReplicatedStorage/Remotes surface against. Keep in sync with Init() below AND the client's
@@ -68,6 +70,7 @@ Remotes.ExpectedNames = {
     "EventsUpdate",
     "GetSeasons",
     "SeasonsUpdate",
+    "SellRequest",
 }
 
 local folder = nil
@@ -176,6 +179,10 @@ function Remotes.Init()
     seasonsUpdate.Name = "SeasonsUpdate"
     seasonsUpdate.Parent = folder
 
+    local sellRequest = Instance.new("RemoteFunction")
+    sellRequest.Name = "SellRequest"
+    sellRequest.Parent = folder
+
     folder.Parent = ReplicatedStorage
 
     Remotes.PurchaseRequest = purchase
@@ -202,6 +209,7 @@ function Remotes.Init()
     Remotes.EventsUpdate = eventsUpdate
     Remotes.GetSeasons = getSeasons
     Remotes.SeasonsUpdate = seasonsUpdate
+    Remotes.SellRequest = sellRequest
 end
 
 -- Sends a toast to a single player. kind = "success" | "error" | "info". Optional `cue` is a
