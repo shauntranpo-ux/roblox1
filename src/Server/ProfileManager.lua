@@ -33,6 +33,11 @@ local PROFILE_TEMPLATE = {
     -- and this record are written in the SAME mutation so a purchase grants EXACTLY once, even
     -- across retries and server restarts. Never pruned (PurchaseIds are unique forever).
     PurchaseHistory = {},
+    -- M6: one-time onboarding flag. Reconciles onto existing saves as false, so returning
+    -- players never re-see the tutorial; brand-new players run it once (skippable).
+    TutorialDone = false,
+    -- M6: persisted client preferences (booleans only; SettingsService validates the shape).
+    Settings = { Music = false, SFX = true, Shake = true },
 }
 
 local Profiles = {} -- [Player] = Profile
@@ -126,11 +131,43 @@ function ProfileManager.GetCash(player)
     return 0
 end
 
-function ProfileManager.SetCash(player, amount)
+-- ===========================================================================================
+-- GUARDED CASH MUTATION -- the ONLY two functions that ever write Cash. Every cash change in
+-- the game (income accrual, purchases, product grants) flows through these, so cash can never
+-- go negative, never become NaN/inf, and never exceed a safe display range. Nothing here is
+-- reachable by the client; deltas always originate from server-side sources (roster/config).
+-- ===========================================================================================
+local MAX_CASH = 1e15 -- below 2^53; keeps Cash in a safe, displayable, OrderedDataStore-safe range
+
+-- Adds `delta` (income, grants; may be negative defensively) and clamps to [0, MAX_CASH].
+-- Rejects non-finite deltas. Returns the new balance.
+function ProfileManager.AddCash(player, delta)
     local profile = Profiles[player]
-    if profile ~= nil then
-        profile.Data.Cash = amount
+    if profile == nil then
+        return 0
     end
+    if type(delta) ~= "number" or delta ~= delta or delta == math.huge or delta == -math.huge then
+        return profile.Data.Cash -- NaN / inf / non-number -> no-op
+    end
+    profile.Data.Cash = math.clamp(profile.Data.Cash + delta, 0, MAX_CASH)
+    return profile.Data.Cash
+end
+
+-- Atomic spend: deducts `amount` ONLY if the player can afford it; never goes negative. No
+-- yields between the check and the deduct, so it can't be raced. Returns true on success.
+function ProfileManager.TrySpend(player, amount)
+    local profile = Profiles[player]
+    if profile == nil then
+        return false
+    end
+    if type(amount) ~= "number" or amount ~= amount or amount < 0 or amount == math.huge then
+        return false
+    end
+    if profile.Data.Cash < amount then
+        return false
+    end
+    profile.Data.Cash -= amount
+    return true
 end
 
 -- Returns the player's unlocked-pad count (saved). Falls back to the default when the

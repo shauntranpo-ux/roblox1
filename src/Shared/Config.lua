@@ -9,11 +9,12 @@ local Config = {}
 
 Config.Plots = {
     Count = 6, -- how many bases to create in the world
-    PadsPerPlot = 4, -- PHYSICAL brainrot stands built per base (the hard cap on placed units)
-    -- How many pads a brand-new player starts with UNLOCKED. Kept BELOW PadsPerPlot so the M5
-    -- "Extra Pads" gamepass and pad-unlock products have real headroom to unlock (up to the
-    -- physical PadsPerPlot cap). The placement check is min(unlocked, PadsPerPlot).
-    DefaultUnlockedPads = 2,
+    PadsPerPlot = 5, -- PHYSICAL brainrot stands built per base (the hard cap on placed units)
+    -- M6 BALANCE: a brand-new player starts with 3 unlocked pads -- the starter + TWO quick free
+    -- purchases, so the "buy -> number goes up" loop hooks in the first minute. Kept BELOW
+    -- PadsPerPlot so the M5 "Extra Pads" gamepass (+2) and pad-unlock products still have real
+    -- headroom to unlock up to the physical cap. The placement check is min(unlocked, PadsPerPlot).
+    DefaultUnlockedPads = 3,
     Spacing = 64, -- studs between plot centers
     PadSpacing = 8, -- studs between pads inside one plot
     TemplateName = "PlotTemplate", -- Model name to look for in ServerStorage/Assets

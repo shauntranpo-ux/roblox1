@@ -169,7 +169,7 @@ function deposit(steal)
     immunityUntil[steal.BrainrotId] = now + StealConfig.PostStealImmunity
     ProtectionService.GrantPostRobbery(steal.Victim)
 
-    Remotes.NotifyPlayer(steal.Thief, "success", "Deposited your steal!")
+    Remotes.NotifyPlayer(steal.Thief, "success", "Deposited your steal!", "deposit")
 end
 
 -- REVERT (IN_TRANSIT -> ON_PAD on the victim's ORIGINAL pad). A no-op on ownership: the unit
@@ -310,7 +310,8 @@ local function onPromptTriggered(prompt, thief)
             .. toHex(rarity.Color)
             .. '"><b>'
             .. def.DisplayName
-            .. "</b></font>!"
+            .. "</b></font>!",
+        "robbed"
     )
     Remotes.BroadcastKillFeed({
         Thief = thief.Name,

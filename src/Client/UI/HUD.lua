@@ -4,6 +4,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local Builder = require(script.Parent.Builder)
 local Theme = require(script.Parent.Theme)
@@ -12,8 +13,10 @@ local Format = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Fo
 local HUD = {}
 
 local player = nil
+local pill = nil
 local cashLabel = nil
 local rateLabel = nil
+local rateBase = nil
 local displayedCash = 0
 local targetCash = 0
 
@@ -28,7 +31,7 @@ end
 local function makeButton(parent, text, order, onClick)
     local button = Builder.create("TextButton", {
         LayoutOrder = order,
-        Size = UDim2.fromScale(0.42, 1),
+        Size = UDim2.fromScale(0.3, 1),
         BackgroundColor3 = Theme.Colors.Accent,
         BorderSizePixel = 0,
         AutoButtonColor = true,
@@ -51,7 +54,7 @@ function HUD.mount(context, actions)
     local gui = Builder.screenGui("HUD", player:WaitForChild("PlayerGui"), true)
 
     -- Top-center cash pill.
-    local pill = Builder.create("Frame", {
+    pill = Builder.create("Frame", {
         AnchorPoint = Vector2.new(0.5, 0),
         Position = UDim2.fromScale(0.5, 0.02),
         Size = UDim2.fromScale(0.5, 0.11),
@@ -90,6 +93,7 @@ function HUD.mount(context, actions)
         TextScaled = true,
         Parent = pill,
     })
+    rateBase = rateLabel.Size
 
     -- Bottom button bar (thumb-friendly on phones).
     local bar = Builder.create("Frame", {
@@ -111,6 +115,9 @@ function HUD.mount(context, actions)
 
     makeButton(bar, "🛒 Shop", 1, actions.onShop)
     makeButton(bar, "🎒 Inventory", 2, actions.onInventory)
+    if actions.onSettings ~= nil then
+        makeButton(bar, "⚙", 3, actions.onSettings)
+    end
 
     -- Initial values + live listeners.
     targetCash = readCash()
@@ -121,8 +128,23 @@ function HUD.mount(context, actions)
     player:GetAttributeChangedSignal("Cash"):Connect(function()
         targetCash = readCash()
     end)
+    local prevRate = readRate()
     player:GetAttributeChangedSignal("IncomePerSec"):Connect(function()
-        rateLabel.Text = "+$" .. Format.short(readRate()) .. "/s"
+        local r = readRate()
+        rateLabel.Text = "+$" .. Format.short(r) .. "/s"
+        -- Juice: punch the rate label whenever income goes UP (a buy / steal landing).
+        if r > prevRate then
+            rateLabel.Size = UDim2.new(
+                rateBase.X.Scale * 1.18,
+                rateBase.X.Offset,
+                rateBase.Y.Scale * 1.18,
+                rateBase.Y.Offset
+            )
+            TweenService:Create(rateLabel, TweenInfo.new(0.22, Enum.EasingStyle.Back), {
+                Size = rateBase,
+            }):Play()
+        end
+        prevRate = r
     end)
 
     -- Smooth count-up toward the true value; snaps when within a dollar so it can never
@@ -136,6 +158,11 @@ function HUD.mount(context, actions)
             cashLabel.Text = "$" .. Format.short(displayedCash)
         end
     end)
+end
+
+-- Exposes the cash pill so the juice layer can punch it on big cash events.
+function HUD.getCashPill()
+    return pill
 end
 
 return HUD

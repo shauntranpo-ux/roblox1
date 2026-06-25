@@ -221,6 +221,23 @@ function LeaderboardService.OnPlayerRemoving(player)
     end)
 end
 
+-- Best-effort SYNCHRONOUS flush of every in-server player's values. Used by BindToClose on
+-- shutdown so a restart doesn't lose the latest board state. No-op in mock mode; each write is
+-- pcall'd + retried inside writeValue, so it can never error the shutdown path.
+function LeaderboardService.FlushAll()
+    if usingMock then
+        return
+    end
+    for _, player in ipairs(Players:GetPlayers()) do
+        local profile = ProfileManager.GetProfile(player)
+        if profile ~= nil then
+            for _, board in ipairs(boardList) do
+                writeValue(board, player.UserId, board.Compute(player, profile))
+            end
+        end
+    end
+end
+
 -- For the billboards: the board metadata (ordered) and the cached top-N rows.
 function LeaderboardService.GetBoardList()
     local list = {}

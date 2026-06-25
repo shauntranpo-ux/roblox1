@@ -21,6 +21,10 @@ local PurchaseService = {}
 local PURCHASE_COOLDOWN = 0.5 -- seconds; blocks spam / double-spend races
 local lastPurchase = {} -- [Player] = os.clock()
 
+-- TRUST BOUNDARY (PurchaseRequest): the client sends ONE thing -- an item id (string). The
+-- server resolves the real price/income from its own Catalog, verifies a loaded profile, a free
+-- pad, and affordability, then spends + grants atomically. Nothing else from the client is read
+-- or trusted (no price, no income, no pad, no cash). Rate-limited per player below.
 local function onPurchase(player, itemId)
     -- Rate-limit before doing anything so spamming can't race the economy.
     local now = os.clock()
@@ -51,22 +55,22 @@ local function onPurchase(player, itemId)
         return
     end
 
-    -- Affordability is checked against server truth, using the server-side price.
-    if profile.Data.Cash < item.Price then
-        Remotes.NotifyPlayer(player, "error", "Not enough cash")
-        return
-    end
-
-    -- Shared free-pad authority: excludes owned pads AND pads reserved for an in-progress
-    -- steal deposit, so a purchase and a steal can never be handed the same pad.
+    -- Need a free pad BEFORE spending (shared authority: excludes owned pads AND pads reserved
+    -- for an in-progress steal deposit, so a purchase and a steal never collide on a pad).
     local padIndex = PlotService.FindFreePad(player, profile)
     if padIndex == nil then
         Remotes.NotifyPlayer(player, "error", "No free pads")
         return
     end
 
-    -- All checks passed -- mutate state once.
-    profile.Data.Cash -= item.Price
+    -- Atomic, guarded spend at the SERVER-side price. No yields between the affordability check
+    -- and the deduct, so it can't be raced into negative cash. Routes through the single cash
+    -- accessor; the client never sends or influences the amount.
+    if not ProfileManager.TrySpend(player, item.Price) then
+        Remotes.NotifyPlayer(player, "error", "Not enough cash")
+        return
+    end
+
     local brainrot = {
         Id = HttpService:GenerateGUID(false),
         Type = item.Id,
@@ -90,7 +94,7 @@ local function onPurchase(player, itemId)
     PlayerStats.UpdateIncome(player, profile)
     Leaderstats.Update(player, profile)
 
-    Remotes.NotifyPlayer(player, "success", "Bought " .. item.DisplayName .. "!")
+    Remotes.NotifyPlayer(player, "success", "Bought " .. item.DisplayName .. "!", "buy")
 end
 
 function PurchaseService.Init()

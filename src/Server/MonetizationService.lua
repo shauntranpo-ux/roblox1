@@ -36,6 +36,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 
 local DevConfig = require(script.Parent.DevConfig)
 local Benefits = require(script.Parent.Benefits)
+local RateLimiter = require(script.Parent.RateLimiter)
 local ProfileManager = require(script.Parent.ProfileManager)
 local PlotService = require(script.Parent.PlotService)
 local ProtectionService = require(script.Parent.ProtectionService)
@@ -194,7 +195,7 @@ local function prepareGrant(player, profile, grant)
     if t == "Cash" then
         local amount = grant.Amount
         return function()
-            profile.Data.Cash += amount
+            ProfileManager.AddCash(player, amount) -- single guarded cash accessor
         end
     elseif t == "Pads" then
         local pads = grant.Pads
@@ -294,8 +295,15 @@ local function simGrantGamepass(player, passKey)
     Remotes.NotifyPlayer(player, "success", "[SIM] Granted " .. gp.Name)
 end
 
+-- TRUST BOUNDARY (PromptGamepass / PromptProduct): the client sends ONLY a config KEY (string)
+-- asking to be SHOWN a purchase prompt. The server never grants here -- ownership is read from
+-- MarketplaceService (or SIM) and dev-product grants flow exclusively through ProcessReceipt.
+-- Rate-limited so a flood can't spam real Robux prompts.
 local function onPromptGamepass(player, passKey)
     if type(passKey) ~= "string" then
+        return
+    end
+    if not RateLimiter.check(player, "promptGamepass", 1) then
         return
     end
     local gp = Monetization.Gamepasses[passKey]
@@ -321,6 +329,9 @@ end
 
 local function onPromptProduct(player, productKey)
     if type(productKey) ~= "string" then
+        return
+    end
+    if not RateLimiter.check(player, "promptProduct", 1) then
         return
     end
     local def = Monetization.Products[productKey]

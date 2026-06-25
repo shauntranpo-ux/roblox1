@@ -13,7 +13,6 @@ local RunService = game:GetService("RunService")
 local ProfileManager = require(script.Parent.ProfileManager)
 local Leaderstats = require(script.Parent.Leaderstats)
 local PlayerStats = require(script.Parent.PlayerStats)
-local TransitRegistry = require(script.Parent.TransitRegistry)
 local Benefits = require(script.Parent.Benefits)
 
 local IncomeService = {}
@@ -37,17 +36,13 @@ function IncomeService.Start()
         for _, player in ipairs(Players:GetPlayers()) do
             local profile = ProfileManager.GetProfile(player)
             if profile ~= nil then
-                local ratePerSec = 0
-                for _, brainrot in ipairs(profile.Data.OwnedBrainrots) do
-                    -- Skip brainrots currently being carried in a steal -- they earn for no one.
-                    if not TransitRegistry.Has(brainrot.Id) then
-                        ratePerSec += brainrot.IncomePerSec
-                    end
-                end
-                -- Apply the player's income multiplier (e.g. the 2x Cash gamepass). The multiplier
-                -- is read live every frame, so a benefit change takes effect immediately.
-                if ratePerSec > 0 then
-                    profile.Data.Cash += ratePerSec * Benefits.GetIncomeMultiplier(player) * deltaTime
+                -- PERF: base rate is cached (recomputed only on roster/multiplier change), so this
+                -- is O(players) per frame, not O(brainrots). The multiplier is read live so a
+                -- benefit change (e.g. 2x Cash) takes effect immediately. All cash flows through
+                -- the single guarded accessor -> never negative, never NaN/inf.
+                local rate = PlayerStats.GetBaseRate(player) * Benefits.GetIncomeMultiplier(player)
+                if rate > 0 then
+                    ProfileManager.AddCash(player, rate * deltaTime)
                 end
                 if pushNow then
                     Leaderstats.Update(player, profile)

@@ -17,6 +17,10 @@ Remotes.PromptGamepass = nil -- RemoteEvent  : client -> server, requests a game
 Remotes.PromptProduct = nil -- RemoteEvent  : client -> server, requests a dev-product purchase prompt (productKey)
 Remotes.GetMonetization = nil -- RemoteFunction : client -> server, returns { Owned = {key=true}, SimMode = bool }
 Remotes.MonetizationUpdate = nil -- RemoteEvent  : server -> client, a gamepass became owned { Key, Owned }
+-- M6 onboarding + settings. Client sends INTENT ONLY (tutorial finished/skipped; which prefs).
+Remotes.Tutorial = nil -- RemoteEvent  : server -> client "start"; client -> server "done"|"skip"
+Remotes.GetSettings = nil -- RemoteFunction : client -> server, returns the saved { Music, SFX, Shake }
+Remotes.SaveSettings = nil -- RemoteEvent  : client -> server, saves validated boolean prefs
 
 local folder = nil
 
@@ -60,6 +64,18 @@ function Remotes.Init()
     monetizationUpdate.Name = "MonetizationUpdate"
     monetizationUpdate.Parent = folder
 
+    local tutorial = Instance.new("RemoteEvent")
+    tutorial.Name = "Tutorial"
+    tutorial.Parent = folder
+
+    local getSettings = Instance.new("RemoteFunction")
+    getSettings.Name = "GetSettings"
+    getSettings.Parent = folder
+
+    local saveSettings = Instance.new("RemoteEvent")
+    saveSettings.Name = "SaveSettings"
+    saveSettings.Parent = folder
+
     folder.Parent = ReplicatedStorage
 
     Remotes.PurchaseRequest = purchase
@@ -70,12 +86,24 @@ function Remotes.Init()
     Remotes.PromptProduct = promptProduct
     Remotes.GetMonetization = getMonetization
     Remotes.MonetizationUpdate = monetizationUpdate
+    Remotes.Tutorial = tutorial
+    Remotes.GetSettings = getSettings
+    Remotes.SaveSettings = saveSettings
 end
 
--- Sends a toast to a single player. kind = "success" | "error" | "info".
-function Remotes.NotifyPlayer(player, kind, message)
+-- Sends a toast to a single player. kind = "success" | "error" | "info". Optional `cue` is a
+-- short juice key the client maps to an effect (e.g. "buy", "deposit", "robbed") -- purely
+-- presentational; it carries no authority.
+function Remotes.NotifyPlayer(player, kind, message, cue)
     if Remotes.Notify ~= nil then
-        Remotes.Notify:FireClient(player, { Kind = kind, Message = message })
+        Remotes.Notify:FireClient(player, { Kind = kind, Message = message, Cue = cue })
+    end
+end
+
+-- Tells one client to begin the first-session onboarding flow (server decides who/when).
+function Remotes.StartTutorial(player)
+    if Remotes.Tutorial ~= nil then
+        Remotes.Tutorial:FireClient(player, "start")
     end
 end
 

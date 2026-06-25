@@ -58,6 +58,9 @@ local function addInfoLabel(part, def, incomePerSec)
     billboard.Size = UDim2.fromScale(4.5, 1.6)
     billboard.StudsOffsetWorldSpace = Vector3.new(0, 3.2, 0)
     billboard.AlwaysOnTop = true
+    -- PERF: with hundreds of units server-wide, only render the floating "+$/s" label for nearby
+    -- ones. Far labels stop drawing, bounding GUI cost without any logic change.
+    billboard.MaxDistance = 90
     billboard.Adornee = part
     billboard.Parent = part
 

@@ -19,8 +19,11 @@ local StealService = require(script.Parent.StealService)
 local MonetizationService = require(script.Parent.MonetizationService)
 local LeaderboardService = require(script.Parent.LeaderboardService)
 local LeaderboardBillboards = require(script.Parent.LeaderboardBillboards)
+local SettingsService = require(script.Parent.SettingsService)
+local TutorialService = require(script.Parent.TutorialService)
+local RateLimiter = require(script.Parent.RateLimiter)
 
-print("[BRAINROT] M5 starting -- monetization (gamepasses + products) + global leaderboards")
+print("[BRAINROT] M6 starting -- hardening, onboarding, juice, balance + performance")
 
 -- Data layer, network surface, world, defense, income loop, then the client-facing handlers.
 ProfileManager.Init()
@@ -35,6 +38,9 @@ StealService.Init()
 MonetizationService.Init()
 LeaderboardService.Init()
 LeaderboardBillboards.Init()
+-- M6: client-preference persistence + the one-time onboarding handshake.
+SettingsService.Init()
+TutorialService.Init()
 
 local handled = {} -- [Player] = true, guards against double-joins (Studio Play Solo)
 
@@ -101,7 +107,11 @@ local function onPlayerRemoving(player)
     ProtectionService.ClearPlayer(player)
     MonetizationService.ClearPlayer(player)
     BrainrotService.ClearPlayer(player)
+    -- M6 cleanup: drop the cached income rate + per-player rate-limit timestamps so nothing
+    -- lingers after leave (verified leak-free across repeated join/leave cycles).
+    PlayerStats.ClearPlayer(player)
     PlotService.FreePlot(player)
+    RateLimiter.clear(player)
     ProfileManager.ReleaseProfile(player)
 end
 
@@ -112,3 +122,16 @@ Players.PlayerRemoving:Connect(onPlayerRemoving)
 for _, player in ipairs(Players:GetPlayers()) do
     task.spawn(onPlayerAdded, player)
 end
+
+-- Graceful shutdown (server restart / BindToClose): settle every in-flight steal so no unit is
+-- duped/lost, flush the latest leaderboard values, then release every profile so ProfileStore
+-- saves cleanly. All best-effort + pcall-wrapped so one failure can't block the shutdown.
+game:BindToClose(function()
+    for _, player in ipairs(Players:GetPlayers()) do
+        pcall(StealService.ResolvePlayer, player)
+    end
+    pcall(LeaderboardService.FlushAll)
+    for _, player in ipairs(Players:GetPlayers()) do
+        pcall(ProfileManager.ReleaseProfile, player)
+    end
+end)

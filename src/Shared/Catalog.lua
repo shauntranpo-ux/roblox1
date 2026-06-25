@@ -27,8 +27,16 @@
 --   Every tier is a sharp jump -- roughly 5x the previous tier's price, and a touch MORE
 --   than that in income, so the income/price RATIO improves modestly as you climb (this
 --   rewards chasing rarer units). Within a tier, entries step ~2-3x. Approx income/price
---   ratio by tier: Common ~0.02, Rare ~0.028, Epic ~0.036, Legendary ~0.046,
+--   ratio by tier: Common ~0.03, Rare ~0.028, Epic ~0.036, Legendary ~0.046,
 --   Mythic ~0.057, Secret ~0.073.
+--
+-- M6 PACING (income is CUMULATIVE -- you keep every unit you own):
+--   * EARLY (Common) is intentionally FAST: starter earns 3/s, and each of the first ~3 buys
+--     becomes affordable in roughly 20-25s, so the "buy -> bigger number" loop hooks inside the
+--     first minute. After all Commons a player earns ~200/s.
+--   * Each new TIER is a deliberate step up (a satisfying goal, not a wall): the first Rare lands
+--     ~25s after the last Common; tier-to-tier gaps widen gently into a late-game grind.
+--   Retune the WHOLE economy here; nothing about pacing is hardcoded in logic.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -44,28 +52,28 @@ Catalog.Items = {
         DisplayName = "Tung Tung Tung Sahur",
         Rarity = "Common",
         Price = 50,
-        IncomePerSec = 1,
+        IncomePerSec = 3,
     },
     {
         Id = "trippi_troppi",
         DisplayName = "Trippi Troppi",
         Rarity = "Common",
-        Price = 150,
-        IncomePerSec = 3,
+        Price = 80,
+        IncomePerSec = 9,
     },
     {
         Id = "brr_patapim",
         DisplayName = "Brr Brr Patapim",
         Rarity = "Common",
-        Price = 400,
-        IncomePerSec = 9,
+        Price = 300,
+        IncomePerSec = 38,
     },
     {
         Id = "bombombini",
         DisplayName = "Bombombini Gusini",
         Rarity = "Common",
-        Price = 900,
-        IncomePerSec = 22,
+        Price = 1100,
+        IncomePerSec = 150,
     },
 
     -- RARE

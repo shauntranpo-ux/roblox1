@@ -5,11 +5,18 @@
 -- (Defense is intentionally simple + timer-based for v1: protection WINDOWS, not a
 --  destructible-HP wall. A future option is per-plot HP "locks" you grind down -- NOT built
 --  this milestone; left as a note only.)
+--
+-- M6 PACING INTENT (fun-but-fair; retune freely, all here):
+--   * Robbing is EXCITING but commits you: a 3.5s hold (defenders get a reaction window), a carry
+--     speed penalty + a 60s carry timeout (you must get home), and a 10s thief cooldown so there's
+--     no instant chain-robbing.
+--   * Being robbed is RECOVERABLE, not rage-quit: a long new-player grace, a 30s post-robbery
+--     shield to regroup, and 10s per-unit immunity so the same unit can't be re-yoinked instantly.
 
 local StealConfig = {}
 
 -- ── Steal / carry timing ───────────────────────────────────────────────────────────────
-StealConfig.HoldDuration = 4 -- s: ProximityPrompt hold time to grab a brainrot (defenders get a window)
+StealConfig.HoldDuration = 3.5 -- s: ProximityPrompt hold time to grab a brainrot (defenders get a window)
 StealConfig.PromptMaxDistance = 10 -- studs: how close a thief must be for the steal prompt to show
 StealConfig.CarryTimeout = 60 -- s: auto-REVERT a steal not deposited in time (prevents stuck carries)
 StealConfig.DepositRange = 14 -- studs: server-verified distance to the reserved pad that auto-deposits

@@ -2,7 +2,7 @@
 
 Multiplayer Roblox idle/theft game. Players collect meme creatures ("brainrot") that generate passive cash, unlock rarer ones, and steal each other's units.
 
-Built in milestones. Current: **M5 — monetization (gamepasses + developer products) + global leaderboards**. Robux gamepasses grant permanent server-side perks (2x Cash, Extra Pads, Reinforced Lock, VIP), developer products grant deterministic consumables (cash packs, instant pads, an exclusive premium brainrot) through a single perfectly-idempotent `ProcessReceipt`, and three OrderedDataStore-backed boards (Top Cash / Top Income / Rarest Collection) render on in-world billboards. Everything is ID-driven from one config, every benefit is granted + re-verified server-side and applied idempotently, and a guarded DEV/TEST SIM mode lets you exercise it all in Studio without spending Robux. (M4: dupe-proof steal mechanic + timer defense. M3: rarity roster + scaling economy. M2: mobile HUD + secure purchase. M1: income loop + ProfileStore. M0: toolchain.) Everything economic and every ownership change is server-authoritative — the client only requests; the server validates and mutates.
+Built in milestones. Current: **M6 — hardening, onboarding, juice, balance & performance**. A full adversarial security audit (every remote's trust boundary documented + enforced; ONE guarded cash accessor; steal + receipt paths re-proven dupe/double-grant-proof; rate limiting on every client remote), a wordless first-session tutorial, a lightweight pooled juice layer (particles / camera shake / sound + a settings panel), a fast-early balance pass, and a scale pass (cached income loop, distance-capped labels, janitor cleanup, `BindToClose` flush). No new systems — hardening + feel only. (M5: monetization + leaderboards. M4: dupe-proof steal mechanic + timer defense. M3: rarity roster + scaling economy. M2: mobile HUD + secure purchase. M1: income loop + ProfileStore. M0: toolchain.) Everything economic and every ownership change is server-authoritative — the client only requests intent; the server validates and mutates.
 
 ## Stack
 
@@ -38,6 +38,9 @@ src/
     MonetizationService.lua  gamepass ownership + benefit registry + the single ProcessReceipt
     LeaderboardService.lua   OrderedDataStore boards (throttled, fault-tolerant, mock fallback)
     LeaderboardBillboards.lua in-world ranked displays (procedural; Assets model forward-compat)
+    RateLimiter.lua          per-player, per-action remote throttle (anti-spam, all remotes)
+    SettingsService.lua      persists/serves client prefs (Music/SFX/Shake); validates the shape
+    TutorialService.lua      one-time onboarding handshake + saved TutorialDone flag
     Lib/ProfileStore.luau    vendored third-party data lib (loleris)
   Client/                    → StarterPlayer > StarterPlayerScripts > Client
     Client.client.lua        builds UI on spawn, wires remotes, hides own steal prompts
@@ -48,12 +51,17 @@ src/
     UI/Inventory.lua         owned list, fetched via RemoteFunction
     UI/Notifications.lua     transient toast stack (victim "stole your X!" alerts)
     UI/KillFeed.lua          everyone-sees steal banner (server broadcast)
+    UI/Effects.lua           juice toolbox: pooled particles, camera shake, flashes, sound
+    UI/Settings.lua          tiny prefs panel (Music / SFX / Screen Shake)
+    UI/Tutorial.lua          one-time onboarding arrow + coachmark (Janitor-cleaned)
   Shared/                    → ReplicatedStorage > Shared
     Config.lua               plot/world tuning (brainrot stats now live in Catalog)
     Rarity.lua               rarity ladder: tier names, colors, order (single source)
     Catalog.lua              full data-driven brainrot ROSTER + economy curve (+ premium flag)
     StealConfig.lua          ALL steal/carry/defense tunables (one retune surface)
     Monetization.lua         ALL gamepass/product IDs + benefits + leaderboard tuning (one file)
+    Audio.lua                swappable music/SFX asset IDs (0 = silent; IP-safe, all in config)
+    Janitor.lua              minimal connection/instance cleanup helper (no framework)
     Format.lua               compact number formatter (1.2K / 3.4M / 1B)
   StarterGui/                → StarterGui
   ServerStorage/             → ServerStorage > Assets  (plot/brainrot model templates later)
@@ -167,6 +175,71 @@ which mode it's in on startup.
 stacking cap (`Income.MaxMultiplier`), cash-pack amounts, pad amounts, leaderboard `RarityWeights`,
 `RefreshInterval`, `TopN`, and the value clamp (`MaxValue`). New-player starting pads live in
 `Config.Plots.DefaultUnlockedPads` (kept below `PadsPerPlot` so Extra Pads has headroom).
+
+### Hardening, onboarding, juice & performance (M6)
+
+**Security audit — every client-callable remote, its trust boundary, and the protections.** The
+client may send **intent only**; the server reads values from its own roster/config and verifies
+legality. Each handler carries this as a comment.
+
+| Remote (type) | Client may send | Server verifies / does | Protections |
+|---|---|---|---|
+| `PurchaseRequest` (Event) | an item **id** (string) | resolves price/income from `Catalog`; loaded profile; free pad; affordability; spends + grants atomically | type check · 0.5s debounce · `TrySpend` (atomic, no-negative) |
+| `GetInventory` (Function) | nothing | returns a fresh list from server profile + roster (display fields) | read-only · 0.25s rate limit |
+| `PromptGamepass` / `PromptProduct` (Event) | a config **key** (string) | only opens a Marketplace prompt; never grants here | type check · 1s rate limit · unknown key dropped |
+| `GetMonetization` (Function) | nothing | returns owned-map (from MarketplaceService/SIM) + SIM flag | read-only |
+| `SaveSettings` (Event) | `{Music,SFX,Shake}` | stores **only** those three booleans (shape-sanitized) | type check · 0.3s rate limit · presentational only |
+| `GetSettings` (Function) | nothing | returns the saved prefs | read-only |
+| `Tutorial` (Event) | `"ready"`/`"done"`/`"skip"` | owns the `TutorialDone` flag; only ever sets it true | string check · 0.5s rate limit · idempotent |
+| `Notify` / `KillFeed` / `MonetizationUpdate` (Event) | — | **server → client only** (outbound; clients can't meaningfully fire them) | n/a |
+
+Developer-product receipts arrive via Roblox's `ProcessReceipt` (not a client remote) — still
+exactly one handler, idempotent, atomic grant+record (see M5).
+
+**Written self-audit:**
+- **Cash integrity** — Cash is written in exactly TWO places, both in `ProfileManager`:
+  `AddCash` (clamps to `[0, MAX_CASH]`, rejects NaN/inf) and `TrySpend` (atomic, never negative).
+  Income, purchases, and product grants all route through them; **no scattered direct writes and
+  no client path can set/add cash**. (`grep "Data.Cash"` → only these accessors + read-only
+  display/board reads.)
+- **Steal can't dupe/lose** — ownership still changes only in `transferOwnership`
+  (`table.remove`+`table.insert`, no yields); deposit is a **server** distance check on the real
+  character; the double-trigger race is closed by the `ActiveSteals` guard; death / disconnect /
+  timeout / victim-leave all resolve **before** profile release (and on `BindToClose`); reserved
+  pads are released on every failure path.
+- **Money can't double-grant** — one `ProcessReceipt`; persisted `PurchaseHistory` dedupe; grant
+  and record commit together; `NotProcessedYet` on unloaded profile. Gamepass benefits + the income
+  multiplier are keyed/idempotent, so rejoin + live purchase can't double-stack.
+- **No leaks** — per-player state (`rateCache`, rate-limit stamps, monetization session tables,
+  benefit state) is cleared on leave; per-steal instances/welds are destroyed in `clearSteal`;
+  the tutorial + effects track their connections/instances in a `Janitor` and release them on
+  finish. Verified across repeated join/leave/steal/death cycles.
+- **Debug locked** — the only debug affordances (`DevConfig.SimMode`, `TutorialService.ResetForTesting`)
+  are server-only and gated to Studio SIM; there are no admin/test remotes exposed to clients.
+
+**Onboarding** — brand-new players get a one-time, near-wordless flow (an arrow + coachmark toward
+the Shop, then a celebration on the first buy), driven by a client→server **"ready" handshake** so
+the start signal can't be missed. It's **skippable** and the saved `TutorialDone` flag means
+returning players never see it. Re-test it in SIM via
+`require(game.ServerScriptService.Server.TutorialService).ResetForTesting(game.Players.YOURNAME)`.
+
+**Juice & settings** — `UI/Effects` adds pooled particle bursts, a cash-pill / rate-label pop, a
+screen flash, and a subtle camera shake on buy / deposit / robbed / milestone, plus sound hooks.
+Everything is **pooled + capped** (fixed 24-particle pool, one idle-safe render-step shake,
+short-lived sounds) so it never blows up frame time at a full server. The **Settings** panel
+(HUD ⚙) toggles Music / SFX / Screen Shake, persisted server-side. All audio IDs live in
+`Shared/Audio` (0 = silent) — swap in your own/licensed assets; nothing copyrighted is hardcoded.
+
+**Performance** — the income loop now reads a **cached per-player base rate** (recomputed only on
+roster/multiplier change), so accrual is O(players)/frame, not O(brainrots); floating "+$/s"
+labels use `MaxDistance` so far units stop drawing; replication stays on throttled attributes;
+`BindToClose` flushes leaderboard writes + releases profiles on shutdown.
+
+**Balance (retune in config):** early economy in `Shared/Catalog` (Commons tuned so the first ~3
+buys land every ~20–25s — the loop hooks in the first minute; pacing documented at the top of the
+file); starting pads in `Shared/Config` (`DefaultUnlockedPads`); steal feel in `Shared/StealConfig`
+(hold, grace/post-robbery windows, cooldown, immunity, carry timeout/range/penalty — intent
+documented inline). No balance number is hardcoded in logic.
 
 ### Data saving (ProfileStore)
 
