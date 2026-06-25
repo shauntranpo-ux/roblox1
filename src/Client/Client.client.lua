@@ -29,22 +29,50 @@ local remotes = {
     PromptProduct = remotesFolder:WaitForChild("PromptProduct"),
     GetMonetization = remotesFolder:WaitForChild("GetMonetization"),
     MonetizationUpdate = remotesFolder:WaitForChild("MonetizationUpdate"),
+    Tutorial = remotesFolder:WaitForChild("Tutorial"),
+    GetSettings = remotesFolder:WaitForChild("GetSettings"),
+    SaveSettings = remotesFolder:WaitForChild("SaveSettings"),
 }
 
 local context = { player = player, remotes = remotes }
 
-Effects.mount(context) -- mount first so settings can apply music/shake immediately
-Notifications.mount(context)
-KillFeed.mount(context)
-Shop.mount(context)
-Inventory.mount(context)
-Settings.mount(context, { onChanged = Effects.applySettings })
-Tutorial.mount(context)
-HUD.mount(context, {
-    onShop = Shop.toggle,
-    onInventory = Inventory.toggle,
-    onSettings = Settings.toggle,
-})
+-- Mount each UI module independently so a failure in one (e.g. a juice module) can NEVER
+-- cascade and leave the player with no HUD. Each error is logged, the rest still build.
+local function safeMount(name, fn)
+    local ok, err = pcall(fn)
+    if not ok then
+        warn("[Client] " .. name .. " failed to mount: " .. tostring(err))
+    end
+end
+
+safeMount("Effects", function() -- first, so settings can apply music/shake immediately
+    Effects.mount(context)
+end)
+safeMount("Notifications", function()
+    Notifications.mount(context)
+end)
+safeMount("KillFeed", function()
+    KillFeed.mount(context)
+end)
+safeMount("Shop", function()
+    Shop.mount(context)
+end)
+safeMount("Inventory", function()
+    Inventory.mount(context)
+end)
+safeMount("Settings", function()
+    Settings.mount(context, { onChanged = Effects.applySettings })
+end)
+safeMount("Tutorial", function()
+    Tutorial.mount(context)
+end)
+safeMount("HUD", function()
+    HUD.mount(context, {
+        onShop = Shop.toggle,
+        onInventory = Inventory.toggle,
+        onSettings = Settings.toggle,
+    })
+end)
 
 -- Hide the "Hold to steal" prompt on the LOCAL player's OWN brainrots (you can't steal your
 -- own -- the server rejects it regardless). Cosmetic only: we keep re-asserting Enabled=false
