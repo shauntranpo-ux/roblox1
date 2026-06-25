@@ -42,6 +42,9 @@ Analytics.Events = { -- custom (retention/engagement) event names
     EventShopBuy = "event_shop_buy", -- M8.4 an event-shop purchase
     SeasonReward = "season_reward", -- M8.5 end-of-season reward granted (value = total cash)
     Sell = "sell", -- M9.1 a sell committed (value = count of units sold)
+    Fusion = "fusion", -- M9.2 a successful fusion (value = result star level)
+    FusionCrit = "fusion_crit", -- M9.2 a fusion crit (extra stars)
+    FusionFail = "fusion_fail", -- M9.2 a soft-fail (value = fodder lost)
 }
 
 Analytics.Funnel = { -- new-player onboarding funnel steps { stepNumber, stepName }

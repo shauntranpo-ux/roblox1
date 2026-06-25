@@ -136,8 +136,9 @@ local function transferOwnership(steal)
     entry.PadIndex = steal.ReservedPadIndex
     table.insert(thiefProfile.Data.OwnedBrainrots, entry)
     thiefProfile.Data.Discovered[entry.Type] = true
-    -- The unit's intrinsic Mutation field moves WITH the whole record (never re-rolled); the thief
-    -- now owns it, so they discover that mutation.
+    -- TRANSFER SAFETY (M9.2): `entry` is the WHOLE per-unit record, so its intrinsic Mutation AND
+    -- Star fields move with it UNCHANGED -- never re-rolled, stripped, or duplicated (the steal only
+    -- moves the table reference between inventories). The thief now owns it -> discover the mutation.
     if entry.Mutation ~= nil then
         thiefProfile.Data.MutationsDiscovered[entry.Mutation] = true
     end

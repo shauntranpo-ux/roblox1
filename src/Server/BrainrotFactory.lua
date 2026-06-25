@@ -55,9 +55,11 @@ function BrainrotFactory.create(player, def, padIndex, rollMutation)
     return {
         Id = HttpService:GenerateGUID(false),
         Type = def.Id,
-        IncomePerSec = def.IncomePerSec, -- species BASE, never mutated in storage
+        IncomePerSec = def.IncomePerSec, -- species BASE, never mutated/starred in storage
         PadIndex = padIndex,
         Mutation = mutation, -- nil = Normal
+        Star = 1, -- M9.2: every unit starts at ★1; FusionService raises it. Income star factor
+        -- is applied ONLY by Shared/UnitIncome (never baked into IncomePerSec).
     }
 end
 

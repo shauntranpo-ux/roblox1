@@ -58,6 +58,7 @@ Theme.Accents = {
     Codes = { Top = Color3.fromRGB(126, 226, 152), Bottom = Color3.fromRGB(74, 184, 114) }, -- green
     Settings = { Top = Color3.fromRGB(168, 176, 196), Bottom = Color3.fromRGB(108, 116, 138) }, -- slate
     Menu = { Top = Color3.fromRGB(180, 110, 255), Bottom = Color3.fromRGB(120, 55, 215) },
+    Fusion = { Top = Color3.fromRGB(255, 170, 90), Bottom = Color3.fromRGB(236, 96, 60) }, -- forge orange
 }
 
 -- Returns a fresh vertical UIGradient for an accent key (top -> bottom). Caller parents it.

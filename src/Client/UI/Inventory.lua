@@ -10,6 +10,7 @@ local Theme = require(script.Parent.Theme)
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Format = require(Shared:WaitForChild("Format"))
 local Rarity = require(Shared:WaitForChild("Rarity"))
+local FusionConfig = require(Shared:WaitForChild("FusionConfig"))
 
 local Inventory = {}
 
@@ -145,7 +146,9 @@ local function addRow(entry, order)
         BackgroundTransparency = 1,
         Position = UDim2.fromOffset(4, 3),
         Size = UDim2.new(1, -164, 0, 24),
-        Text = entry.Name,
+        Text = (entry.Star and entry.Star > 1) and (entry.Name .. "  " .. FusionConfig.Stars(
+            entry.Star
+        )) or entry.Name,
         TextColor3 = Theme.Colors.Text,
         TextSize = 18,
         TextTruncate = Enum.TextTruncate.AtEnd,

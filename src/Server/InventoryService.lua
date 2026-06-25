@@ -53,6 +53,7 @@ local function getInventory(player)
             Type = brainrot.Type,
             Tradeable = TradeConfig.IsTradeable(def),
             Mutation = brainrot.Mutation, -- mutation key (nil = Normal)
+            Star = brainrot.Star or 1, -- M9.2: star level (default 1; income reflects it via the helper)
             Sellable = sellable, -- M9.1: false for premium (protected)
             SellValue = sellValue, -- M9.1: display value (server recomputes on sell)
         })

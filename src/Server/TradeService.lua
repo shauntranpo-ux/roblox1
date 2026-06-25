@@ -297,8 +297,9 @@ local function performSwap(session)
                 unit.PadIndex = padIndex
                 table.insert(toProfile.Data.OwnedBrainrots, unit)
                 toProfile.Data.Discovered[unit.Type] = true
-                -- The unit's Mutation field travels UNCHANGED with the moved record; the receiver
-                -- now owns it, so they discover that mutation.
+                -- TRANSFER SAFETY (M9.2): `unit` is the WHOLE per-unit record, so its Mutation AND
+                -- Star fields travel UNCHANGED with it (never re-rolled/stripped/duplicated -- the
+                -- swap only moves the table reference). The receiver now owns it -> discover mutation.
                 if unit.Mutation ~= nil then
                     toProfile.Data.MutationsDiscovered[unit.Mutation] = true
                 end

@@ -321,6 +321,8 @@ function BrainrotService.SetupPlayer(player, profile, plot)
         -- Seed discovery for existing saves too: anything currently owned counts as owned.
         profile.Data.Discovered[brainrot.Type] = true
         BrainrotFactory.MarkDiscovered(profile, brainrot.Mutation)
+        -- M9.2 RECONCILE: legacy units have no Star field -> default to ★1 (persists on next save).
+        brainrot.Star = brainrot.Star or 1
         BrainrotService.SpawnBrainrot(player, plot, brainrot)
     end
 end
