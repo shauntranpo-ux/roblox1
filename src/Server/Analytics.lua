@@ -67,6 +67,10 @@ Analytics.Events = { -- custom (retention/engagement) event names
     BossDamage = "boss_damage", -- M11.3-combat total damage a player dealt to a slain boss (value = damage)
     TutorialStep = "tutorial_step", -- M12.1 a tutorial step completed (value = the new step index)
     QuestClaim = "quest_claim", -- M12.1 a daily/weekly/milestone quest reward claimed
+    DailyClaim = "daily_claim", -- M12.2 a daily-streak chest claimed (value = streak length)
+    GiftClaim = "gift_claim", -- M12.2 a timed free gift claimed
+    Spin = "spin", -- M12.2 a wheel spin (value = the landed segment index)
+    MysteryOpen = "mystery_open", -- M12.2 the base mystery block opened
 }
 
 Analytics.Funnel = { -- new-player onboarding funnel steps { stepNumber, stepName }

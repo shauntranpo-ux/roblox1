@@ -122,6 +122,14 @@ local PROFILE_TEMPLATE = {
     ClaimedWeekly = {}, -- [questId] = true
     MilestoneProgress = {}, -- [questId] = progress (long-term, persists until claimed)
     ClaimedMilestone = {}, -- [questId] = true
+    -- M12.2 FREE REWARDS: daily-streak chest + timed gift + spin + mystery block. The persisted
+    -- server-time markers ARE the idempotency gate (unfarmable by rejoin/hop). RNG rolled server-side.
+    DailyStreak = 0, -- consecutive-day streak length
+    LastDailyDay = -1, -- the server-day id of the last daily claim
+    LastGiftTime = 0, -- os.time() of the last timed-gift claim
+    SpinsAvailable = 0, -- banked free spins
+    LastSpinGrantTime = 0, -- os.time() anchor the next spin accrues from (0 = seed on first join)
+    LastMysteryTime = 0, -- os.time() of the last mystery-block open
 }
 
 local Profiles = {} -- [Player] = Profile

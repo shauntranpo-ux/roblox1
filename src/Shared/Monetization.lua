@@ -56,6 +56,15 @@ Monetization.Gamepasses = {
         Description = "A permanent catch-speed + range boost on every catch (stacks with your net).",
         Benefit = { Type = "ProNet" },
     },
+    -- M12.2: a DETERMINISTIC, disclosed convenience -- DOUBLES the daily-streak chest CASH. NOT a
+    -- random pull (the free-reward RNG is never sold for Robux); this only 2x's a fixed cash reward.
+    DoubleDaily = {
+        Order = 6,
+        Id = 0, -- <<< paste the "2x Daily" gamepass Id here
+        Name = "2x Daily Chest",
+        Description = "Permanently DOUBLE the cash from your daily login chest.",
+        Benefit = { Type = "DoubleDaily" },
+    },
 }
 
 -- ===========================================================================================

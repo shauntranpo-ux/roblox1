@@ -43,6 +43,7 @@ local SharedEventHud = require(UI.SharedEventHud)
 local NetShop = require(UI.NetShop)
 local Objective = require(UI.Objective)
 local QuestLog = require(UI.QuestLog)
+local FreeRewards = require(UI.FreeRewards)
 
 local player = Players.LocalPlayer
 
@@ -88,6 +89,8 @@ local remotes = {
     GetQuests = remotesFolder:WaitForChild("GetQuests"),
     ClaimQuest = remotesFolder:WaitForChild("ClaimQuest"),
     QuestsUpdate = remotesFolder:WaitForChild("QuestsUpdate"),
+    FreeRewardAction = remotesFolder:WaitForChild("FreeRewardAction"),
+    FreeRewardUpdate = remotesFolder:WaitForChild("FreeRewardUpdate"),
 }
 
 local context = { player = player, remotes = remotes }
@@ -192,6 +195,9 @@ end)
 safeMount("QuestLog", function()
     QuestLog.mount(context)
 end)
+safeMount("FreeRewards", function()
+    FreeRewards.mount(context)
+end)
 safeMount("Nameplates", function()
     Nameplates.mount(context)
 end)
@@ -220,6 +226,9 @@ safeMount("Menu", function()
     end)
     Menu.addButton("📜 Quests", function()
         PanelManager.open("QuestLog")
+    end)
+    Menu.addButton("🎁 Free", function()
+        PanelManager.open("FreeRewards")
     end)
     Menu.addButton("🎁 Exclusives", function()
         PanelManager.open("Exclusives")
@@ -280,6 +289,7 @@ safeMount("PanelManager registry", function()
     PanelManager.register("Exclusives", Exclusives.toggle)
     PanelManager.register("NetShop", NetShop.toggle)
     PanelManager.register("QuestLog", QuestLog.toggle)
+    PanelManager.register("FreeRewards", FreeRewards.toggle)
 end)
 
 -- Hide the "Hold to steal" prompt on the LOCAL player's OWN brainrots (you can't steal your

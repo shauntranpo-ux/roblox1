@@ -45,6 +45,8 @@ local WildSpawnService = require(script.Parent.WildSpawnService)
 local SharedEventService = require(script.Parent.SharedEventService)
 -- M12.1: tutorial + quests (observes gameplay signals; binds GetQuests/ClaimQuest).
 local QuestService = require(script.Parent.QuestService)
+-- M12.2: free rewards (daily chest / gift / spin / mystery block; server-time-gated).
+local FreeRewardService = require(script.Parent.FreeRewardService)
 -- M9.1: selling (the economy floor sink).
 local SellService = require(script.Parent.SellService)
 -- M9.2: fusion + stars (turn duplicates into fuel).
@@ -117,6 +119,8 @@ start("WildSpawnService", WildSpawnService.Init)
 start("SharedEventService", SharedEventService.Init)
 -- M12.1: subscribe quests to GameSignals + bind the quest remotes.
 start("QuestService", QuestService.Init)
+-- M12.2: bind the free-reward remotes + the mystery-block prompts.
+start("FreeRewardService", FreeRewardService.Init)
 -- M9.1: the sell sink (binds SellRequest).
 start("SellService", SellService.Init)
 -- M9.2: fusion + stars (binds FuseRequest).
@@ -208,6 +212,8 @@ local function onPlayerAdded(player)
     NetService.SetupPlayer(player, profile)
     -- M12.1: reset stale daily/weekly periods, sync reached-quests, publish the objective banner.
     QuestService.SetupPlayer(player, profile)
+    -- M12.2: seed starter spins on first contact + accrue banked spins from server time.
+    FreeRewardService.SetupPlayer(player, profile)
     -- M8.4: apply any currently-active event modifiers (idempotent) + prune stale event data.
     EventService.SetupPlayer(player, profile)
     -- M11.1: re-derive equipped perks + re-lock equipped units from the saved loadout (idempotent;

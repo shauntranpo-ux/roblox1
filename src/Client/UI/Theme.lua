@@ -82,6 +82,7 @@ Theme.Accents = {
     Exclusives = { Top = Color3.fromRGB(120, 200, 255), Bottom = Color3.fromRGB(60, 110, 230) }, -- frost blue
     NetShop = { Top = Color3.fromRGB(120, 230, 200), Bottom = Color3.fromRGB(40, 170, 150) }, -- net teal
     Quests = { Top = Color3.fromRGB(255, 220, 130), Bottom = Color3.fromRGB(220, 160, 50) }, -- quest gold
+    Rewards = { Top = Color3.fromRGB(255, 180, 120), Bottom = Color3.fromRGB(230, 110, 60) }, -- reward orange
 }
 
 -- Returns a fresh vertical UIGradient for an accent key (top -> bottom). Caller parents it.

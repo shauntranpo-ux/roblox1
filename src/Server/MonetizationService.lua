@@ -182,6 +182,12 @@ benefitHandlers.ProNet = function(player, _passKey, _benefit)
     player:SetAttribute("ProNet", true)
 end
 
+-- M12.2: 2x Daily Chest -> a replicated flag FreeRewardService reads to double the daily CASH only
+-- (deterministic; never a random pull). Idempotent (overwrite); applied on join for owners.
+benefitHandlers.DoubleDaily = function(player, _passKey, _benefit)
+    player:SetAttribute("DoubleDaily", true)
+end
+
 local function applyBenefit(player, passKey, benefit)
     local handler = benefitHandlers[benefit.Type]
     if handler == nil then

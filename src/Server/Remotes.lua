@@ -70,6 +70,10 @@ Remotes.NetAction = nil -- RemoteFunction : client -> server ({ Action }) -> { R
 Remotes.GetQuests = nil -- RemoteFunction : client -> server () -> quest state (tutorial/daily/weekly/milestone)
 Remotes.ClaimQuest = nil -- RemoteFunction : client -> server (scope, questId) -> { Result, Message }
 Remotes.QuestsUpdate = nil -- RemoteEvent : server -> a client, a ping that quest state changed (refetch)
+-- M12.2 free rewards. Client sends CLAIM/SPIN INTENT only (an action string); the server owns all
+-- cooldown/streak/spin state + rolls RNG server-side.
+Remotes.FreeRewardAction = nil -- RemoteFunction : client -> server (action) -> { Result, State?/Message }
+Remotes.FreeRewardUpdate = nil -- RemoteEvent : server -> a client, a ping that free-reward state changed
 -- M11.4 seasonal exclusives. Client sends INTENT ONLY ({ Action="get"|"buy", Key? }); server gates by
 -- server-time season window + the idempotent claim set.
 Remotes.ExclusiveAction = nil -- RemoteFunction : client -> server ({ Action, Key? }) -> { Result, State?/Message }
@@ -117,6 +121,8 @@ Remotes.ExpectedNames = {
     "GetQuests",
     "ClaimQuest",
     "QuestsUpdate",
+    "FreeRewardAction",
+    "FreeRewardUpdate",
 }
 
 local folder = nil
@@ -285,6 +291,14 @@ function Remotes.Init()
     questsUpdate.Name = "QuestsUpdate"
     questsUpdate.Parent = folder
 
+    local freeRewardAction = Instance.new("RemoteFunction")
+    freeRewardAction.Name = "FreeRewardAction"
+    freeRewardAction.Parent = folder
+
+    local freeRewardUpdate = Instance.new("RemoteEvent")
+    freeRewardUpdate.Name = "FreeRewardUpdate"
+    freeRewardUpdate.Parent = folder
+
     folder.Parent = ReplicatedStorage
 
     Remotes.PurchaseRequest = purchase
@@ -326,6 +340,8 @@ function Remotes.Init()
     Remotes.GetQuests = getQuests
     Remotes.ClaimQuest = claimQuest
     Remotes.QuestsUpdate = questsUpdate
+    Remotes.FreeRewardAction = freeRewardAction
+    Remotes.FreeRewardUpdate = freeRewardUpdate
 end
 
 -- Sends a toast to a single player. kind = "success" | "error" | "info". Optional `cue` is a
