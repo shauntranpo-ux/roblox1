@@ -1,0 +1,33 @@
+{
+  "name": "brainrot-game",
+  "tree": {
+    "$className": "DataModel",
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "Server": {
+        "$path": "src/Server"
+      }
+    },
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "Shared": {
+        "$path": "src/Shared"
+      }
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "Client": {
+          "$path": "src/Client"
+        }
+      }
+    },
+    "StarterGui": {
+      "$className": "StarterGui"
+    },
+    "ServerStorage": {
+      "$className": "ServerStorage"
+    }
+  }
+}

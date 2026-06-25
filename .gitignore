@@ -1,0 +1,13 @@
+# Rojo
+*.rbxlx
+*.rbxl
+
+# Wally
+Packages/
+
+# Rokit
+.rokit/
+
+# OS
+.DS_Store
+Thumbs.db
