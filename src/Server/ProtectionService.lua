@@ -22,6 +22,10 @@ local ProtectionService = {}
 local protection = {} -- [Player] = { Until = clock, Dome = Part, Label = TextLabel }
 local UPDATE_INTERVAL = 0.25
 local accum = 0
+-- AT-BASE SHIELD: standing in your OWN plot keeps protection topped up (re-granted each tick) and shows a
+-- FULL shield bar + a "SAFE AT BASE" dome. Walking away lets it lapse after AT_BASE_HOLD seconds.
+local AT_BASE_HOLD = 1.0 -- seconds of protection each at-base tick tops up to
+local AT_BASE_RADIUS = 34 -- studs from the plot origin counted as "at your own base"
 
 -- True while the player's plot is protected (steals must be rejected).
 function ProtectionService.IsProtected(player)
@@ -144,6 +148,22 @@ function ProtectionService.ClearPlayer(player)
     end
 end
 
+-- True while the player is standing within their OWN plot area (the at-base safe zone).
+local function atOwnBase(player)
+    local plot = PlotService.GetPlot(player)
+    if plot == nil then
+        return false
+    end
+    local char = player.Character
+    local root = char ~= nil and char:FindFirstChild("HumanoidRootPart") or nil
+    if root == nil then
+        return false
+    end
+    local o = plot.Origin.Position
+    local flat = Vector3.new(root.Position.X - o.X, 0, root.Position.Z - o.Z)
+    return flat.Magnitude <= AT_BASE_RADIUS
+end
+
 function ProtectionService.Init()
     RunService.Heartbeat:Connect(function(deltaTime)
         accum += deltaTime
@@ -153,15 +173,35 @@ function ProtectionService.Init()
         accum = 0
 
         local now = os.clock()
+        -- AT-BASE SHIELD: standing in your own plot keeps you protected (topped up each tick).
+        for _, player in ipairs(Players:GetPlayers()) do
+            if atOwnBase(player) then
+                local state = protection[player]
+                if state == nil then
+                    grantUntil(player, now + AT_BASE_HOLD) -- on ENTER: build the dome + disable prompts
+                    state = protection[player]
+                else
+                    state.Until = math.max(state.Until, now + AT_BASE_HOLD)
+                end
+                state.AtBaseUntil = now + AT_BASE_HOLD
+            end
+        end
+
         for player, state in pairs(protection) do
             if player.Parent ~= Players or now >= state.Until then
                 expire(player)
             else
-                -- VM-THEME display-only: publish shield seconds + max so the HUD HP/shield bar binds.
-                player:SetAttribute("ShieldSeconds", math.ceil(state.Until - now))
+                local atBase = state.AtBaseUntil ~= nil and now < state.AtBaseUntil
+                -- VM-THEME display-only: publish shield seconds + max so the HUD shield bar binds. At base the
+                -- bar reads FULL (an always-on home shield); otherwise it counts the timed window down.
+                player:SetAttribute(
+                    "ShieldSeconds",
+                    atBase and StealConfig.NewPlayerGrace or math.ceil(state.Until - now)
+                )
                 player:SetAttribute("ShieldMax", StealConfig.NewPlayerGrace)
                 if state.Label ~= nil then
-                    state.Label.Text = "Protected " .. tostring(math.ceil(state.Until - now)) .. "s"
+                    state.Label.Text = atBase and "SAFE AT BASE"
+                        or ("Protected " .. tostring(math.ceil(state.Until - now)) .. "s")
                 end
             end
         end
