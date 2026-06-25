@@ -21,6 +21,7 @@ local Menu = require(UI.Menu)
 local Rebirth = require(UI.Rebirth)
 local Index = require(UI.Index)
 local Trade = require(UI.Trade)
+local Events = require(UI.Events)
 
 local player = Players.LocalPlayer
 
@@ -45,6 +46,10 @@ local remotes = {
     ClaimIndexReward = remotesFolder:WaitForChild("ClaimIndexReward"),
     TradeAction = remotesFolder:WaitForChild("TradeAction"),
     TradeUpdate = remotesFolder:WaitForChild("TradeUpdate"),
+    GetEvents = remotesFolder:WaitForChild("GetEvents"),
+    ClaimEventReward = remotesFolder:WaitForChild("ClaimEventReward"),
+    EventShopBuy = remotesFolder:WaitForChild("EventShopBuy"),
+    EventsUpdate = remotesFolder:WaitForChild("EventsUpdate"),
 }
 
 local context = { player = player, remotes = remotes }
@@ -94,9 +99,13 @@ end)
 safeMount("Trade", function()
     Trade.mount(context)
 end)
+safeMount("Events", function()
+    Events.mount(context)
+end)
 safeMount("Menu", function()
     Menu.mount(context)
-    -- Register secondary panels into the Menu (later milestones add Events/Seasons here).
+    -- Register secondary panels into the Menu (Seasons added in 8.5).
+    Menu.addButton("🎉 Events", Events.toggle)
     Menu.addButton("🤝 Trade", Trade.toggle)
     Menu.addButton("⭐ Rebirth", Rebirth.toggle)
     Menu.addButton("📖 Index", Index.toggle)

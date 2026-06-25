@@ -48,6 +48,7 @@ local StealService = require(script.Parent.StealService)
 local RateLimiter = require(script.Parent.RateLimiter)
 local Remotes = require(script.Parent.Remotes)
 local Analytics = require(script.Parent.Analytics)
+local EventService = require(script.Parent.EventService)
 
 local TradeService = {}
 
@@ -339,6 +340,8 @@ local function performSwap(session)
 
     Analytics.custom(A, Analytics.Events.TradeComplete, #gaveA + #gaveB)
     Analytics.custom(B, Analytics.Events.TradeComplete, #gaveA + #gaveB)
+    EventService.Signal(A, "COMPLETE_TRADES", 1)
+    EventService.Signal(B, "COMPLETE_TRADES", 1)
 
     -- Persist both as close together as possible (in-memory state is already consistent).
     ProfileManager.ForceSave(A)

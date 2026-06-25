@@ -15,6 +15,7 @@ local Leaderstats = require(script.Parent.Leaderstats)
 local PlayerStats = require(script.Parent.PlayerStats)
 local Benefits = require(script.Parent.Benefits)
 local Analytics = require(script.Parent.Analytics)
+local EventService = require(script.Parent.EventService)
 
 local IncomeService = {}
 
@@ -33,6 +34,7 @@ function IncomeService.FlushAnalytics(player)
         local profile = ProfileManager.GetProfile(player)
         local balance = profile ~= nil and profile.Data.Cash or amount
         Analytics.economySource(player, amount, balance, Analytics.Tx.Gameplay)
+        EventService.Signal(player, "EARN_CASH", amount) -- feed "earn N cash" event quests
     end
     earned[player] = nil
 end

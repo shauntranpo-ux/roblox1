@@ -35,6 +35,7 @@ local TransitRegistry = require(script.Parent.TransitRegistry)
 local Benefits = require(script.Parent.Benefits)
 local Analytics = require(script.Parent.Analytics)
 local TradeLockRegistry = require(script.Parent.TradeLockRegistry)
+local EventService = require(script.Parent.EventService)
 
 local StealService = {}
 
@@ -179,6 +180,7 @@ function deposit(steal)
 
     Remotes.NotifyPlayer(steal.Thief, "success", "Deposited your steal!", "deposit")
     Analytics.customOnce(steal.Thief, Analytics.Events.FirstSteal)
+    EventService.Signal(steal.Thief, "STEAL_BRAINROTS", 1)
 end
 
 -- REVERT (IN_TRANSIT -> ON_PAD on the victim's ORIGINAL pad). A no-op on ownership: the unit

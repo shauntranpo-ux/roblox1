@@ -63,6 +63,15 @@ local PROFILE_TEMPLATE = {
     -- Mutation lives on each OwnedBrainrots record (legacy units reconcile as nil = Normal); this
     -- set reconciles as empty and is updated by the factory + on receiving a mutated unit.
     MutationsDiscovered = {},
+    -- M8.4 EVENTS: per-player progress toward active-event quest objectives, keyed
+    -- EventProgress[eventKey][objId] = number. Pruned for ended+past-grace events. Reconciles empty.
+    EventProgress = {},
+    -- M8.4 EVENTS: idempotency ledger for claimed quest rewards, keyed "eventKey:objId" -> true.
+    -- Grant + record commit together so a reward is granted EXACTLY once. Reconciles empty.
+    ClaimedEventRewards = {},
+    -- M8.4 EVENTS: per-event-currency balances [currencyId] = number (earned via quests; never
+    -- client-set; never negative). Persists across the event end. Reconciles empty.
+    EventCurrency = {},
 }
 
 local Profiles = {} -- [Player] = Profile

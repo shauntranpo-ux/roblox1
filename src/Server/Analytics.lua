@@ -37,6 +37,8 @@ Analytics.Events = { -- custom (retention/engagement) event names
     IndexComplete = "index_complete", -- M8.1 completion milestone claimed
     TradeComplete = "trade_complete", -- M8.2 a two-party swap committed
     MutationRoll = "mutation_roll", -- M8.3 a mutation rolled at acquisition (value = income multiplier)
+    EventQuestClaim = "event_quest_claim", -- M8.4 an event quest reward claimed
+    EventShopBuy = "event_shop_buy", -- M8.4 an event-shop purchase
 }
 
 Analytics.Funnel = { -- new-player onboarding funnel steps { stepNumber, stepName }

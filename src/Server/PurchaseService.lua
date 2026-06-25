@@ -17,6 +17,7 @@ local BrainrotFactory = require(script.Parent.BrainrotFactory)
 local ProtectionService = require(script.Parent.ProtectionService)
 local PlayerStats = require(script.Parent.PlayerStats)
 local Leaderstats = require(script.Parent.Leaderstats)
+local EventService = require(script.Parent.EventService)
 
 local PurchaseService = {}
 
@@ -104,6 +105,12 @@ local function onPurchase(player, itemId)
     end
     if Rarity.Get(item.Rarity).Order >= 4 then
         Analytics.customOnce(player, Analytics.Events.TierUp, Rarity.Get(item.Rarity).Order)
+    end
+
+    -- M8.4: feed event-quest progress (active events only; the service checks the boundary).
+    EventService.Signal(player, "BUY_BRAINROTS", 1)
+    if brainrot.Mutation ~= nil then
+        EventService.Signal(player, "ROLL_MUTATION", 1)
     end
 end
 

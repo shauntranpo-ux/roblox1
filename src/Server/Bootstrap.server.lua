@@ -30,8 +30,9 @@ local Analytics = require(script.Parent.Analytics)
 local RebirthService = require(script.Parent.RebirthService)
 local IndexService = require(script.Parent.IndexService)
 local TradeService = require(script.Parent.TradeService)
+local EventService = require(script.Parent.EventService)
 
-print("[BRAINROT] M8.2 starting -- player-to-player trading (dupe-proof atomic swap)")
+print("[BRAINROT] M8.4 starting -- limited-time events engine (orchestrator)")
 
 -- Data layer, network surface, world, defense, income loop, then the client-facing handlers.
 ProfileManager.Init()
@@ -56,6 +57,8 @@ RebirthService.Init()
 IndexService.Init()
 -- M8.2: same-server player-to-player trading.
 TradeService.Init()
+-- M8.4: the limited-time events scheduler/transition engine.
+EventService.Init()
 
 local handled = {} -- [Player] = true, guards against double-joins (Studio Play Solo)
 
@@ -117,6 +120,8 @@ local function onPlayerAdded(player)
     -- multiplier sources (both idempotent) so income reflects them on join.
     RebirthService.SetupPlayer(player, profile)
     IndexService.SetupPlayer(player, profile)
+    -- M8.4: apply any currently-active event modifiers (idempotent) + prune stale event data.
+    EventService.SetupPlayer(player, profile)
     if profile.Data.LastSeenVersion ~= GameInfo.Version then
         profile.Data.LastSeenVersion = GameInfo.Version
         Remotes.FireWhatsNew(player)

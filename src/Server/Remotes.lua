@@ -31,6 +31,11 @@ Remotes.ClaimIndexReward = nil -- RemoteFunction : client -> server (milestoneId
 -- M8.2 trading. Client sends INTENT ONLY ({ Action, ... }); server owns all session state.
 Remotes.TradeAction = nil -- RemoteEvent  : client -> server, { Action, TargetUserId?, BrainrotId?, Amount?, Accept?, Ready? }
 Remotes.TradeUpdate = nil -- RemoteEvent  : server -> client, authoritative session snapshot / request / closed
+-- M8.4 events. Client sends INTENT ONLY; server owns time/active-state + grants.
+Remotes.GetEvents = nil -- RemoteFunction : client -> server -> active events + progress/currency
+Remotes.ClaimEventReward = nil -- RemoteFunction : client -> server (eventKey, objId) -> { Result, Message }
+Remotes.EventShopBuy = nil -- RemoteFunction : client -> server (eventKey, entryId) -> { Result, Message }
+Remotes.EventsUpdate = nil -- RemoteEvent  : server -> ALL clients, "events changed" ping (re-pull)
 
 local folder = nil
 
@@ -114,6 +119,22 @@ function Remotes.Init()
     tradeUpdate.Name = "TradeUpdate"
     tradeUpdate.Parent = folder
 
+    local getEvents = Instance.new("RemoteFunction")
+    getEvents.Name = "GetEvents"
+    getEvents.Parent = folder
+
+    local claimEventReward = Instance.new("RemoteFunction")
+    claimEventReward.Name = "ClaimEventReward"
+    claimEventReward.Parent = folder
+
+    local eventShopBuy = Instance.new("RemoteFunction")
+    eventShopBuy.Name = "EventShopBuy"
+    eventShopBuy.Parent = folder
+
+    local eventsUpdate = Instance.new("RemoteEvent")
+    eventsUpdate.Name = "EventsUpdate"
+    eventsUpdate.Parent = folder
+
     folder.Parent = ReplicatedStorage
 
     Remotes.PurchaseRequest = purchase
@@ -134,6 +155,10 @@ function Remotes.Init()
     Remotes.ClaimIndexReward = claimIndexReward
     Remotes.TradeAction = tradeAction
     Remotes.TradeUpdate = tradeUpdate
+    Remotes.GetEvents = getEvents
+    Remotes.ClaimEventReward = claimEventReward
+    Remotes.EventShopBuy = eventShopBuy
+    Remotes.EventsUpdate = eventsUpdate
 end
 
 -- Sends a toast to a single player. kind = "success" | "error" | "info". Optional `cue` is a

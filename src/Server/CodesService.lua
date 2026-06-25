@@ -35,6 +35,7 @@ local Leaderstats = require(script.Parent.Leaderstats)
 local Remotes = require(script.Parent.Remotes)
 local RateLimiter = require(script.Parent.RateLimiter)
 local Analytics = require(script.Parent.Analytics)
+local EventService = require(script.Parent.EventService)
 
 local CodesService = {}
 
@@ -219,6 +220,7 @@ local function redeem(player, rawInput)
     PlayerStats.UpdateIncome(player, profile)
     Leaderstats.Update(player, profile)
     logRewardAnalytics(player, profile, entry, entry.Reward)
+    EventService.Signal(player, "REDEEM_CODE", 1)
 
     return { Result = "Success", Message = message }
 end
