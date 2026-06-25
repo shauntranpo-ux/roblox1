@@ -1,6 +1,5 @@
--- Menu: a simple scrollable list of buttons that open the secondary panels (Codes, Rebirth,
--- Index, Settings, and future Trade/Events/Seasons). Keeps the bottom HUD bar to the essentials
--- (Shop/Inventory/Menu) and scales as later milestones add panels -- each just registers a button.
+-- Menu: a small launcher list for UTILITY/basics (Codes, Settings, Admin). Feature panels each have
+-- their own edge tab (see EdgeTabs); the bottom HUD bar keeps Shop/Items/Index/Menu.
 
 local Builder = require(script.Parent.Builder)
 local Theme = require(script.Parent.Theme)
