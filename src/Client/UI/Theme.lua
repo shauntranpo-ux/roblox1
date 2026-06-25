@@ -14,9 +14,9 @@ local Theme = {}
 -- Chunky, bold, rounded display font for titles / big numbers (the signature of the look), plus a
 -- clean body font. FontBold/Font are kept for any legacy callers.
 Theme.FontDisplay = Enum.Font.FredokaOne
-Theme.FontBody = Enum.Font.Gotham
-Theme.FontBold = Enum.Font.GothamBold
-Theme.Font = Enum.Font.GothamMedium
+Theme.FontBody = Theme.FontDisplay
+Theme.FontBold = Theme.FontDisplay
+Theme.Font = Theme.FontDisplay
 
 -- ── Palette (grape glass base; kept keys so existing screens inherit) ──────────────────────
 Theme.Colors = {
