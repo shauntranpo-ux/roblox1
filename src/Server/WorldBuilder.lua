@@ -231,6 +231,101 @@ local function buildElevatorShaft(folder)
     end
 end
 
+-- A modeled hub STRUCTURE for a tagged interactable. Builds a unique look per `tagName`, tags the base
+-- block with `tagName` (the contract), floats a label, and returns the tagged block.
+local function buildStructure(folder, pos, tagName, label, accent)
+    local base = part(
+        { Size = Vector3.new(12, 4, 12), Position = pos + Vector3.new(0, 2, 0), Color = P.HubStone },
+        folder
+    )
+    base.Name = tagName
+    tag(base, tagName)
+    if tagName == "FreeGift" then
+        part(
+            { Size = Vector3.new(8, 8, 8), Position = pos + Vector3.new(0, 8, 0), Color = accent },
+            folder
+        )
+        part({
+            Size = Vector3.new(8.4, 1.6, 1.6),
+            Position = pos + Vector3.new(0, 8, 0),
+            Color = P.Gold,
+            Glow = true,
+        }, folder)
+        part({
+            Size = Vector3.new(1.6, 1.6, 8.4),
+            Position = pos + Vector3.new(0, 8, 0),
+            Color = P.Gold,
+            Glow = true,
+        }, folder)
+        part({
+            Size = Vector3.new(3, 3, 3),
+            Position = pos + Vector3.new(0, 12.5, 0),
+            Color = P.Gold,
+            Glow = true,
+        }, folder)
+    elseif tagName == "DailyChest" then
+        part({
+            Size = Vector3.new(9, 5, 6),
+            Position = pos + Vector3.new(0, 6.5, 0),
+            Color = P.Wood,
+            Material = Enum.Material.Wood,
+        }, folder)
+        part(
+            { Size = Vector3.new(9, 3, 6), Position = pos + Vector3.new(0, 10, 0), Color = accent },
+            folder
+        )
+        part({
+            Size = Vector3.new(1.5, 3, 1.5),
+            Position = pos + Vector3.new(0, 8.5, 3),
+            Color = P.Gold,
+            Glow = true,
+        }, folder)
+    elseif tagName == "SpinWheel" then
+        part({
+            Size = Vector3.new(1.5, 10, 1.5),
+            Position = pos + Vector3.new(0, 9, 0),
+            Color = P.HubStone,
+        }, folder)
+        part({
+            Size = Vector3.new(12, 12, 1),
+            Position = pos + Vector3.new(0, 15, 0),
+            Color = accent,
+            Glow = true,
+        }, folder)
+    else
+        part({
+            Size = Vector3.new(12, 5, 4),
+            Position = pos + Vector3.new(0, 4.5, 0),
+            Color = P.Wood,
+            Material = Enum.Material.Wood,
+        }, folder)
+        for _, sx in ipairs({ -1, 1 }) do
+            for _, sz in ipairs({ -1, 1 }) do
+                part({
+                    Size = Vector3.new(1, 14, 1),
+                    Position = pos + Vector3.new(sx * 6, 7, sz * 6),
+                    Color = P.HubStone,
+                }, folder)
+            end
+        end
+        part({
+            Size = Vector3.new(15, 2, 15),
+            Position = pos + Vector3.new(0, 15, 0),
+            Color = accent,
+        }, folder)
+        part({
+            Size = Vector3.new(15, 1, 4),
+            Position = pos + Vector3.new(0, 14, 7),
+            Color = P.RedTrim,
+            Glow = true,
+        }, folder)
+    end
+    if label ~= nil then
+        worldSign(folder, pos + Vector3.new(0, 0, -8), label, accent)
+    end
+    return base
+end
+
 -- ── HUB (central plaza at origin) ────────────────────────────────────────────────────────────
 local function buildHub(folder)
     local hub = WorldConfig.Hub
@@ -277,49 +372,12 @@ local function buildHub(folder)
     -- ELEVATOR CAR on the bottom 'start' level (tagged "Slingshot" -> the client elevator menu lives on it).
     buildElevatorCar(folder, 0)
 
-    -- shop stalls + free-reward blocks (tagged fixtures), arranged around the plaza.
-    fixture(
-        folder,
-        c + Vector3.new(-90, 0, -40),
-        Vector3.new(14, 12, 10),
-        P.Grass,
-        "NetShop",
-        "NET SHOP"
-    )
-    fixture(
-        folder,
-        c + Vector3.new(90, 0, -40),
-        Vector3.new(14, 12, 10),
-        P.Gold,
-        "PremiumShop",
-        "PREMIUM",
-        true
-    )
-    fixture(
-        folder,
-        c + Vector3.new(-130, 0, 30),
-        Vector3.new(8, 8, 8),
-        P.RedTrim,
-        "DailyChest",
-        "DAILY"
-    )
-    fixture(
-        folder,
-        c + Vector3.new(-110, 0, 50),
-        Vector3.new(8, 8, 8),
-        P.ShieldCyan,
-        "FreeGift",
-        "GIFT"
-    )
-    fixture(
-        folder,
-        c + Vector3.new(130, 0, 30),
-        Vector3.new(10, 10, 10),
-        P.Gold,
-        "SpinWheel",
-        "SPIN",
-        true
-    )
+    -- shop stalls + free-reward blocks (modeled structures), arranged around the plaza.
+    buildStructure(folder, c + Vector3.new(-90, 0, -40), "NetShop", "NET SHOP", P.Grass)
+    buildStructure(folder, c + Vector3.new(90, 0, -40), "PremiumShop", "PREMIUM", P.Gold)
+    buildStructure(folder, c + Vector3.new(-130, 0, 30), "DailyChest", "DAILY", P.RedTrim)
+    buildStructure(folder, c + Vector3.new(-110, 0, 50), "FreeGift", "GIFT", P.ShieldCyan)
+    buildStructure(folder, c + Vector3.new(130, 0, 30), "SpinWheel", "SPIN", P.Gold)
 
     local boards = { "TopCash", "TopIncome", "RarestCollection" }
     for i, key in ipairs(boards) do
