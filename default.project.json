@@ -24,6 +24,17 @@
     "ServerStorage": {
       "$className": "ServerStorage",
       "Assets": { "$path": "src/ServerStorage" }
+    },
+    "Lighting": {
+      "$className": "Lighting",
+      "$properties": {
+        "Technology": "Future",
+        "Brightness": 2.6,
+        "GlobalShadows": true,
+        "ShadowSoftness": 0.35,
+        "ClockTime": 14,
+        "OutdoorAmbient": [0.549, 0.557, 0.588]
+      }
     }
   }
 }

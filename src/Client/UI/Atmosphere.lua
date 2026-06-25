@@ -11,6 +11,33 @@ local Theme = require(script.Parent.Theme)
 
 local Atmosphere = {}
 
+local baseLightingApplied = false
+local function applyBaseLighting()
+    if baseLightingApplied then
+        return
+    end
+    baseLightingApplied = true
+    Lighting.Brightness = 2.6
+    Lighting.ExposureCompensation = 0.1
+    Lighting.EnvironmentDiffuseScale = 0.55
+    Lighting.EnvironmentSpecularScale = 0.4
+    Lighting.OutdoorAmbient = Color3.fromRGB(140, 142, 150)
+    Lighting.Ambient = Color3.fromRGB(80, 82, 92)
+    Lighting.ShadowSoftness = 0.35
+    Lighting.GlobalShadows = true
+    Lighting.GeographicLatitude = 20
+    if Lighting:FindFirstChildOfClass("Atmosphere") == nil then
+        local atmo = Instance.new("Atmosphere")
+        atmo.Density = 0.32
+        atmo.Offset = 0.1
+        atmo.Haze = 1.4
+        atmo.Glare = 0.2
+        atmo.Color = Color3.fromRGB(199, 209, 224)
+        atmo.Decay = Color3.fromRGB(106, 134, 168)
+        atmo.Parent = Lighting
+    end
+end
+
 -- Find an existing Lighting child of `class` named `name`, or create one (idempotent).
 local function ensure(parent, class, name)
     local found = parent:FindFirstChild(name)
@@ -26,6 +53,7 @@ end
 local atmosphere, colorCorrection
 
 function Atmosphere.applyBase()
+    applyBaseLighting()
     local L = Theme.Lighting
     pcall(function()
         Lighting.ClockTime = L.ClockTime
