@@ -52,7 +52,7 @@ Remotes.EvolveRequest = nil -- RemoteFunction : client -> server (unitId) -> { R
 -- M11.3 world bosses. Server -> ALL clients: boss spawn alert, live catch-meter snapshots, defeat/flee
 -- broadcasts. The boss fight itself is driven by a server-side ProximityPrompt (no client attack remote
 -- -- the client never asserts HP/contribution/death).
-Remotes.BossUpdate = nil -- RemoteEvent : server -> ALL clients, { Kind, Name?, Biome?, Meter?, Max?, Pos?, TimeLeft? }
+Remotes.BossUpdate = nil -- RemoteEvent : server -> clients, { Kind, Name?, Biome?, HP?, Max?, Pos?, TimeLeft?, Damage? } (Kind="hit" is targeted to the attacker)
 -- M10.1 wild-catch. WildUpdate streams a player's OWN instanced spawns to them (the client renders +
 -- holds + catches); WildCatch is the catch INTENT (a spawn id). Server owns the registry + validation.
 Remotes.WildUpdate = nil -- RemoteEvent : server -> owner client, { Kind="spawn"|"move"|"despawn", Id, ... }

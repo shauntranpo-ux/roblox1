@@ -36,6 +36,10 @@ Audio.Sfx = {
     catch_rare = 0, -- a bigger sting for Legendary+ catches
     flee = 0, -- a rare escaped / a shared event got away
     net_upgrade = 0, -- net upgraded
+    -- M11.3-combat BOSS FIGHT. <<< SOURCE: a punchy hit/thwack on each attack + a big death-spectacle
+    -- boom on the kill. 0 = silent (the damage numbers still pop, just muted).
+    boss_hit = 0, -- your attack lands on the boss
+    boss_death = 0, -- the boss is slain
 }
 
 return Audio

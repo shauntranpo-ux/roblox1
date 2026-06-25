@@ -17,21 +17,22 @@ BossConfig.FirstSpawnDelay = 120 -- s after server start before the first boss
 -- Placeholder spawn point (biomes/map phases aren't built; real per-biome locations come later).
 BossConfig.DefaultSpawnPosition = Vector3.new(0, 14, -140)
 
--- Each boss is data. Tuning note: the meter must be infeasible for ONE player within the Timeout but
--- beatable by a group. Solo drain rate ~= HitDamage / HoldDuration; ensure Meter / (that) > Timeout.
+-- Each boss is data. TUNING (M11.3-combat HP fight): HP must be infeasible for ONE WEAK player within
+-- the Timeout (a base-tap-only player does ~BaseTapDamage / AttackInterval per sec) but beatable by a
+-- group OR a strong evolved team -- emergent (more players / higher team power = faster). Per-attack
+-- damage = the attacker's TEAM POWER x AttackScalar + BaseTapDamage (see CombatConfig).
 BossConfig.Bosses = {
     {
         Key = "titan_sahur",
         DisplayName = "Titan Sahur",
         Biome = "the Plaza", -- placeholder label shown in the alert
-        Meter = 240, -- total catch-meter / HP (drained by validated holds)
-        HitDamage = 1, -- meter drained per validated hold (before catch-perk boost)
-        HoldDuration = 1.2, -- s ProximityPrompt hold per hit
-        PromptRange = 28, -- studs: prompt activation distance
+        HP = 250000, -- total boss HP (reduced by each attacker's team-power damage)
+        PromptRange = 28, -- studs: attack prompt activation distance
         ValidateRange = 34, -- studs: server-side proximity re-check (a touch > PromptRange)
-        HitInterval = 0.25, -- s minimum between a player's validated hits (server rate-limit)
+        AttackHold = 0.1, -- s ProximityPrompt hold per attack (a quick TAP)
+        AttackInterval = 0.18, -- s minimum between a player's validated attacks (server rate cap)
         Timeout = 180, -- s before the boss enrages + leaves (no rewards) if not beaten
-        ParticipationThreshold = 5, -- minimum banked contribution (damage) to qualify for loot
+        ParticipationThreshold = 4000, -- minimum DAMAGE dealt to qualify for loot
         BossXP = 1500, -- M11.2: XP each qualifying player's units gain from the fight
         ModelSize = Vector3.new(18, 26, 18),
         Color = Color3.fromRGB(180, 60, 220),
@@ -59,12 +60,12 @@ function BossConfig.Get(key)
     return BossConfig.ByKey[key]
 end
 
--- Picks a boss definition to spawn (random among configured + valid). Validates Meter > 0 so a
+-- Picks a boss definition to spawn (random among configured + valid). Validates HP > 0 so a
 -- malformed entry can never spawn an un-killable boss. Returns nil if none are valid.
 function BossConfig.PickSpawn()
     local valid = {}
     for _, boss in ipairs(BossConfig.Bosses) do
-        if type(boss.Meter) == "number" and boss.Meter > 0 and type(boss.HitDamage) == "number" then
+        if type(boss.HP) == "number" and boss.HP > 0 then
             table.insert(valid, boss)
         end
     end

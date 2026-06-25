@@ -25,6 +25,7 @@ local hpSet = nil
 local xpSet = nil
 local levelLabel = nil
 local luckLabel = nil
+local powerLabel = nil
 local railDiamonds = {} -- { entry, diamondFrame, contentLabel } for live lock updates
 local displayedCash = 0
 local targetCash = 0
@@ -234,6 +235,41 @@ function HUD.mount(context, actions)
     }, { Builder.create("UITextSizeConstraint", { MaxTextSize = 26 }) })
     Builder.styleText(luckLabel, { keepColor = true })
 
+    -- ===== BOTTOM-RIGHT TEAM POWER (M11.3-combat: combat strength of the equipped team) =====
+    local powerPill = Builder.pill({
+        AnchorPoint = Vector2.new(1, 1),
+        Position = UDim2.fromScale(0.988, 0.78),
+        Size = UDim2.fromScale(0.16, 0.07),
+        radius = UDim.new(0, 14),
+        Parent = gui,
+    })
+    Builder.create(
+        "UISizeConstraint",
+        { MinSize = Vector2.new(96, 40), MaxSize = Vector2.new(190, 70), Parent = powerPill }
+    )
+    Builder.create("TextLabel", {
+        AnchorPoint = Vector2.new(0, 0.5),
+        Position = UDim2.fromScale(0.04, 0.5),
+        Size = UDim2.fromScale(0.34, 0.8),
+        BackgroundTransparency = 1,
+        Text = "⚔️",
+        TextColor3 = Theme.Colors.PathRed,
+        TextScaled = true,
+        Parent = powerPill,
+    })
+    powerLabel = Builder.create("TextLabel", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.fromScale(0.96, 0.5),
+        Size = UDim2.fromScale(0.6, 0.8),
+        BackgroundTransparency = 1,
+        Text = "0",
+        TextColor3 = Theme.Colors.White,
+        TextScaled = true,
+        TextXAlignment = Enum.TextXAlignment.Right,
+        Parent = powerPill,
+    }, { Builder.create("UITextSizeConstraint", { MaxTextSize = 26 }) })
+    Builder.styleText(powerLabel, { keepColor = true })
+
     -- ===== BOTTOM-CENTER NAV BAR (panel access -- kept; restyled as the hotbar) =====
     local bar = Builder.create("Frame", {
         AnchorPoint = Vector2.new(0.5, 1),
@@ -314,6 +350,9 @@ function HUD.mount(context, actions)
     local function refreshLuck()
         luckLabel.Text = string.format("x%.2g", math.max(1, attr("Luck", 1)))
     end
+    local function refreshPower()
+        powerLabel.Text = Format.short(math.max(0, attr("Power", 0)))
+    end
 
     targetCash = attr("Cash", 0)
     displayedCash = targetCash
@@ -321,6 +360,7 @@ function HUD.mount(context, actions)
     refreshLevel()
     refreshShield()
     refreshLuck()
+    refreshPower()
 
     player:GetAttributeChangedSignal("Cash"):Connect(function()
         targetCash = attr("Cash", 0)
@@ -330,6 +370,7 @@ function HUD.mount(context, actions)
     player:GetAttributeChangedSignal("ShieldSeconds"):Connect(refreshShield)
     player:GetAttributeChangedSignal("ShieldMax"):Connect(refreshShield)
     player:GetAttributeChangedSignal("Luck"):Connect(refreshLuck)
+    player:GetAttributeChangedSignal("Power"):Connect(refreshPower)
 
     -- Smooth cash count-up toward the true value; snaps within a dollar so it never drifts.
     RunService.RenderStepped:Connect(function(deltaTime)

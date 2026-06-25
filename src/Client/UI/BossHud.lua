@@ -1,15 +1,24 @@
--- BossHud (M11.3): the FUNCTIONAL world-boss HUD. Renders ONLY from server BossUpdate broadcasts --
--- a spawn alert banner, a live catch-meter bar + countdown while a boss is active, an on-screen
--- direction marker toward the boss, and a defeat/flee outcome banner. The client asserts NOTHING about
--- the boss's HP/contribution/death -- it just draws what the server sends. (Styling is a later pass.)
+-- BossHud (M11.3-combat): the FUNCTIONAL world-boss HUD. Renders ONLY from server BossUpdate broadcasts
+-- -- a spawn alert banner, a live HP bar + countdown while a boss is active, an on-screen direction
+-- marker, damage NUMBERS popping when YOUR attacks land (pooled + capped), and a defeat/flee outcome +
+-- death spectacle. The client asserts NOTHING about the boss's HP/damage/death -- it just draws what the
+-- server sends (the server computes power/damage). Degrades silently if asset ids are missing.
 
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
 
 local Builder = require(script.Parent.Builder)
 local Theme = require(script.Parent.Theme)
+local Effects = require(script.Parent.Effects)
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Format = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Format"))
 
 local BossHud = {}
+
+local NUMBER_POOL_SIZE = 14 -- max concurrent damage numbers (capped -> no spike in a crowded fight)
+local HIT_SFX_INTERVAL = 0.12 -- s: throttle the per-hit sound (attacks fire faster than this)
 
 local gui = nil
 local alertLabel = nil
@@ -18,6 +27,8 @@ local nameLabel = nil
 local fillFrame = nil
 local timerLabel = nil
 local marker = nil
+local numberPool = {} -- { label, busy } recycled damage-number labels
+local lastHitSfx = 0
 
 local bossPos = nil
 local active = false
@@ -31,6 +42,50 @@ local function setBar(meter, maxMeter)
             and math.clamp(meter / maxMeter, 0, 1)
         or 0
     fillFrame.Size = UDim2.fromScale(pct, 1)
+end
+
+-- Pop a pooled damage number at the boss's screen position (recycled labels; capped; graceful if the
+-- boss is behind the camera or the pool is exhausted -> just skip, no spike).
+local function popNumber(damage, worldPos)
+    if gui == nil or worldPos == nil or type(damage) ~= "number" then
+        return
+    end
+    local camera = Workspace.CurrentCamera
+    if camera == nil then
+        return
+    end
+    local screen = camera:WorldToViewportPoint(worldPos)
+    if screen.Z <= 0 then
+        return -- behind the camera
+    end
+    local slot = nil
+    for _, entry in ipairs(numberPool) do
+        if not entry.busy then
+            slot = entry
+            break
+        end
+    end
+    if slot == nil then
+        return -- pool exhausted -> drop this number (cap; never spikes)
+    end
+    slot.busy = true
+    local label = slot.label
+    label.Text = "-" .. Format.short(damage)
+    label.TextTransparency = 0
+    label.TextStrokeTransparency = 0.4
+    local jitter = math.random(-30, 30)
+    label.Position = UDim2.fromOffset(screen.X + jitter, screen.Y + math.random(-10, 10))
+    label.Visible = true
+    local tween = TweenService:Create(label, TweenInfo.new(0.7, Enum.EasingStyle.Quad), {
+        Position = UDim2.fromOffset(screen.X + jitter, screen.Y - 70),
+        TextTransparency = 1,
+        TextStrokeTransparency = 1,
+    })
+    tween.Completed:Connect(function()
+        label.Visible = false
+        slot.busy = false
+    end)
+    tween:Play()
 end
 
 local function showAlert(text)
@@ -73,7 +128,7 @@ function BossHud.onUpdate(payload)
         if nameLabel ~= nil then
             nameLabel.Text = "TITAN " .. tostring(payload.Name or "")
         end
-        setBar(payload.Meter, payload.Max)
+        setBar(payload.HP, payload.Max)
         if timerLabel ~= nil then
             timerLabel.Text = math.ceil(payload.TimeLeft or 0) .. "s"
         end
@@ -86,12 +141,20 @@ function BossHud.onUpdate(payload)
             marker.Visible = true
         end
     elseif kind == "update" then
-        setBar(payload.Meter, payload.Max)
+        setBar(payload.HP, payload.Max)
         if timerLabel ~= nil then
             timerLabel.Text = math.ceil(payload.TimeLeft or 0) .. "s"
         end
         if payload.Pos ~= nil then
             bossPos = payload.Pos
+        end
+    elseif kind == "hit" then
+        -- Targeted to THIS attacker: pop their server-computed damage number + a throttled hit sound.
+        popNumber(payload.Damage, payload.Pos or bossPos)
+        local now = os.clock()
+        if now - lastHitSfx >= HIT_SFX_INTERVAL then
+            lastHitSfx = now
+            Effects.playSfx("boss_hit")
         end
     elseif kind == "defeat" then
         showAlert(
@@ -101,6 +164,22 @@ function BossHud.onUpdate(payload)
                 .. tostring(payload.Participants or 0)
                 .. " hunters paid out)"
         )
+        -- Death spectacle (pooled Effects; silent/no-op without assets).
+        if bossPos ~= nil then
+            local camera = Workspace.CurrentCamera
+            if camera ~= nil then
+                local screen = camera:WorldToViewportPoint(bossPos)
+                if screen.Z > 0 then
+                    Effects.burst(
+                        UDim2.fromOffset(screen.X, screen.Y),
+                        Color3.fromRGB(255, 220, 120),
+                        24
+                    )
+                end
+            end
+        end
+        Effects.flash(Color3.fromRGB(255, 220, 120))
+        Effects.playSfx("boss_death")
         hideBoss()
     elseif kind == "flee" then
         showAlert(
@@ -215,6 +294,25 @@ function BossHud.mount(context)
         Visible = false,
         Parent = gui,
     }, { Builder.corner(UDim.new(0, 8)) })
+
+    -- Pre-build the recycled damage-number pool (capped, hidden until used).
+    for _ = 1, NUMBER_POOL_SIZE do
+        local label = Builder.create("TextLabel", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Size = UDim2.fromOffset(140, 40),
+            BackgroundTransparency = 1,
+            Font = Theme.FontDisplay,
+            Text = "",
+            TextColor3 = Color3.fromRGB(255, 235, 120),
+            TextStrokeColor3 = Color3.fromRGB(60, 10, 10),
+            TextStrokeTransparency = 0.4,
+            TextSize = 30,
+            ZIndex = 5,
+            Visible = false,
+            Parent = gui,
+        })
+        table.insert(numberPool, { label = label, busy = false })
+    end
 
     RunService.RenderStepped:Connect(updateMarker)
 end

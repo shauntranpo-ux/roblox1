@@ -1,14 +1,18 @@
--- BossService (M11.3): WORLD-BOSS CO-OP HUNTS. The server periodically spawns ONE giant Titan; the
--- whole server is alerted and drains its catch-meter together via validated ProximityPrompt holds;
--- when it falls, EVERY qualifying player gets their OWN freshly-FACTORY-MINTED reward. Co-op is
--- EPHEMERAL -- no clans/rosters; the "party" is just whoever showed up, and it dissolves on kill.
+-- BossService (M11.3-combat): WORLD-BOSS CO-OP FIGHTS. The server periodically spawns ONE giant Titan
+-- with an HP bar; the whole server is alerted and FIGHTS it down together -- each validated attack
+-- deals damage = that player's SERVER-COMPUTED equipped-team power (the M11.1 loadout x factors x
+-- combat perks). When HP hits zero, EVERY qualifying player gets their OWN freshly-FACTORY-MINTED
+-- contribution-weighted reward (contribution = damage dealt). Co-op is EPHEMERAL -- the "party" is
+-- whoever showed up, and it dissolves on kill. (Base-raid combat is a separate future phase -- NOT here;
+-- this touches NOTHING in StealService / ownership transfer.)
 --
 -- ============================  SELF-AUDIT (boss path)  =======================================
--- (a) SERVER-AUTHORITATIVE + KILL RESOLVES ONCE: BossState (meter, contribution, timer) lives only in
---     server memory. The catch-meter drains ONLY from server-side PromptTriggered events, each
---     re-validated (proximity + rate-limit) -- the client never sends HP/damage/contribution. The kill
---     is guarded by boss.Resolved (set synchronously before any yield, like the steal INITIATE guard),
---     so two concurrent final hits resolve the kill EXACTLY once.
+-- (a) SERVER-AUTHORITATIVE + KILL RESOLVES ONCE: BossState (HP, contribution, timer) lives only in
+--     server memory. HP drops ONLY from server-side PromptTriggered attacks, each re-validated
+--     (proximity + rate cap) with damage computed server-side from the attacker's REAL equipped team
+--     (CombatPower) -- the client never sends power/HP/damage/contribution. The kill is guarded by
+--     boss.Resolved (set synchronously before any yield, like the steal INITIATE guard), so two
+--     concurrent killing blows resolve the kill EXACTLY once.
 -- (b) REWARDS ARE DUPE-SAFE: each qualifying player's reward is created fresh via BrainrotFactory
 --     (a NEW unique Id) and/or cash via the guarded accessor -- NOTHING is transferred or split, so no
 --     race can duplicate or lose anything. Distribution iterates the frozen contribution map ONCE;
@@ -16,11 +20,13 @@
 -- (c) NO SPOOF / NO LEECH: contribution comes only from validated holds (server proximity check +
 --     per-player rate-limit); a client can't inject a number. A player below ParticipationThreshold
 --     (AFK / standing near without holding) banks too little and gets NOTHING.
--- (d) INFEASIBLE SOLO, BEATABLE AS A GROUP: Meter vs HitDamage/HoldDuration is tuned so one player
---     can't drain it before Timeout; more hunters = faster drain. All numbers in BossConfig.
--- (e) FORWARD-COMPAT: spawns on a placeholder map at a default position (biomes later); catch perks
---     boost contribution only if present (PerkEffects.GetHunt, guarded); M11.2 boss XP via AwardAllXP.
--- (f) Touches NO other system's dupe-proofing -- it only reads PerkEffects + mints via the factory.
+-- (d) INFEASIBLE FOR A WEAK SOLO, BEATABLE AS A GROUP OR STRONG TEAM: boss HP vs per-attack team-power
+--     damage + AttackInterval is tuned so a base-tap-only player can't kill it before Timeout; more
+--     players / higher team power = faster (emergent, no special-casing). All numbers in Boss/CombatConfig.
+-- (e) FORWARD-COMPAT: spawns on a placeholder map at a default position (biomes later); combat perks
+--     boost damage via CombatPower under caps; M11.2 boss XP via AwardAllXP.
+-- (f) Touches NO other system's dupe-proofing -- it only reads CombatPower + mints via the factory.
+--     StealService / ownership transfer are UNTOUCHED (base-raid combat is a separate Phase 2).
 -- ===========================================================================================
 
 local Players = game:GetService("Players")
@@ -38,7 +44,7 @@ local BrainrotService = require(script.Parent.BrainrotService)
 local PlotService = require(script.Parent.PlotService)
 local PlayerStats = require(script.Parent.PlayerStats)
 local Leaderstats = require(script.Parent.Leaderstats)
-local PerkEffects = require(script.Parent.PerkEffects)
+local CombatPower = require(script.Parent.CombatPower) -- M11.3-combat: server-authoritative team power
 local EvolutionService = require(script.Parent.EvolutionService)
 local ExclusivesService = require(script.Parent.ExclusivesService)
 local Analytics = require(script.Parent.Analytics)
@@ -102,7 +108,7 @@ local function makeBossModel(def)
     prompt.Name = "BossPrompt"
     prompt.ActionText = "Attack"
     prompt.ObjectText = def.DisplayName
-    prompt.HoldDuration = def.HoldDuration
+    prompt.HoldDuration = def.AttackHold -- a quick TAP per attack (damage = the attacker's team power)
     prompt.MaxActivationDistance = def.PromptRange
     prompt.RequiresLineOfSight = false
     prompt.Parent = part
@@ -121,19 +127,19 @@ local function spawnBoss(def)
         Model = model,
         Prompt = prompt,
         Fill = fill,
-        Meter = def.Meter,
-        MaxMeter = def.Meter,
+        HP = def.HP,
+        MaxHP = def.HP,
         StartTime = os.clock(),
-        Contribution = {}, -- [Player] = banked damage (server-only)
-        LastHit = {}, -- [Player] = clock of last validated hit (rate-limit)
+        Contribution = {}, -- [Player] = total DAMAGE dealt (server-only; = the M11.3 contribution)
+        LastHit = {}, -- [Player] = clock of last validated attack (rate-limit)
         Resolved = false,
     }
     Remotes.BroadcastBoss({
         Kind = "spawn",
         Name = def.DisplayName,
         Biome = def.Biome,
-        Meter = def.Meter,
-        Max = def.Meter,
+        HP = def.HP,
+        Max = def.HP,
         Pos = model.Position,
         TimeLeft = def.Timeout,
     })
@@ -280,9 +286,10 @@ local function resolveKill(boss)
         Participants = #winners,
     })
 
-    -- Mint each qualifier's OWN reward (exactly once per player) + log the kill per participant.
+    -- Mint each qualifier's OWN reward (exactly once per player) + log the kill + damage per participant.
     for _, win in ipairs(winners) do
         Analytics.custom(win.Player, Analytics.Events.BossKill, #winners)
+        Analytics.custom(win.Player, Analytics.Events.BossDamage, math.floor(win.Dmg))
         grantReward(win.Player, boss, win.Dmg, total)
     end
 
@@ -316,11 +323,11 @@ local function onBossPromptTriggered(prompt, player)
     if boss == nil or boss.Resolved or boss.Prompt ~= prompt then
         return
     end
-    -- Per-player rate-limit (server) -- blunts spam + bounds contribution rate.
-    if not RateLimiter.check(player, "boss", boss.Def.HitInterval) then
+    -- Server-enforced attack RATE CAP (per player) -- blunts spam + bounds a player's DPS.
+    if not RateLimiter.check(player, "boss", boss.Def.AttackInterval) then
         return
     end
-    -- Server-side proximity re-check: the client can't spoof being near the boss.
+    -- Server-side proximity re-check on the REAL character: the client can't spoof being near the boss.
     local character = player.Character
     local hrp = character and character:FindFirstChild("HumanoidRootPart")
     if hrp == nil or boss.Model == nil then
@@ -330,22 +337,20 @@ local function onBossPromptTriggered(prompt, player)
         return
     end
 
-    -- Damage = base x (1 + catch-perk boost). M11.1 HUNT perks (Slippery Catch / Wildcard, etc.)
-    -- raise contribution IF present; guarded so it's a no-op when that perk isn't equipped.
-    local bonus = 0
-    local hunt = PerkEffects.GetHunt(player)
-    if hunt ~= nil and type(hunt.CatchSpeed) == "number" then
-        bonus = hunt.CatchSpeed
-    end
-    local dmg = boss.Def.HitDamage * (1 + bonus)
-
-    boss.Meter = math.max(0, boss.Meter - dmg)
+    -- DAMAGE = the attacker's SERVER-COMPUTED team power (their equipped loadout x factors x combat
+    -- perks, capped) x attack scalar + base tap. The client NEVER sends power/damage/death. The damage
+    -- is added to this player's contribution entry (M11.3 contribution = total DAMAGE dealt now).
+    local dmg = CombatPower.AttackDamage(player)
+    boss.HP = math.max(0, boss.HP - dmg)
     boss.Contribution[player] = (boss.Contribution[player] or 0) + dmg
     if boss.Fill ~= nil then
-        boss.Fill.Size = UDim2.fromScale(math.clamp(boss.Meter / boss.MaxMeter, 0, 1), 1)
+        boss.Fill.Size = UDim2.fromScale(math.clamp(boss.HP / boss.MaxHP, 0, 1), 1)
     end
+    -- Targeted attack-juice cue: this attacker sees their OWN damage number pop at the boss (the
+    -- big shared HP bar drains via the throttled broadcast below).
+    Remotes.BossUpdate:FireClient(player, { Kind = "hit", Damage = dmg, Pos = boss.Model.Position })
 
-    if boss.Meter <= 0 then
+    if boss.HP <= 0 then
         resolveKill(boss)
     end
 end
@@ -397,8 +402,8 @@ function BossService.Init()
                     hudAccum = 0
                     Remotes.BroadcastBoss({
                         Kind = "update",
-                        Meter = boss.Meter,
-                        Max = boss.MaxMeter,
+                        HP = boss.HP,
+                        Max = boss.MaxHP,
                         Pos = boss.Model ~= nil and boss.Model.Position or nil,
                         TimeLeft = math.max(0, boss.Def.Timeout - (os.clock() - boss.StartTime)),
                     })

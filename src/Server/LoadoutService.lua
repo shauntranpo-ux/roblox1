@@ -35,6 +35,7 @@ local TransitRegistry = require(script.Parent.TransitRegistry)
 local TradeLockRegistry = require(script.Parent.TradeLockRegistry)
 local StealService = require(script.Parent.StealService)
 local BrainrotService = require(script.Parent.BrainrotService)
+local CombatPower = require(script.Parent.CombatPower) -- M11.3-combat: publish TEAM POWER to the HUD
 local Analytics = require(script.Parent.Analytics)
 local RateLimiter = require(script.Parent.RateLimiter)
 local Remotes = require(script.Parent.Remotes)
@@ -78,6 +79,9 @@ local function recompute(player, profile)
     -- Push the aggregated MOVE + DEFENDER-HOLD effects to their authorities.
     StealService.SetMoveMult(player, PerkEffects.MoveMult(player))
     BrainrotService.SetHoldMultiplier(player, PerkEffects.DefenderHoldMult(player))
+    -- M11.3-combat: publish the player's TEAM POWER (display-only) so the HUD shows combat strength
+    -- rising as they equip/evolve. The authoritative value is recomputed server-side on every attack.
+    player:SetAttribute("Power", CombatPower.TeamPower(player))
 end
 
 local function refreshAttr(player, profile)
