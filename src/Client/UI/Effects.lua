@@ -10,11 +10,11 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-local SoundService = game:GetService("SoundService")
 local Workspace = game:GetService("Workspace")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Audio = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Audio"))
+-- M12.4: all sound playback is unified in the AudioManager (this module keeps the VISUAL juice +
+-- camera shake, and DELEGATES sounds so the SFX/mute buses govern them).
+local AudioManager = require(script.Parent.AudioManager)
 
 local Effects = {}
 
@@ -27,7 +27,6 @@ local pool = {}
 local poolIndex = 0
 local camera = nil
 local settings = { Music = true, SFX = true, Shake = true }
-local musicSound = nil
 
 local shakeMagnitude = 0
 
@@ -35,53 +34,19 @@ local function toColor(hexR, hexG, hexB)
     return Color3.fromRGB(hexR, hexG, hexB)
 end
 
--- ===== Sound =====
-local function playSound(id, volume)
-    if id == nil or id == 0 then
-        return -- no asset configured -> silent, by design
-    end
-    local sound = Instance.new("Sound")
-    sound.SoundId = "rbxassetid://" .. tostring(id)
-    sound.Volume = volume or Audio.SfxVolume
-    sound.Parent = SoundService
-    sound:Play()
-    task.delay(5, function()
-        sound:Destroy()
-    end)
-end
-
+-- ===== Sound (M12.4: delegated to the unified AudioManager -> the SFX/mute buses govern it) =====
 function Effects.playSfx(key)
-    if not settings.SFX then
-        return
-    end
-    playSound(Audio.Sfx[key], Audio.SfxVolume)
+    AudioManager.playSfx(key)
 end
 
--- ===== Music =====
-local function refreshMusic()
-    if settings.Music and Audio.MusicId ~= 0 then
-        if musicSound == nil then
-            musicSound = Instance.new("Sound")
-            musicSound.SoundId = "rbxassetid://" .. tostring(Audio.MusicId)
-            musicSound.Looped = true
-            musicSound.Volume = Audio.MusicVolume
-            musicSound.Parent = SoundService
-        end
-        if not musicSound.IsPlaying then
-            musicSound:Play()
-        end
-    elseif musicSound ~= nil and musicSound.IsPlaying then
-        musicSound:Stop()
-    end
-end
-
--- Called whenever the settings table changes (music/sfx/shake).
+-- Called whenever the settings table changes (music/sfx/shake). The audio BUSES (music/ambience/sfx/
+-- ui volumes + mutes) are owned by the AudioManager now; this module keeps the Shake gate.
 function Effects.applySettings(newSettings)
     if type(newSettings) ~= "table" then
         return
     end
     settings = newSettings
-    refreshMusic()
+    AudioManager.applySettings(newSettings)
 end
 
 -- ===== Camera shake =====
@@ -222,8 +187,6 @@ function Effects.mount(context)
         shakeMagnitude =
             math.max(0, shakeMagnitude - shakeMagnitude * math.min(1, dt * SHAKE_DECAY))
     end)
-
-    refreshMusic()
 end
 
 return Effects

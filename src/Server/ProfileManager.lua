@@ -37,7 +37,14 @@ local PROFILE_TEMPLATE = {
     -- players never re-see the tutorial; brand-new players run it once (skippable).
     TutorialDone = false,
     -- M6: persisted client preferences (booleans only; SettingsService validates the shape).
-    Settings = { Music = false, SFX = true, Shake = true },
+    Settings = {
+        Music = false,
+        SFX = true,
+        Shake = true,
+        MusicVolume = 0.5,
+        SfxVolume = 0.7,
+        AmbienceVolume = 0.5,
+    },
     -- M7: set of NORMALIZED (trimmed+UPPER) code strings this player has redeemed (code -> true).
     -- A code's grant and its entry here are written in the SAME mutation, so a code grants
     -- EXACTLY once even across crashes/restarts/servers. Reconciles onto old saves as empty.

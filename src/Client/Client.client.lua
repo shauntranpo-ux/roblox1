@@ -13,6 +13,7 @@ local Inventory = require(UI.Inventory)
 local Notifications = require(UI.Notifications)
 local KillFeed = require(UI.KillFeed)
 local Effects = require(UI.Effects)
+local AudioManager = require(UI.AudioManager)
 local Settings = require(UI.Settings)
 local Tutorial = require(UI.Tutorial)
 local Codes = require(UI.Codes)
@@ -108,7 +109,13 @@ end
 safeMount("PanelManager", function() -- the single panel authority + shared scrim (built first)
     PanelManager.init(context)
 end)
-safeMount("Effects", function() -- first, so settings can apply music/shake immediately
+safeMount(
+    "AudioManager",
+    function() -- before Effects, so delegated sounds + the audio buses are ready
+        AudioManager.mount(context)
+    end
+)
+safeMount("Effects", function() -- so settings can apply music/shake immediately
     Effects.mount(context)
 end)
 safeMount("ClickFX", function() -- global bubble-pop ripple + click sound on every press

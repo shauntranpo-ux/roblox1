@@ -11,19 +11,21 @@ local RateLimiter = require(script.Parent.RateLimiter)
 
 local SettingsService = {}
 
--- The only keys ever stored, with their defaults (music defaults OFF -- no audio asset shipped).
-local DEFAULTS = { Music = false, SFX = true, Shake = true }
+-- The only keys ever stored. BOOL mutes (music defaults OFF -- no audio shipped) + M12.4 VOLUME
+-- numbers (0..1). Anything else from the client is dropped; these are presentational prefs only.
+local BOOL_DEFAULTS = { Music = false, SFX = true, Shake = true }
+local NUM_DEFAULTS = { MusicVolume = 0.5, SfxVolume = 0.7, AmbienceVolume = 0.5 }
 
--- Coerces arbitrary client input into exactly the known boolean keys (defaults fill the rest).
+-- Coerces arbitrary client input into exactly the known keys (validated bools + clamped 0..1 numbers).
 local function sanitize(data)
     local out = {}
-    for key, default in pairs(DEFAULTS) do
-        local value = type(data) == "table" and data[key]
-        if type(value) == "boolean" then
-            out[key] = value
-        else
-            out[key] = default
-        end
+    local t = type(data) == "table" and data or {}
+    for key, default in pairs(BOOL_DEFAULTS) do
+        out[key] = type(t[key]) == "boolean" and t[key] or default
+    end
+    for key, default in pairs(NUM_DEFAULTS) do
+        local n = tonumber(t[key])
+        out[key] = (n ~= nil) and math.clamp(n, 0, 1) or default
     end
     return out
 end

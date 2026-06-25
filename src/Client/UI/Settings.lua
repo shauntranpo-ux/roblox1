@@ -2,25 +2,40 @@
 -- the HUD gear button. Pulls the saved values from the server on mount and writes changes back
 -- through SaveSettings (validated server-side). Preferences are presentational only.
 
+local UserInputService = game:GetService("UserInputService")
+
 local Builder = require(script.Parent.Builder)
 local Theme = require(script.Parent.Theme)
 
 local Settings = {}
 
-local DEFAULTS = { Music = false, SFX = true, Shake = true }
+-- M12.4: bool MUTES + 0..1 VOLUME numbers (the audio buses scale off these live).
+local DEFAULTS = {
+    Music = false,
+    SFX = true,
+    Shake = true,
+    MusicVolume = 0.5,
+    SfxVolume = 0.7,
+    AmbienceVolume = 0.5,
+}
 
 local player = nil
 local remotes = nil
 local gui = nil
-local current = { Music = false, SFX = true, Shake = true }
+local current = {}
 local onChanged = nil
 local buttons = {} -- [key] = TextButton
 
 local function sanitize(data)
     local out = {}
+    local t = type(data) == "table" and data or {}
     for key, default in pairs(DEFAULTS) do
-        local value = type(data) == "table" and data[key]
-        out[key] = type(value) == "boolean" and value or default
+        if type(default) == "boolean" then
+            out[key] = type(t[key]) == "boolean" and t[key] or default
+        else
+            local n = tonumber(t[key])
+            out[key] = (n ~= nil) and math.clamp(n, 0, 1) or default
+        end
     end
     return out
 end
@@ -76,6 +91,103 @@ local function buildToggle(parent, key, label, order)
     row.Parent = parent
 end
 
+-- M12.4: a functional volume slider (tap or drag). Applies live; persists on release.
+local function buildSlider(parent, key, label, order)
+    local row = Builder.create("Frame", {
+        Size = UDim2.new(1, 0, 0, 62),
+        BackgroundColor3 = Theme.Colors.Row,
+        BorderSizePixel = 0,
+        LayoutOrder = order,
+    }, { Builder.corner(UDim.new(0, 12)), Builder.padding(10) })
+    Builder.create("TextLabel", {
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(6, 4),
+        Size = UDim2.new(1, -12, 0, 22),
+        Font = Theme.FontBold,
+        Text = label,
+        TextColor3 = Theme.Colors.Text,
+        TextSize = 18,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = row,
+    })
+    local valueLabel = Builder.create("TextLabel", {
+        AnchorPoint = Vector2.new(1, 0),
+        Position = UDim2.new(1, -6, 0, 4),
+        Size = UDim2.fromOffset(60, 22),
+        BackgroundTransparency = 1,
+        Font = Theme.FontBody,
+        Text = "",
+        TextColor3 = Theme.Colors.SubText,
+        TextSize = 16,
+        TextXAlignment = Enum.TextXAlignment.Right,
+        Parent = row,
+    })
+    local track = Builder.create("Frame", {
+        AnchorPoint = Vector2.new(0, 1),
+        Position = UDim2.new(0, 6, 1, -6),
+        Size = UDim2.new(1, -12, 0, 14),
+        BackgroundColor3 = Theme.Colors.DarkPill,
+        BorderSizePixel = 0,
+        Parent = row,
+    }, { Builder.corner(UDim.new(1, 0)) })
+    local fill = Builder.create("Frame", {
+        Size = UDim2.fromScale(current[key] or 0.5, 1),
+        BackgroundColor3 = Theme.Colors.Positive,
+        BorderSizePixel = 0,
+        Parent = track,
+    }, { Builder.corner(UDim.new(1, 0)) })
+
+    local function paint()
+        fill.Size = UDim2.fromScale(current[key], 1)
+        valueLabel.Text = math.floor(current[key] * 100 + 0.5) .. "%"
+    end
+    local function setFromX(px)
+        local rel =
+            math.clamp((px - track.AbsolutePosition.X) / math.max(1, track.AbsoluteSize.X), 0, 1)
+        current[key] = rel
+        paint()
+        if onChanged ~= nil then
+            onChanged(current) -- live audio feedback while dragging
+        end
+    end
+    paint()
+
+    local dragging = false
+    track.InputBegan:Connect(function(input)
+        if
+            input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch
+        then
+            dragging = true
+            setFromX(input.Position.X)
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if
+            dragging
+            and (
+                input.UserInputType == Enum.UserInputType.MouseMovement
+                or input.UserInputType == Enum.UserInputType.Touch
+            )
+        then
+            setFromX(input.Position.X)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if
+            dragging
+            and (
+                input.UserInputType == Enum.UserInputType.MouseButton1
+                or input.UserInputType == Enum.UserInputType.Touch
+            )
+        then
+            dragging = false
+            remotes.SaveSettings:FireServer(current) -- persist on release (not every frame)
+        end
+    end)
+    row.Parent = parent
+end
+
 function Settings.mount(context, opts)
     player = context.player
     remotes = context.remotes
@@ -95,6 +207,9 @@ function Settings.mount(context, opts)
     buildToggle(list, "Music", "Music", 1)
     buildToggle(list, "SFX", "Sound Effects", 2)
     buildToggle(list, "Shake", "Screen Shake", 3)
+    buildSlider(list, "MusicVolume", "Music Volume", 4)
+    buildSlider(list, "SfxVolume", "SFX Volume", 5)
+    buildSlider(list, "AmbienceVolume", "Ambience Volume", 6)
 
     -- Apply the loaded prefs immediately (music/shake state).
     if onChanged ~= nil then
