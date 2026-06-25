@@ -1,12 +1,12 @@
--- HUD (VM-THEME): the reference-matched heads-up display. Bottom-left STAT STACK (cash / HP-shield /
--- XP), a left DIAMOND RAIL (shop + level-gated entries), a bottom-right LUCK counter, and the existing
+-- HUD (VM-THEME): the reference-matched heads-up display. Bottom-left STAT STACK (cash / HP-shield),
+-- a left DIAMOND RAIL (shop + level-gated entries), a bottom-right LUCK counter, and the existing
 -- bottom-center nav bar (panel access -- kept, restyled as the hotbar). Every element reads Theme +
 -- Builder (single source) and binds to REAL replicated attributes, defaulting safely when one is
 -- absent. The objective banner + minimap are their own modules. Mobile-first: scale + safe insets.
 --
 -- BINDINGS (all replicated player Attributes; default safely if missing):
 --   Cash -> "Cash"            Level -> "RebirthCount"        Luck -> "Luck"
---   Shield -> "ShieldSeconds" / "ShieldMax"   XP -> "PlayerXP" / "PlayerXPMax" (hook; defaults empty)
+--   Shield -> "ShieldSeconds" / "ShieldMax"
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -22,8 +22,6 @@ local player = nil
 local cashRow = nil
 local cashLabel = nil
 local hpSet = nil
-local xpSet = nil
-local levelLabel = nil
 local luckLabel = nil
 local powerLabel = nil
 local inviteLabel = nil
@@ -71,7 +69,7 @@ function HUD.mount(context, actions)
     local gui = Builder.screenGui("HUD", player:WaitForChild("PlayerGui"), true)
     gui.DisplayOrder = 7 -- below panels (10) so an open panel layers above
 
-    -- ===== BOTTOM-LEFT STAT STACK (cash / HP-shield / XP) =====
+    -- ===== BOTTOM-LEFT STAT STACK (cash / HP-shield) =====
     local stack = Builder.create("Frame", {
         AnchorPoint = Vector2.new(0, 1),
         Position = UDim2.fromScale(0.012, 0.86),
@@ -116,41 +114,6 @@ function HUD.mount(context, actions)
         Parent = hpRow,
     })
     hpSet = hpSetFn
-
-    -- (c) XP -- cyan level badge + cyan bar "<cur>/<max>".
-    local xpRow = statRow(stack, 3, "", 30)
-    local badge = Builder.create("Frame", {
-        AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.fromScale(0, 0.5),
-        Size = UDim2.fromOffset(30, 30),
-        BackgroundColor3 = Theme.Colors.XpFill,
-        BorderSizePixel = 0,
-        Parent = xpRow,
-    }, {
-        Builder.corner(UDim.new(0, 8)),
-        Builder.create(
-            "UIStroke",
-            { Color = Theme.Colors.White, Thickness = 2, Transparency = 0.15 }
-        ),
-    })
-    levelLabel = Builder.create("TextLabel", {
-        Size = UDim2.fromScale(1, 1),
-        BackgroundTransparency = 1,
-        Text = "0",
-        TextColor3 = Theme.Colors.White,
-        TextScaled = true,
-        Parent = badge,
-    }, { Builder.padding(3) })
-    Builder.styleText(levelLabel, { keepColor = true })
-    local _, xpSetFn = Builder.statBar({
-        AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.fromScale(0.26, 0.5),
-        Size = UDim2.fromScale(0.74, 0.8),
-        fillTop = Theme.Colors.XpFill,
-        fillBottom = Theme.Colors.XpFillDark,
-        Parent = xpRow,
-    })
-    xpSet = xpSetFn
 
     -- ===== LEFT DIAMOND RAIL (shop + level-gated entries) =====
     local rail = Builder.create("Frame", {
@@ -365,14 +328,12 @@ function HUD.mount(context, actions)
     -- ===== bindings =====
     local function refreshLevel()
         local level = readLevel()
-        levelLabel.Text = tostring(level)
         for _, d in ipairs(railDiamonds) do
             local locked = level < d.entry.UnlockLevel
             d.content.Text = locked and ("🔒\nLv." .. d.entry.UnlockLevel) or d.entry.Label
             d.diamond.BackgroundColor3 = locked and Theme.Colors.DarkPill or Theme.Colors.XpFill
             d.diamond.BackgroundTransparency = locked and 0.25 or 0.1
         end
-        xpSet(attr("PlayerXP", 0), attr("PlayerXPMax", Theme.Hud.XpFallbackMax))
     end
     local function refreshShield()
         hpSet(
@@ -406,7 +367,6 @@ function HUD.mount(context, actions)
         targetCash = attr("Cash", 0)
     end)
     player:GetAttributeChangedSignal("RebirthCount"):Connect(refreshLevel)
-    player:GetAttributeChangedSignal("PlayerXP"):Connect(refreshLevel)
     player:GetAttributeChangedSignal("ShieldSeconds"):Connect(refreshShield)
     player:GetAttributeChangedSignal("ShieldMax"):Connect(refreshShield)
     player:GetAttributeChangedSignal("Luck"):Connect(refreshLuck)
