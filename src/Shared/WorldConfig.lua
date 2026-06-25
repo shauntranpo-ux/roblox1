@@ -83,11 +83,11 @@ WorldConfig.Terrain = {
 WorldConfig.Center = Vector3.new(0, 0, 0)
 WorldConfig.Levels = {
     PlotRingRadius = 100, -- the central base RING on the bottom (start) platform (PlotService uses this)
-    PlatformRadius = 160, -- each biome platform's radius (a floating disc)
-    LevelHeight = 130, -- vertical gap between consecutive level platforms (lots of height between them)
+    PlatformRadius = 300, -- each biome platform's radius (a floating disc)
+    LevelHeight = 160, -- vertical gap between consecutive level platforms (lots of height between them)
     PlatformThickness = 8,
     ElevatorAngleDeg = 0, -- the angle (deg) on each platform where the elevator pad + drop-off sit
-    ElevatorRadius = 80, -- how far from the platform center the elevator sits
+    ElevatorRadius = 250, -- how far from the platform center the elevator sits
 }
 
 -- ── HUB (central plaza at the world origin; holds the slingshot + fixtures) ───────────────────

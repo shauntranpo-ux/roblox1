@@ -283,16 +283,8 @@ local function buildHub(folder)
     end
 end
 
--- ── BASE DISTRICT (central ground slab + PlotAnchor markers on the base RING) ─────────────────
+-- ── BASE DISTRICT (PlotAnchor markers on the base RING; ground disc is now built by buildPlatforms) ──
 local function buildDistrict(folder)
-    local d = WorldConfig.District
-    part({
-        Size = Vector3.new(d.GroundSize.X, S.GroundThickness, d.GroundSize.Z),
-        Position = Vector3.new(0, -S.GroundThickness / 2, 0),
-        Color = P.Grass,
-        Material = Enum.Material.Grass,
-    }, folder)
-
     local ringR = WorldConfig.Levels.PlotRingRadius
     local T = WorldConfig.Terrain
     for index = 1, Config.Plots.Count do
@@ -588,20 +580,18 @@ local function buildPlatform(folder, cfg)
     end
 end
 
--- ── Build all the stacked LEVEL platforms (floating discs at increasing height). Level 1 (meadow) is
--- the bottom ground the hub + bases sit on (the district slab); levels 2..N float above with big gaps.
+-- ── Build all the stacked LEVEL platforms (floating discs at increasing height). Every level,
+-- including the bottom 'start' platform, is now a uniform 300-radius disc.
 local function buildPlatforms(folder)
     for _, cfg in ipairs(WorldConfig.Biomes) do
-        if cfg.Tier > 1 then
-            disc(
-                cfg.Radius,
-                cfg.Y,
-                WorldConfig.Levels.PlatformThickness,
-                cfg.GroundColor,
-                cfg.GroundMaterial,
-                folder
-            )
-        end
+        disc(
+            cfg.Radius,
+            cfg.Y,
+            WorldConfig.Levels.PlatformThickness,
+            cfg.GroundColor,
+            cfg.GroundMaterial,
+            folder
+        )
         buildPlatform(folder, cfg)
     end
 end
