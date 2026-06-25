@@ -385,13 +385,18 @@ function Shop.mount(context)
     remotes = context.remotes
     gui = Builder.screenGui("Shop", player:WaitForChild("PlayerGui"), false)
 
-    -- Pull the monetization state (owned passes + SIM flag) once; safe fallback on failure.
-    local ok, state = pcall(function()
-        return remotes.GetMonetization:InvokeServer()
-    end)
-    if ok and type(state) == "table" then
-        moneyState = state
-        moneyState.Owned = moneyState.Owned or {}
+    -- Pull the monetization state (owned passes + SIM flag). Retries briefly in case the shop
+    -- mounts before the server bound the handler; safe fallback if it never answers.
+    for _ = 1, 10 do
+        local ok, state = pcall(function()
+            return remotes.GetMonetization:InvokeServer()
+        end)
+        if ok and type(state) == "table" then
+            moneyState = state
+            moneyState.Owned = moneyState.Owned or {}
+            break
+        end
+        task.wait(0.2)
     end
 
     scrolls = buildShell()
