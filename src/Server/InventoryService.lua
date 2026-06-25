@@ -4,6 +4,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Catalog = require(ReplicatedStorage.Shared.Catalog)
+local TradeConfig = require(ReplicatedStorage.Shared.TradeConfig)
 
 local Remotes = require(script.Parent.Remotes)
 local ProfileManager = require(script.Parent.ProfileManager)
@@ -33,10 +34,12 @@ local function getInventory(player)
     for _, brainrot in ipairs(profile.Data.OwnedBrainrots) do
         local def = resolveDef(brainrot.Type)
         table.insert(owned, {
+            Id = brainrot.Id, -- unique per-unit Id (the trade picker offers by this)
             Name = def.DisplayName,
             Rarity = def.Rarity, -- rarity key; the client colors it via Shared/Rarity
             IncomePerSec = brainrot.IncomePerSec,
             Type = brainrot.Type,
+            Tradeable = TradeConfig.IsTradeable(def),
         })
     end
     return owned

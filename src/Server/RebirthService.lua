@@ -29,6 +29,7 @@ local PlayerStats = require(script.Parent.PlayerStats)
 local Leaderstats = require(script.Parent.Leaderstats)
 local ProtectionService = require(script.Parent.ProtectionService)
 local StealService = require(script.Parent.StealService)
+local TradeService = require(script.Parent.TradeService)
 local RateLimiter = require(script.Parent.RateLimiter)
 local Remotes = require(script.Parent.Remotes)
 local Analytics = require(script.Parent.Analytics)
@@ -116,6 +117,9 @@ function RebirthService.Request(player)
     end
     if StealService.IsBusy(player) then
         return { Result = "Busy", Message = "Finish your steal before rebirthing." }
+    end
+    if TradeService.IsTrading(player) then
+        return { Result = "Busy", Message = "Finish your trade before rebirthing." }
     end
     local requirement = RebirthConfig.RequirementFor(profile.Data.RebirthCount)
     if profile.Data.Cash < requirement then

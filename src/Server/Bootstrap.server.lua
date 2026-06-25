@@ -29,8 +29,9 @@ local CodesService = require(script.Parent.CodesService)
 local Analytics = require(script.Parent.Analytics)
 local RebirthService = require(script.Parent.RebirthService)
 local IndexService = require(script.Parent.IndexService)
+local TradeService = require(script.Parent.TradeService)
 
-print("[BRAINROT] M8.1 starting -- rebirth/prestige + collection index")
+print("[BRAINROT] M8.2 starting -- player-to-player trading (dupe-proof atomic swap)")
 
 -- Data layer, network surface, world, defense, income loop, then the client-facing handlers.
 ProfileManager.Init()
@@ -53,6 +54,8 @@ CodesService.Init()
 -- M8.1: rebirth/prestige + collection-index completion rewards.
 RebirthService.Init()
 IndexService.Init()
+-- M8.2: same-server player-to-player trading.
+TradeService.Init()
 
 local handled = {} -- [Player] = true, guards against double-joins (Studio Play Solo)
 
@@ -133,6 +136,9 @@ local function onPlayerRemoving(player)
     -- ORDERING IS CRITICAL: settle every steal this player is in (as thief OR victim) FIRST,
     -- while their profile is still loaded, so the save captures correct, un-duped ownership.
     StealService.ResolvePlayer(player)
+    -- M8.2: cancel any in-flight trade (no-op, unlock items) BEFORE the profile is released, so a
+    -- leave mid-trade can never persist a half-swap.
+    TradeService.ResolvePlayer(player)
     -- Final leaderboard write while the profile is STILL loaded (captures values synchronously,
     -- then writes off-thread) -- must precede MonetizationService.ClearPlayer, which drops the
     -- income multiplier this read depends on, and ProfileManager.ReleaseProfile.
@@ -148,6 +154,7 @@ local function onPlayerRemoving(player)
     -- lingers after leave (verified leak-free across repeated join/leave cycles).
     PlayerStats.ClearPlayer(player)
     RebirthService.ClearPlayer(player)
+    TradeService.ClearPlayer(player)
     PlotService.FreePlot(player)
     RateLimiter.clear(player)
     ProfileManager.ReleaseProfile(player)

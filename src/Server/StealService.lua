@@ -33,6 +33,7 @@ local Remotes = require(script.Parent.Remotes)
 local TransitRegistry = require(script.Parent.TransitRegistry)
 local Benefits = require(script.Parent.Benefits)
 local Analytics = require(script.Parent.Analytics)
+local TradeLockRegistry = require(script.Parent.TradeLockRegistry)
 
 local StealService = {}
 
@@ -215,6 +216,11 @@ local function onPromptTriggered(prompt, thief)
     -- DOUBLE-STEAL RACE: if already in transit, the second trigger loses. Checked before any
     -- yield, and nothing below yields before we write ActiveSteals -> race-proof.
     if ActiveSteals[brainrotId] ~= nil then
+        return
+    end
+    -- TRADE COORDINATION: a unit locked in a trade offer can't be stolen (can't become IN_TRANSIT).
+    if TradeLockRegistry.Has(brainrotId) then
+        Remotes.NotifyPlayer(thief, "error", "That brainrot is locked in a trade.")
         return
     end
     -- CARRY-WHILE-CARRYING: never hold two.

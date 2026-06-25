@@ -35,6 +35,7 @@ Analytics.Events = { -- custom (retention/engagement) event names
     CodeRedeemed = "code_redeemed",
     Rebirth = "rebirth", -- M8.1 prestige reset (value = new rebirth count)
     IndexComplete = "index_complete", -- M8.1 completion milestone claimed
+    TradeComplete = "trade_complete", -- M8.2 a two-party swap committed
 }
 
 Analytics.Funnel = { -- new-player onboarding funnel steps { stepNumber, stepName }

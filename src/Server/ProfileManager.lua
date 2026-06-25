@@ -56,6 +56,9 @@ local PROFILE_TEMPLATE = {
     -- M8.1 INDEX: set of completion-milestone Ids already claimed (Id -> true). The grant + this
     -- record commit together so a completion reward is granted EXACTLY once. Reconciles as empty.
     ClaimedIndexRewards = {},
+    -- M8.2 TRADING: capped per-player history of completed trades (partner + what was given/received
+    -- + when), for support/disputes. Trimmed to TradeConfig.MaxHistory. Reconciles as empty.
+    TradeHistory = {},
 }
 
 local Profiles = {} -- [Player] = Profile
@@ -213,6 +216,17 @@ end
 
 function ProfileManager.IsUsingMock()
     return usingMock
+end
+
+-- Requests an immediate save of the player's profile (best-effort, pcall-wrapped). Used after a
+-- trade's in-memory swap so both profiles persist as close together as possible.
+function ProfileManager.ForceSave(player)
+    local profile = Profiles[player]
+    if profile ~= nil then
+        pcall(function()
+            profile:Save()
+        end)
+    end
 end
 
 return ProfileManager

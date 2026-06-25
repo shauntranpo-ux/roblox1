@@ -211,6 +211,34 @@ function PlotService.FindFreePad(player, profile)
     return nil
 end
 
+-- Counts how many pads are currently free for a player (within the unlocked cap, excluding owned
+-- + reserved). Used for the net-pad capacity check at a trade COMMIT.
+function PlotService.CountFreePads(player, profile)
+    local plot = assigned[player]
+    if plot == nil then
+        return 0
+    end
+    local used = {}
+    for _, brainrot in ipairs(profile.Data.OwnedBrainrots) do
+        used[brainrot.PadIndex] = true
+    end
+    local heldPads = reserved[player]
+    if heldPads ~= nil then
+        for index in pairs(heldPads) do
+            used[index] = true
+        end
+    end
+    local unlocked = profile.Data.UnlockedPads or Config.Plots.PadsPerPlot
+    local cap = math.min(unlocked, Config.Plots.PadsPerPlot)
+    local free = 0
+    for index = 1, cap do
+        if plot.Pads[index] ~= nil and not used[index] then
+            free += 1
+        end
+    end
+    return free
+end
+
 -- Reserves a pad for an in-progress steal so nothing else (a purchase or another steal)
 -- can claim it before the carried unit is deposited there.
 function PlotService.ReservePad(player, index)

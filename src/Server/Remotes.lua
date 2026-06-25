@@ -28,6 +28,9 @@ Remotes.WhatsNew = nil -- RemoteEvent  : server -> client, show the changelog on
 Remotes.RequestRebirth = nil -- RemoteFunction : client -> server (no args) -> { Result, Message }
 Remotes.GetIndex = nil -- RemoteFunction : client -> server -> { Discovered, Claimed, Score }
 Remotes.ClaimIndexReward = nil -- RemoteFunction : client -> server (milestoneId) -> { Result, Message }
+-- M8.2 trading. Client sends INTENT ONLY ({ Action, ... }); server owns all session state.
+Remotes.TradeAction = nil -- RemoteEvent  : client -> server, { Action, TargetUserId?, BrainrotId?, Amount?, Accept?, Ready? }
+Remotes.TradeUpdate = nil -- RemoteEvent  : server -> client, authoritative session snapshot / request / closed
 
 local folder = nil
 
@@ -103,6 +106,14 @@ function Remotes.Init()
     claimIndexReward.Name = "ClaimIndexReward"
     claimIndexReward.Parent = folder
 
+    local tradeAction = Instance.new("RemoteEvent")
+    tradeAction.Name = "TradeAction"
+    tradeAction.Parent = folder
+
+    local tradeUpdate = Instance.new("RemoteEvent")
+    tradeUpdate.Name = "TradeUpdate"
+    tradeUpdate.Parent = folder
+
     folder.Parent = ReplicatedStorage
 
     Remotes.PurchaseRequest = purchase
@@ -121,6 +132,8 @@ function Remotes.Init()
     Remotes.RequestRebirth = requestRebirth
     Remotes.GetIndex = getIndex
     Remotes.ClaimIndexReward = claimIndexReward
+    Remotes.TradeAction = tradeAction
+    Remotes.TradeUpdate = tradeUpdate
 end
 
 -- Sends a toast to a single player. kind = "success" | "error" | "info". Optional `cue` is a
