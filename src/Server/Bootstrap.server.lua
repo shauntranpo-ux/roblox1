@@ -77,6 +77,7 @@ local AdminService = require(script.Parent.AdminService)
 -- notification trigger layer (opt-in is a persisted setting; delivery is backend).
 local GroupRewardService = require(script.Parent.GroupRewardService)
 local NotificationService = require(script.Parent.NotificationService)
+local SlingshotService = require(script.Parent.SlingshotService)
 -- Admin/troubleshooting: in-chat commands (allowlisted) + Studio command-bar API.
 local DevCommands = require(script.Parent.DevCommands)
 
@@ -160,6 +161,7 @@ start("SetService", SetService.Init)
 start("AdminService", AdminService.Init)
 -- M13.6: bind the group-reward remote (membership check + idempotent claim).
 start("GroupRewardService", GroupRewardService.Init)
+start("SlingshotService", SlingshotService.Init)
 -- Admin: register the allowlisted in-chat commands (hidden from chat).
 start("DevCommands", DevCommands.Init)
 

@@ -94,6 +94,7 @@ Analytics.Events = { -- custom (retention/engagement) event names
     SettingsChange = "settings_change", -- M13.6 a player saved a settings change
     NotifyOptIn = "notify_opt_in", -- M13.6 a player opted IN to re-engagement notifications (value=1)
     NotifyTrigger = "notify_trigger", -- M13.6 a notify-worthy event fired for an opted-in player
+    SlingshotLaunch = "slingshot_launch", -- a player launched to a biome via the slingshot (value=tier)
 }
 
 Analytics.Funnel = { -- new-player onboarding funnel steps { stepNumber, stepName }
