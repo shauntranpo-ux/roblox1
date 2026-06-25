@@ -8,6 +8,8 @@ local TweenService = game:GetService("TweenService")
 
 local Builder = require(script.Parent.Builder)
 local Theme = require(script.Parent.Theme)
+local UIStyle = require(script.Parent.UIStyle)
+local PanelManager = require(script.Parent.PanelManager)
 local Format = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Format"))
 
 local HUD = {}
@@ -28,22 +30,29 @@ local function readRate()
     return player:GetAttribute("IncomePerSec") or 0
 end
 
+-- Rounded, stroked nav button. Plain text labels (no symbol glyphs -- the old "☰" rendered as a
+-- missing-glyph box on some devices). The selected state is driven by PanelManager.onChange.
 local function makeButton(parent, text, order, onClick)
     local button = Builder.create("TextButton", {
         LayoutOrder = order,
         Size = UDim2.fromScale(0.3, 1),
-        BackgroundColor3 = Theme.Colors.Accent,
+        BackgroundColor3 = UIStyle.Colors.NavIdle,
         BorderSizePixel = 0,
         AutoButtonColor = true,
         Font = Theme.FontBold,
         Text = text,
-        TextColor3 = Theme.Colors.Text,
+        TextColor3 = UIStyle.Colors.Text,
         TextScaled = true,
         Parent = parent,
     }, {
         Builder.corner(UDim.new(0, 14)),
         Builder.padding(10),
-        Builder.create("UITextSizeConstraint", { MaxTextSize = 26 }),
+        Builder.create("UITextSizeConstraint", { MaxTextSize = 24 }),
+        Builder.create("UIStroke", {
+            Color = UIStyle.Colors.Stroke,
+            Thickness = 1.5,
+            Transparency = 0.35,
+        }),
     })
     button.Activated:Connect(onClick)
     return button
@@ -52,6 +61,7 @@ end
 function HUD.mount(context, actions)
     player = context.player
     local gui = Builder.screenGui("HUD", player:WaitForChild("PlayerGui"), true)
+    gui.DisplayOrder = 7 -- above the panel scrim (5), below the panels (10) -- cash stays readable
 
     -- Top-center cash pill.
     pill = Builder.create("Frame", {
@@ -113,11 +123,19 @@ function HUD.mount(context, actions)
         Builder.create("UISizeConstraint", { MaxSize = Vector2.new(560, 84) }),
     })
 
-    makeButton(bar, "🛒 Shop", 1, actions.onShop)
-    makeButton(bar, "🎒 Inv", 2, actions.onInventory)
+    local navButtons = {
+        Shop = makeButton(bar, "Shop", 1, actions.onShop),
+        Inventory = makeButton(bar, "Items", 2, actions.onInventory),
+    }
     if actions.onMenu ~= nil then
-        makeButton(bar, "☰ Menu", 3, actions.onMenu)
+        navButtons.Menu = makeButton(bar, "Menu", 3, actions.onMenu)
     end
+    -- Highlight the nav button whose panel is currently open; revert when it closes.
+    PanelManager.onChange(function(active)
+        for name, button in pairs(navButtons) do
+            UIStyle.setNavActive(button, name == active)
+        end
+    end)
 
     -- Initial values + live listeners.
     targetCash = readCash()

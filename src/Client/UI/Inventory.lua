@@ -10,6 +10,7 @@ local Theme = require(script.Parent.Theme)
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Format = require(Shared:WaitForChild("Format"))
 local Rarity = require(Shared:WaitForChild("Rarity"))
+local UIStyle = require(script.Parent.UIStyle)
 
 local Inventory = {}
 
@@ -37,6 +38,8 @@ local function addRow(entry, order)
         BorderSizePixel = 0,
         LayoutOrder = order,
     }, { Builder.corner(UDim.new(0, 12)), Builder.padding(10) })
+    -- Translucent card with a rarity-colored left accent bar (Common reads differently from rarer).
+    UIStyle.accentRow(row, rarity.Color)
 
     -- Name (line 1) + rarity (line 2, rarity-colored) on the left; income on the right.
     Builder.create("TextLabel", {

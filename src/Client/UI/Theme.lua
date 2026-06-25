@@ -6,16 +6,19 @@ local Theme = {}
 Theme.Font = Enum.Font.GothamMedium
 Theme.FontBold = Enum.Font.GothamBold
 
+-- VM-UI: retuned to the translucent "grape glass" palette. Every panel/row/button reads these, so
+-- the new look propagates without per-screen edits. (A future full Theme module will expand this;
+-- the small UIStyle helper holds the glass-apply functions + the same colors.)
 Theme.Colors = {
-    Background = Color3.fromRGB(22, 24, 31),
-    Panel = Color3.fromRGB(32, 35, 44),
-    Row = Color3.fromRGB(42, 46, 57),
-    Accent = Color3.fromRGB(95, 170, 255),
-    Positive = Color3.fromRGB(80, 200, 120),
-    Danger = Color3.fromRGB(230, 90, 90),
-    Text = Color3.fromRGB(240, 242, 248),
-    SubText = Color3.fromRGB(165, 172, 186),
-    Disabled = Color3.fromRGB(64, 68, 78),
+    Background = Color3.fromRGB(34, 17, 65), -- deep grape (panels are glassed over this)
+    Panel = Color3.fromRGB(46, 26, 84),
+    Row = Color3.fromRGB(48, 30, 86),
+    Accent = Color3.fromRGB(155, 77, 255), -- electric purple #9B4DFF
+    Positive = Color3.fromRGB(70, 224, 138), -- income green #46E08A
+    Danger = Color3.fromRGB(255, 84, 112), -- close-button pink #FF5470
+    Text = Color3.fromRGB(245, 245, 252),
+    SubText = Color3.fromRGB(186, 178, 214),
+    Disabled = Color3.fromRGB(70, 58, 98),
 }
 
 return Theme

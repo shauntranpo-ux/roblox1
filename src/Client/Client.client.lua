@@ -23,6 +23,7 @@ local Index = require(UI.Index)
 local Trade = require(UI.Trade)
 local Events = require(UI.Events)
 local Seasons = require(UI.Seasons)
+local PanelManager = require(UI.PanelManager)
 
 local player = Players.LocalPlayer
 
@@ -66,6 +67,9 @@ local function safeMount(name, fn)
     end
 end
 
+safeMount("PanelManager", function() -- the single panel authority + shared scrim (built first)
+    PanelManager.init(context)
+end)
 safeMount("Effects", function() -- first, so settings can apply music/shake immediately
     Effects.mount(context)
 end)
@@ -110,20 +114,57 @@ safeMount("Seasons", function()
 end)
 safeMount("Menu", function()
     Menu.mount(context)
-    Menu.addButton("🏆 Seasons", Seasons.toggle)
-    Menu.addButton("🎉 Events", Events.toggle)
-    Menu.addButton("🤝 Trade", Trade.toggle)
-    Menu.addButton("⭐ Rebirth", Rebirth.toggle)
-    Menu.addButton("📖 Index", Index.toggle)
-    Menu.addButton("🎁 Codes", Codes.toggle)
-    Menu.addButton("⚙ Settings", Settings.toggle)
+    -- Menu list entries OPEN their panel through the manager (the Menu closes itself first).
+    Menu.addButton("🏆 Seasons", function()
+        PanelManager.open("Seasons")
+    end)
+    Menu.addButton("🎉 Events", function()
+        PanelManager.open("Events")
+    end)
+    Menu.addButton("🤝 Trade", function()
+        PanelManager.open("Trade")
+    end)
+    Menu.addButton("⭐ Rebirth", function()
+        PanelManager.open("Rebirth")
+    end)
+    Menu.addButton("📖 Index", function()
+        PanelManager.open("Index")
+    end)
+    Menu.addButton("🎁 Codes", function()
+        PanelManager.open("Codes")
+    end)
+    Menu.addButton("⚙ Settings", function()
+        PanelManager.open("Settings")
+    end)
 end)
 safeMount("HUD", function()
+    -- HUD nav buttons TOGGLE through the manager (tap again to close).
     HUD.mount(context, {
-        onShop = Shop.toggle,
-        onInventory = Inventory.toggle,
-        onMenu = Menu.toggle,
+        onShop = function()
+            PanelManager.toggle("Shop")
+        end,
+        onInventory = function()
+            PanelManager.toggle("Inventory")
+        end,
+        onMenu = function()
+            PanelManager.toggle("Menu")
+        end,
     })
+end)
+
+-- Register every primary panel with the manager AFTER each has mounted its ScreenGui, so the
+-- manager is the sole authority over open/close (at most one open) and applies the glass styling.
+safeMount("PanelManager registry", function()
+    PanelManager.register("Shop", Shop.toggle)
+    PanelManager.register("Inventory", Inventory.toggle)
+    PanelManager.register("Menu", Menu.toggle)
+    PanelManager.register("Seasons", Seasons.toggle)
+    PanelManager.register("Events", Events.toggle)
+    PanelManager.register("Trade", Trade.toggle)
+    PanelManager.register("Rebirth", Rebirth.toggle)
+    PanelManager.register("Index", Index.toggle)
+    PanelManager.register("Codes", Codes.toggle)
+    PanelManager.register("Settings", Settings.toggle)
 end)
 
 -- Hide the "Hold to steal" prompt on the LOCAL player's OWN brainrots (you can't steal your

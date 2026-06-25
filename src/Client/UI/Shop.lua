@@ -18,6 +18,7 @@ local Format = require(Shared:WaitForChild("Format"))
 local Catalog = require(Shared:WaitForChild("Catalog"))
 local Rarity = require(Shared:WaitForChild("Rarity"))
 local Monetization = require(Shared:WaitForChild("Monetization"))
+local UIStyle = require(script.Parent.UIStyle)
 
 local Shop = {}
 
@@ -65,6 +66,8 @@ local function buildRow(item, order, parent)
         BorderSizePixel = 0,
         LayoutOrder = order,
     }, { Builder.corner(UDim.new(0, 12)), Builder.padding(10) })
+    -- Translucent card; the rarity-tinted icon swatch (below) already carries the rarity color.
+    UIStyle.glassRow(row)
 
     Builder.create("Frame", {
         Name = "Icon",
