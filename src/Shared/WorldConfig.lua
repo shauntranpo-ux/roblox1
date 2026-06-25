@@ -4,12 +4,8 @@
 -- everything per the contract so the already-written systems bind. NOTHING here is gameplay logic; it
 -- is geometry/visual tuning + the tag/layout contract. Retune freely + regenerate. Validate defensively.
 --
--- LAYOUT: the BASE DISTRICT sits at the world origin (PlotService builds plots along +X at z~0). The
--- HUB plaza sits just in front (-Z), covering the spots the existing systems already use (leaderboard
--- stands ~(80,-40), the boss default spawn (0,-140), the shared-event spawn (0,-110)). From the hub a
--- wide road runs -Z through the six biomes in a straight contiguous CORRIDOR (meadow nearest, void
--- farthest), each biome with a physical GATE at its entrance (the starter meadow is open). ONE
--- continuous walkable space -- NO portals.
+-- LAYOUT: Bases at the world origin; the six biomes are CONCENTRIC RINGS around them (meadow innermost,
+-- void outermost), built as stacked discs; you progress outward through gates on one radial path.
 
 local WorldConfig = {}
 
@@ -48,8 +44,8 @@ WorldConfig.Scale = {
 -- ── StreamingEnabled targets (tuned for a large but light world) ────────────────────────────
 WorldConfig.Streaming = {
     Enabled = true,
-    TargetRadius = 640, -- StreamingTargetRadius
-    MinRadius = 320, -- StreamingMinRadius
+    TargetRadius = 900, -- StreamingTargetRadius
+    MinRadius = 450, -- StreamingMinRadius
     Pause = Enum.StreamingPauseMode.ClientPhysicsPause,
 }
 
@@ -81,15 +77,14 @@ WorldConfig.Terrain = {
     PlotPadColor = rgb(70, 76, 96), -- the clean raised level platform under each base
     PlotPadInset = 8, -- the platform extends this far past the plot footprint (a clean margin)
 }
--- ── RADIAL LAYOUT (bases in the MIDDLE; biomes encircle + march outward) ─────────────────────
+-- ── CONCENTRIC-RING LAYOUT (bullseye: bases CENTER, each biome a ring around the previous) ────
 WorldConfig.Center = Vector3.new(0, 0, 0)
-WorldConfig.Radial = {
+WorldConfig.Rings = {
     PlotRingRadius = 100, -- the central base RING (PlotService MUST use this exact value)
-    HubRadius = 150, -- half-extent of the central plaza (road spokes start here)
-    BiomeRadius0 = 360, -- radius of the FIRST (meadow) biome's center
-    BiomeRingStep = 240, -- each higher tier sits this much farther out
-    AngleStartDeg = 30, -- first biome angle (offset 30 from the plot ring so spokes pass between plots)
-    AngleStepDeg = 60, -- 360 / 6 biomes -> evenly around the circle
+    HubRadius = 170, -- the central plaza disc; the FIRST biome ring starts at this radius
+    RingWidth = 150, -- each biome band's radial width (inner..outer)
+    GatePathAngleDeg = 0, -- the single radial PATH (degrees) where the gates + the road sit
+    DiscStep = 0.05, -- tiny per-ring vertical step (inner rings sit microscopically higher; no z-fight)
 }
 
 -- ── HUB (central plaza at the world origin; holds the slingshot + fixtures) ───────────────────
@@ -110,20 +105,19 @@ WorldConfig.District = {
     GroundSize = Vector3.new(440, 1, 440), -- one central slab covering the plaza + the base ring
 }
 
--- Each biome is a self-contained AXIS-ALIGNED square zone placed at a radial position. `tier` (1=nearest)
--- drives BOTH its angle (60 deg per tier) and its radius (farther per tier) -> they encircle + expand out.
+-- Each biome is an ANNULAR RING [InnerR, OuterR] at an increasing radius -> it fully circles the center.
+-- `tier` (1 = innermost, the starter meadow) sets the band. MidR is the band's middle (spawn/slingshot).
 local function biome(id, name, tier, ground, accent, material, style, open)
-    local R = WorldConfig.Radial
-    local angle = math.rad(R.AngleStartDeg + (tier - 1) * R.AngleStepDeg)
-    local radius = R.BiomeRadius0 + (tier - 1) * R.BiomeRingStep
+    local R = WorldConfig.Rings
+    local innerR = R.HubRadius + (tier - 1) * R.RingWidth
     return {
         Id = id,
         Name = name,
         Tier = tier,
-        Angle = angle, -- radians, from +X (used by the builder to face gates/roads/signs at center)
-        Radius = radius,
-        Center = Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius),
-        Size = Vector3.new(300, 1, 300),
+        InnerR = innerR,
+        OuterR = innerR + R.RingWidth,
+        MidR = innerR + R.RingWidth / 2,
+        TopY = tier * R.DiscStep, -- this ring's ground top Y (inner rings slightly higher)
         GroundColor = ground,
         Accent = accent,
         GroundMaterial = material,
@@ -131,8 +125,6 @@ local function biome(id, name, tier, ground, accent, material, style, open)
         Open = open == true,
         TreeCount = 12,
         PropCount = 16,
-        SpawnAreaOffset = Vector3.new(-70, 0, 0), -- left side = wild-spawn area (axis-aligned; fine)
-        BossArenaOffset = Vector3.new(70, 0, 0), -- right side = boss clearing
     }
 end
 
@@ -207,6 +199,30 @@ end
 
 function WorldConfig.Get(id)
     return WorldConfig.ById[id]
+end
+
+-- DISTANCE-BASED biome lookup: which ring band contains a horizontal distance from the world center.
+-- Inside the hub (below the first ring) -> the starter; beyond the outermost ring -> the last biome.
+function WorldConfig.RingFor(dist)
+    for _, b in ipairs(WorldConfig.Biomes) do
+        if dist >= b.InnerR and dist < b.OuterR then
+            return b.Id
+        end
+    end
+    if dist < WorldConfig.Biomes[1].InnerR then
+        return WorldConfig.Biomes[1].Id
+    end
+    return WorldConfig.Biomes[#WorldConfig.Biomes].Id
+end
+
+-- The world point the slingshot lands a player at for a ring: its mid-radius, ON the gate/road path.
+function WorldConfig.RingLanding(id)
+    local b = WorldConfig.Get(id)
+    if b == nil then
+        return WorldConfig.Center
+    end
+    local a = math.rad(WorldConfig.Rings.GatePathAngleDeg)
+    return Vector3.new(math.cos(a) * b.MidR, b.TopY + 5, math.sin(a) * b.MidR)
 end
 
 -- ── PER-BIOME ATMOSPHERE (drives the existing Atmosphere.setZone hook on a biome crossing) ──
