@@ -58,6 +58,8 @@ Analytics.Events = { -- custom (retention/engagement) event names
     ExclusiveGrant = "exclusive_grant", -- M11.4 a seasonal exclusive granted (brainrot/mutation/cosmetic)
     WildSpawn = "wild_spawn", -- M10.1 a wild brainrot spawned (value = rarity order)
     WildCatch = "wild_catch", -- M10.1 a wild brainrot caught (value = rarity order)
+    BiomeEnter = "biome_enter", -- M10.2 a player entered a biome (value = biome order)
+    BiomeUnlock = "biome_unlock", -- M10.2 a biome unlocked (value = biome order)
 }
 
 Analytics.Funnel = { -- new-player onboarding funnel steps { stepNumber, stepName }

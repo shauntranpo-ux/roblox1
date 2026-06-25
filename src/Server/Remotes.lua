@@ -57,6 +57,9 @@ Remotes.BossUpdate = nil -- RemoteEvent : server -> ALL clients, { Kind, Name?, 
 -- holds + catches); WildCatch is the catch INTENT (a spawn id). Server owns the registry + validation.
 Remotes.WildUpdate = nil -- RemoteEvent : server -> owner client, { Kind="spawn"|"move"|"despawn", Id, ... }
 Remotes.WildCatch = nil -- RemoteFunction : client -> server (spawnId) -> { Result, Name?/Message? }
+-- M10.2 biomes. Client sends INTENT ONLY ({ Action="get"|"unlock", BiomeId? }); server owns zone
+-- membership + unlock validation + persistence.
+Remotes.BiomeAction = nil -- RemoteFunction : client -> server ({ Action, BiomeId? }) -> { Result, State?/Message }
 -- M11.4 seasonal exclusives. Client sends INTENT ONLY ({ Action="get"|"buy", Key? }); server gates by
 -- server-time season window + the idempotent claim set.
 Remotes.ExclusiveAction = nil -- RemoteFunction : client -> server ({ Action, Key? }) -> { Result, State?/Message }
@@ -98,6 +101,7 @@ Remotes.ExpectedNames = {
     "ExclusiveAction",
     "WildUpdate",
     "WildCatch",
+    "BiomeAction",
 }
 
 local folder = nil
@@ -242,6 +246,10 @@ function Remotes.Init()
     wildCatch.Name = "WildCatch"
     wildCatch.Parent = folder
 
+    local biomeAction = Instance.new("RemoteFunction")
+    biomeAction.Name = "BiomeAction"
+    biomeAction.Parent = folder
+
     folder.Parent = ReplicatedStorage
 
     Remotes.PurchaseRequest = purchase
@@ -277,6 +285,7 @@ function Remotes.Init()
     Remotes.ExclusiveAction = exclusiveAction
     Remotes.WildUpdate = wildUpdate
     Remotes.WildCatch = wildCatch
+    Remotes.BiomeAction = biomeAction
 end
 
 -- Sends a toast to a single player. kind = "success" | "error" | "info". Optional `cue` is a

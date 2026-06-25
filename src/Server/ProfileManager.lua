@@ -102,6 +102,9 @@ local PROFILE_TEMPLATE = {
     -- retired (wild-catch is primary), so a brand-new player gets ONE starter on first join; existing
     -- saves with a roster reconcile to false then get marked (no bonus starter). Granted exactly once.
     StarterGranted = false,
+    -- M10.2 BIOMES: the set of unlocked biome ids ([biomeId] = true). The starter biome is always open
+    -- (BiomeService re-asserts it). Reconciles empty -> starter-only; unlocks deduct cash once + persist.
+    UnlockedBiomes = {},
 }
 
 local Profiles = {} -- [Player] = Profile

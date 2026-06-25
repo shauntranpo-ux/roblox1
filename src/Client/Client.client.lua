@@ -38,6 +38,7 @@ local Atmosphere = require(UI.Atmosphere)
 local WorldStyler = require(UI.WorldStyler)
 local ShieldWall = require(UI.ShieldWall)
 local WildCatch = require(UI.WildCatch)
+local Biomes = require(UI.Biomes)
 
 local player = Players.LocalPlayer
 
@@ -77,6 +78,7 @@ local remotes = {
     ExclusiveAction = remotesFolder:WaitForChild("ExclusiveAction"),
     WildUpdate = remotesFolder:WaitForChild("WildUpdate"),
     WildCatch = remotesFolder:WaitForChild("WildCatch"),
+    BiomeAction = remotesFolder:WaitForChild("BiomeAction"),
 }
 
 local context = { player = player, remotes = remotes }
@@ -165,6 +167,9 @@ safeMount("ShieldWall", function()
 end)
 safeMount("WildCatch", function()
     WildCatch.mount(context)
+end)
+safeMount("Biomes", function()
+    Biomes.mount(context)
 end)
 safeMount("Nameplates", function()
     Nameplates.mount(context)

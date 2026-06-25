@@ -35,6 +35,8 @@ local SeasonService = require(script.Parent.SeasonService)
 local SeasonRewardService = require(script.Parent.SeasonRewardService)
 -- M11.4: seasonal exclusives (gating + grants atop the seasons/claim systems).
 local ExclusivesService = require(script.Parent.ExclusivesService)
+-- M10.2: biome zones + per-biome rarity routing + unlock gates (required before WildSpawnService).
+local BiomeService = require(script.Parent.BiomeService)
 -- M10.1: wild-catch spawn engine + catch mechanic (the acquisition pivot).
 local WildSpawnService = require(script.Parent.WildSpawnService)
 -- M9.1: selling (the economy floor sink).
@@ -99,6 +101,8 @@ start("SeasonService", SeasonService.Init)
 start("SeasonRewardService", SeasonRewardService.Init)
 -- M11.4: bind the exclusives remote + the season-change announce watcher.
 start("ExclusivesService", ExclusivesService.Init)
+-- M10.2: biome detection loop + unlock handler (server-authoritative zones; before spawning).
+start("BiomeService", BiomeService.Init)
 -- M10.1: wild-catch spawn loop + catch handler (server-authoritative registry).
 start("WildSpawnService", WildSpawnService.Init)
 -- M9.1: the sell sink (binds SellRequest).
@@ -186,6 +190,8 @@ local function onPlayerAdded(player)
     IndexService.SetupPlayer(player, profile)
     -- M9.4: re-apply permanent set perks (income/luck sources) from claimed sets (idempotent; keyed).
     SetService.SetupPlayer(player, profile)
+    -- M10.2: ensure the starter biome is unlocked (idempotent) before wild spawns route by biome.
+    BiomeService.SetupPlayer(player, profile)
     -- M8.4: apply any currently-active event modifiers (idempotent) + prune stale event data.
     EventService.SetupPlayer(player, profile)
     -- M11.1: re-derive equipped perks + re-lock equipped units from the saved loadout (idempotent;
@@ -227,6 +233,8 @@ local function onPlayerRemoving(player)
     BossService.ClearPlayer(player)
     -- M10.1: drop this player's wild spawns from the registry (ephemeral, server-memory only).
     WildSpawnService.ClearPlayer(player)
+    -- M10.2: drop the player's cached current-biome (state persists in the profile).
+    BiomeService.ClearPlayer(player)
     -- Final leaderboard write while the profile is STILL loaded (captures values synchronously,
     -- then writes off-thread) -- must precede MonetizationService.ClearPlayer, which drops the
     -- income multiplier this read depends on, and ProfileManager.ReleaseProfile.

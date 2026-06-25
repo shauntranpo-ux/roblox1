@@ -41,6 +41,7 @@ local EvolutionService = require(script.Parent.EvolutionService)
 local Analytics = require(script.Parent.Analytics)
 local RateLimiter = require(script.Parent.RateLimiter)
 local Remotes = require(script.Parent.Remotes)
+local BiomeService = require(script.Parent.BiomeService) -- M10.2 biome rarity routing
 
 local WildSpawnService = {}
 
@@ -126,8 +127,9 @@ local function spawnFor(player)
     if root == nil then
         return
     end
-    local region = WildConfig.RegionFor(player) -- M10.2 fills this with biome routing
-    local rarity = WildConfig.RollRarity(huntSpawnRate(player), region)
+    -- M10.2: rarity is ROUTED by the player's unlocked + present biome (clip-proof), with the HUNT
+    -- spawn-rate boost applied on top of the biome's base weights (no double-apply).
+    local rarity = BiomeService.RollRarityFor(player, huntSpawnRate(player))
     if rarity == nil then
         return
     end
