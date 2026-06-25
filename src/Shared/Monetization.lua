@@ -103,6 +103,15 @@ Monetization.Products = {
         Description = "Instantly own an exclusive, purchase-only unit.",
         Grant = { Type = "Brainrot", BrainrotId = "el_secreto" },
     },
+    -- PAY-PER-STEAL: each successful steal consumes ONE Steal Token. Make a 250 R$ developer product and
+    -- paste its Id here; the client is prompted to buy one whenever they try to steal with no token.
+    StealToken = {
+        Order = 5,
+        Id = 0, -- <<< paste the "Steal Token" (250 R$) developer-product Id here
+        Name = "Steal Token",
+        Description = "Required to rob a base -- one token per steal (250 R$ each).",
+        Grant = { Type = "StealCredit", Amount = 1 },
+    },
 }
 
 -- ===========================================================================================

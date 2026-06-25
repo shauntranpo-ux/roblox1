@@ -217,6 +217,12 @@ local function prepareGrant(player, profile, grant)
             profile.Data.PadProducts += pads
             recomputePads(player)
         end
+    elseif t == "StealCredit" then
+        -- PAY-PER-STEAL: each token bought adds a steal credit (consumed on a successful steal).
+        local amount = grant.Amount
+        return function()
+            profile.Data.StealCredits = (profile.Data.StealCredits or 0) + amount
+        end
     elseif t == "Brainrot" then
         local def = Catalog.Get(grant.BrainrotId)
         if def == nil then
@@ -424,6 +430,13 @@ function MonetizationService.GetState(player)
         owned[passKey] = ownsPass(player, passKey)
     end
     return { Owned = owned, SimMode = DevConfig.SimMode }
+end
+
+-- PUBLIC: a SERVER-initiated product prompt (e.g. StealService prompting the Steal Token when a thief
+-- tries to steal with no token). Routes through the SAME guarded prompt path the client uses -- SIM-aware
+-- (grants via the receipt path in Studio), rate-limited, and Id=0-safe.
+function MonetizationService.PromptProductFor(player, productKey)
+    onPromptProduct(player, productKey)
 end
 
 -- SIM (Studio only): pretend the player owns a gamepass and apply it. Callable from the command

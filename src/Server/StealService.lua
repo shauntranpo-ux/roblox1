@@ -451,6 +451,27 @@ local function findOwnerOf(brainrotId)
     return nil, nil
 end
 
+-- PAY-PER-STEAL (Robux): each steal needs a Steal Token (profile.Data.StealCredits), bought for 250 R$.
+-- A thief with no token gets a rate-limited purchase prompt + a notify; a token is consumed only on a
+-- SUCCESSFUL steal. stealPromptCooldown stops the per-tap-batch prompt spam.
+local stealPromptCooldown = {} -- [thief] = os.clock() until which we won't re-prompt
+
+local function hasStealToken(thief)
+    local profile = ProfileManager.GetProfile(thief)
+    return profile ~= nil and (profile.Data.StealCredits or 0) >= 1
+end
+
+local function promptStealToken(thief)
+    local now = os.clock()
+    if (stealPromptCooldown[thief] or 0) > now then
+        return
+    end
+    stealPromptCooldown[thief] = now + 3
+    Remotes.NotifyPlayer(thief, "info", "Buy a Steal Token (250 R$) to rob this base!")
+    -- lazy require: avoids any module load-order cycle (StealService <-> MonetizationService).
+    require(script.Parent.MonetizationService).PromptProductFor(thief, "StealToken")
+end
+
 -- TAP-TO-PROGRESS: is this steal interaction valid right now? Returns (ok, tapsNeeded). Cheap re-checks
 -- (not in transit, not locked, victim present + unprotected, thief in range of the unit's pad); the FULL
 -- re-validation + the dupe-proof COMMIT happen in initiateSteal at completion.
@@ -481,6 +502,11 @@ function StealService.TapValidate(thief, brainrotId)
     if (hrp.Position - pad.Position).Magnitude > StealConfig.PromptMaxDistance then
         return false, TapConfig.StealTaps -- moved out of range -> reset the fill
     end
+    -- ROBUX GATE: the steal is otherwise valid -> require a paid Steal Token, else prompt + block.
+    if not hasStealToken(thief) then
+        promptStealToken(thief)
+        return false, TapConfig.StealTaps
+    end
     return true, TapConfig.StealTaps
 end
 
@@ -488,12 +514,25 @@ end
 -- the dupe-proof ON_PAD->IN_TRANSIT pickup, exactly once via the ActiveSteals guard). Returns true if the
 -- pickup committed.
 function StealService.TapComplete(thief, brainrotId)
+    -- ROBUX GATE (authoritative re-check): no Steal Token -> no steal, prompt instead.
+    if not hasStealToken(thief) then
+        promptStealToken(thief)
+        return false
+    end
     local victim = findOwnerOf(brainrotId)
     if victim == nil then
         return false
     end
     initiateSteal(thief, brainrotId, victim.UserId)
-    return ActiveSteals[brainrotId] ~= nil
+    local committed = ActiveSteals[brainrotId] ~= nil
+    if committed then
+        -- consume exactly ONE token per successful steal (paid 250 R$ each).
+        local profile = ProfileManager.GetProfile(thief)
+        if profile ~= nil and (profile.Data.StealCredits or 0) > 0 then
+            profile.Data.StealCredits -= 1
+        end
+    end
+    return committed
 end
 
 -- Reverts ALL of a thief's carries if their character dies or is removed (covers death mid-carry
@@ -557,6 +596,7 @@ function StealService.ResolvePlayer(player)
     lastStealTime[player] = nil
     carriedByThief[player] = nil
     moveMultByThief[player] = nil
+    stealPromptCooldown[player] = nil
 end
 
 -- Read by IncomeService/PlayerStats indirectly via TransitRegistry; exposed for completeness.
