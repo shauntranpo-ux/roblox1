@@ -24,7 +24,9 @@ UIStyle.Colors = {
 -- close to opaque it looked like a solid slab against the dark map).
 UIStyle.PanelTransparency = 0.4
 UIStyle.RowTransparency = 0.32
-UIStyle.ScrimTransparency = 0.4
+-- Scrim is FULLY transparent (1) -- no background dimming. It stays only as an invisible click
+-- catcher so tapping off a panel still closes it and world clicks don't fall through behind a menu.
+UIStyle.ScrimTransparency = 1
 
 local function ensureCorner(instance, radius)
     local existing = instance:FindFirstChildOfClass("UICorner")
@@ -63,7 +65,8 @@ function UIStyle.applyGlass(frame)
     stroke.Parent = frame
 end
 
--- The full-screen scrim look (semi-transparent black so the world dims behind a panel).
+-- The full-screen scrim: an INVISIBLE click catcher (no dimming) -- it only intercepts taps so
+-- tapping off a panel closes it and world input doesn't fall through behind an open menu.
 function UIStyle.styleScrim(button)
     button.BackgroundColor3 = UIStyle.Colors.Scrim
     button.BackgroundTransparency = UIStyle.ScrimTransparency
