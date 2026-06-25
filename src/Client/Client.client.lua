@@ -46,6 +46,7 @@ local Objective = require(UI.Objective)
 local QuestLog = require(UI.QuestLog)
 local FreeRewards = require(UI.FreeRewards)
 local Referral = require(UI.Referral)
+local Social = require(UI.Social)
 
 local player = Players.LocalPlayer
 
@@ -96,6 +97,8 @@ local remotes = {
     FreeRewardUpdate = remotesFolder:WaitForChild("FreeRewardUpdate"),
     ReferralAction = remotesFolder:WaitForChild("ReferralAction"),
     ReferralUpdate = remotesFolder:WaitForChild("ReferralUpdate"),
+    SocialAction = remotesFolder:WaitForChild("SocialAction"),
+    SocialUpdate = remotesFolder:WaitForChild("SocialUpdate"),
 }
 
 local context = { player = player, remotes = remotes }
@@ -212,6 +215,9 @@ end)
 safeMount("Referral", function()
     Referral.mount(context)
 end)
+safeMount("Social", function()
+    Social.mount(context)
+end)
 safeMount("Nameplates", function()
     Nameplates.mount(context)
 end)
@@ -246,6 +252,9 @@ safeMount("Menu", function()
     end)
     Menu.addButton("📨 Invite", function()
         PanelManager.open("Referral")
+    end)
+    Menu.addButton("👥 Social", function()
+        PanelManager.open("Social")
     end)
     Menu.addButton("🎁 Exclusives", function()
         PanelManager.open("Exclusives")
@@ -308,6 +317,7 @@ safeMount("PanelManager registry", function()
     PanelManager.register("QuestLog", QuestLog.toggle)
     PanelManager.register("FreeRewards", FreeRewards.toggle)
     PanelManager.register("Referral", Referral.toggle)
+    PanelManager.register("Social", Social.toggle)
 end)
 
 -- Hide the "Hold to steal" prompt on the LOCAL player's OWN brainrots (you can't steal your

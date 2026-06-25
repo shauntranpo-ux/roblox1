@@ -144,6 +144,9 @@ local PROFILE_TEMPLATE = {
     Qualified = false, -- this player (as an invitee) has reached the qualifying milestone
     QualifiedReferrals = {}, -- (as an inviter) [inviteeUserId] = true -> the credited set (idempotency ledger)
     ClaimedReferralTiers = {}, -- [tierCount] = true -> idempotent inviter tier grants
+    -- M13.3 SOCIAL: per-server-day gift cap (anti-abuse). Reset at the day boundary; reconciles cleanly.
+    GiftDay = -1, -- the server-day id the gift count below belongs to
+    GiftCount = 0, -- gifts sent this day (capped by SocialConfig.Gift.DailyCap)
 }
 
 local Profiles = {} -- [Player] = Profile

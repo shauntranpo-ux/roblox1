@@ -580,6 +580,86 @@ end
 -- Public API
 -- ===========================================================================================
 
+-- M13.3 GIFTING: a ONE-DIRECTIONAL atomic give that REUSES this file's dupe-proof transfer discipline
+-- (the same no-yield remove-from-giver + add-to-receiver as performSwap's moveUnits -- exactly once, no
+-- dupe/loss; the WHOLE per-unit record travels so Mutation/Star/EvolutionStage/XP are preserved). The
+-- caller (SocialService) owns the anti-abuse gate + confirmation; this owns the atomic, validated move.
+-- Returns (ok, reason, unitType, displayName). Locked/favorited/equipped/in-transit/in-trade -> refused;
+-- no-pad-safe (refused, nothing moved, if the recipient has no free pad).
+function TradeService.GiftUnit(sender, recipient, unitId)
+    if type(unitId) ~= "string" or #unitId == 0 or #unitId > 100 then
+        return false, "Invalid unit."
+    end
+    if sender == recipient then
+        return false, "You can't gift to yourself."
+    end
+    local sProfile = ProfileManager.GetProfile(sender)
+    local rProfile = ProfileManager.GetProfile(recipient)
+    if sProfile == nil or rProfile == nil then
+        return false, "A player isn't ready."
+    end
+    -- Neither player may be mid-trade or mid-steal (the unit could be contested/locked there).
+    if byPlayer[sender] ~= nil or byPlayer[recipient] ~= nil then
+        return false, "A player is busy in a trade."
+    end
+    if StealService.IsBusy(sender) or StealService.IsBusy(recipient) then
+        return false, "A player is mid-steal."
+    end
+    local unit = findOwned(sProfile, unitId)
+    if unit == nil then
+        return false, "You don't own that unit."
+    end
+    if
+        TransitRegistry.Has(unitId)
+        or TradeLockRegistry.Has(unitId)
+        or DeployLockRegistry.Has(unitId)
+    then
+        return false, "That unit is busy (deployed / in transit / in a trade)."
+    end
+    if unit.Locked == true or unit.Favorited == true then -- M12.3 safety flags
+        return false, "Locked or favorited units can't be gifted -- unlock it first."
+    end
+    if not TradeConfig.IsTradeable(Catalog.Get(unit.Type)) then
+        return false, "That unit can't be gifted."
+    end
+    local rPlot = PlotService.GetPlot(recipient)
+    local padIndex = rPlot ~= nil and PlotService.FindFreePad(recipient, rProfile) or nil
+    if padIndex == nil then
+        return false, "The recipient has no free pad." -- no-pad-safe: nothing moved
+    end
+    local def = Catalog.Get(unit.Type)
+    local displayName = def ~= nil and def.DisplayName or unit.Type
+
+    -- ===== ATOMIC ONE-DIRECTIONAL MOVE (NO yields; the unit can't be in two inventories or none) =====
+    for i, u in ipairs(sProfile.Data.OwnedBrainrots) do
+        if u.Id == unitId then
+            table.remove(sProfile.Data.OwnedBrainrots, i)
+            break
+        end
+    end
+    BrainrotService.RemoveModel(sender, unitId)
+    unit.PadIndex = padIndex
+    unit.Favorited = nil -- the recipient's copy starts unflagged
+    unit.Locked = nil
+    table.insert(rProfile.Data.OwnedBrainrots, unit)
+    rProfile.Data.Discovered[unit.Type] = true
+    if unit.Mutation ~= nil then
+        rProfile.Data.MutationsDiscovered[unit.Mutation] = true
+    end
+    BrainrotService.SpawnBrainrot(recipient, rPlot, unit)
+    -- ===== end of the no-yield mutation =====
+
+    PlayerStats.UpdateIncome(sender, sProfile)
+    PlayerStats.UpdateIncome(recipient, rProfile)
+    Leaderstats.Update(sender, sProfile)
+    Leaderstats.Update(recipient, rProfile)
+    ProtectionService.RefreshPrompts(sender)
+    ProtectionService.RefreshPrompts(recipient)
+    ProfileManager.ForceSave(sender)
+    ProfileManager.ForceSave(recipient)
+    return true, nil, unit.Type, displayName
+end
+
 -- True if the player is in any trade (requested or active). Used by RebirthService to block.
 function TradeService.IsTrading(player)
     return byPlayer[player] ~= nil

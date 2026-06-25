@@ -51,6 +51,8 @@ local QuestService = require(script.Parent.QuestService)
 local FreeRewardService = require(script.Parent.FreeRewardService)
 -- M13.1: referral / invite system (server-authoritative attribution + milestone-gated rewards).
 local ReferralService = require(script.Parent.ReferralService)
+-- M13.3: friends & social play (gifting via the trade transfer + VIP/private-server perks).
+local SocialService = require(script.Parent.SocialService)
 -- M9.1: selling (the economy floor sink).
 local SellService = require(script.Parent.SellService)
 -- M9.2: fusion + stars (turn duplicates into fuel).
@@ -129,6 +131,8 @@ start("QuestService", QuestService.Init)
 start("FreeRewardService", FreeRewardService.Init)
 -- M13.1: init the referral mailbox + bind the milestone check loop + the referral remote.
 start("ReferralService", ReferralService.Init)
+-- M13.3: detect a private/VIP server + bind the social (gift) remote.
+start("SocialService", SocialService.Init)
 -- M9.1: the sell sink (binds SellRequest).
 start("SellService", SellService.Init)
 -- M9.2: fusion + stars (binds FuseRequest).
@@ -226,6 +230,8 @@ local function onPlayerAdded(player)
     -- invite boost from the credited set + drain the inviter mailbox (off-thread). Runs after PlayerStats
     -- + Benefits exist so the boost feeds income correctly on join.
     ReferralService.SetupPlayer(player, profile)
+    -- M13.3: reset the daily gift cap + apply the capped VIP perk if this is a private/VIP server.
+    SocialService.SetupPlayer(player, profile)
     -- M8.4: apply any currently-active event modifiers (idempotent) + prune stale event data.
     EventService.SetupPlayer(player, profile)
     -- M11.1: re-derive equipped perks + re-lock equipped units from the saved loadout (idempotent;

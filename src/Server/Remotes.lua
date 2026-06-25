@@ -81,6 +81,10 @@ Remotes.InventoryAction = nil -- RemoteFunction : client -> server (action, unit
 -- rewards. (The actual invite is client-side SocialService:PromptGameInvite.)
 Remotes.ReferralAction = nil -- RemoteFunction : client -> server (action) -> { Result, State?/Message }
 Remotes.ReferralUpdate = nil -- RemoteEvent : server -> a client, a ping that referral state changed
+-- M13.3 social. Client sends INTENT only ({ Action="get"|"gift"|"friendjoin", ... }); the server owns
+-- the atomic gift transfer + the VIP perks. (Friend join/follow + invite are client-side.)
+Remotes.SocialAction = nil -- RemoteFunction : client -> server (payload) -> { Result, State?/Message }
+Remotes.SocialUpdate = nil -- RemoteEvent : server -> a client, a ping that social state changed
 -- M11.4 seasonal exclusives. Client sends INTENT ONLY ({ Action="get"|"buy", Key? }); server gates by
 -- server-time season window + the idempotent claim set.
 Remotes.ExclusiveAction = nil -- RemoteFunction : client -> server ({ Action, Key? }) -> { Result, State?/Message }
@@ -133,6 +137,8 @@ Remotes.ExpectedNames = {
     "InventoryAction",
     "ReferralAction",
     "ReferralUpdate",
+    "SocialAction",
+    "SocialUpdate",
 }
 
 local folder = nil
@@ -321,6 +327,14 @@ function Remotes.Init()
     referralUpdate.Name = "ReferralUpdate"
     referralUpdate.Parent = folder
 
+    local socialAction = Instance.new("RemoteFunction")
+    socialAction.Name = "SocialAction"
+    socialAction.Parent = folder
+
+    local socialUpdate = Instance.new("RemoteEvent")
+    socialUpdate.Name = "SocialUpdate"
+    socialUpdate.Parent = folder
+
     folder.Parent = ReplicatedStorage
 
     Remotes.PurchaseRequest = purchase
@@ -367,6 +381,8 @@ function Remotes.Init()
     Remotes.InventoryAction = inventoryAction
     Remotes.ReferralAction = referralAction
     Remotes.ReferralUpdate = referralUpdate
+    Remotes.SocialAction = socialAction
+    Remotes.SocialUpdate = socialUpdate
 end
 
 -- Sends a toast to a single player. kind = "success" | "error" | "info". Optional `cue` is a

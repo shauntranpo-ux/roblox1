@@ -77,6 +77,10 @@ Analytics.Events = { -- custom (retention/engagement) event names
     ReferralAttributed = "referral_attributed", -- M13.1 a new player attributed to an inviter (value = inviterId)
     ReferralQualified = "referral_qualified", -- M13.1 a referral reached the milestone (value = inviter's new count)
     ReferralTier = "referral_tier", -- M13.1 an inviter reached a reward tier (value = tier count)
+    GiftSent = "gift_sent", -- M13.3 a unit gifted (sender side)
+    GiftReceived = "gift_received", -- M13.3 a unit gifted (recipient side)
+    FriendJoin = "friend_join", -- M13.3 a friend-join/follow intent
+    VipSession = "vip_session", -- M13.3 a player session in a private/VIP server (value = 1 if owner)
 }
 
 Analytics.Funnel = { -- new-player onboarding funnel steps { stepNumber, stepName }

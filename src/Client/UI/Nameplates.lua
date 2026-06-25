@@ -10,13 +10,20 @@ local Theme = require(script.Parent.Theme)
 
 local Nameplates = {}
 
-local function attach(targetPlayer, character)
+local function attach(targetPlayer, character, localPlayer)
     local head = character:FindFirstChild("Head") or character:WaitForChild("Head", 5)
     if head == nil then
         return
     end
     if head:FindFirstChild("Nameplate") ~= nil then
         return
+    end
+    -- M13.3 FRIEND INDICATOR: flag this character if they're the local player's Roblox friend.
+    local isFriend = false
+    if localPlayer ~= nil then
+        pcall(function()
+            isFriend = localPlayer:IsFriendsWith(targetPlayer.UserId)
+        end)
     end
 
     local billboard = Builder.create("BillboardGui", {
@@ -37,8 +44,8 @@ local function attach(targetPlayer, character)
     local name = Builder.create("TextLabel", {
         Size = UDim2.fromScale(1, 1),
         BackgroundTransparency = 1,
-        Text = targetPlayer.DisplayName,
-        TextColor3 = Theme.Colors.White,
+        Text = isFriend and ("★ " .. targetPlayer.DisplayName) or targetPlayer.DisplayName,
+        TextColor3 = isFriend and Theme.Colors.Gold or Theme.Colors.White,
         TextScaled = true,
         Parent = pill,
     }, { Builder.padding(4), Builder.create("UITextSizeConstraint", { MaxTextSize = 22 }) })
@@ -53,10 +60,10 @@ function Nameplates.mount(context)
             return -- skip our own plate
         end
         targetPlayer.CharacterAdded:Connect(function(character)
-            attach(targetPlayer, character)
+            attach(targetPlayer, character, localPlayer)
         end)
         if targetPlayer.Character ~= nil then
-            attach(targetPlayer, targetPlayer.Character)
+            attach(targetPlayer, targetPlayer.Character, localPlayer)
         end
     end
 

@@ -84,6 +84,7 @@ Theme.Accents = {
     Quests = { Top = Color3.fromRGB(255, 220, 130), Bottom = Color3.fromRGB(220, 160, 50) }, -- quest gold
     Rewards = { Top = Color3.fromRGB(255, 180, 120), Bottom = Color3.fromRGB(230, 110, 60) }, -- reward orange
     Referral = { Top = Color3.fromRGB(255, 215, 120), Bottom = Color3.fromRGB(235, 165, 40) }, -- invite gold
+    Social = { Top = Color3.fromRGB(150, 200, 255), Bottom = Color3.fromRGB(70, 130, 230) }, -- friend blue
 }
 
 -- Returns a fresh vertical UIGradient for an accent key (top -> bottom). Caller parents it.
