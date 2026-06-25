@@ -98,6 +98,10 @@ local PROFILE_TEMPLATE = {
     -- M11.4 SEASONAL EXCLUSIVES: owned cosmetics ([cosmeticId] = true). Permanent, purely visual/status
     -- (no power). Reconciles empty on existing saves.
     OwnedCosmetics = {},
+    -- M10.1 WILD-CATCH: idempotent "the guaranteed starter has been granted" flag. Direct-buy is
+    -- retired (wild-catch is primary), so a brand-new player gets ONE starter on first join; existing
+    -- saves with a roster reconcile to false then get marked (no bonus starter). Granted exactly once.
+    StarterGranted = false,
 }
 
 local Profiles = {} -- [Player] = Profile

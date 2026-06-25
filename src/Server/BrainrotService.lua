@@ -369,14 +369,19 @@ end
 function BrainrotService.SetupPlayer(player, profile, plot)
     spawnedModels[player] = {}
 
-    if #profile.Data.OwnedBrainrots == 0 then
-        -- The starter is a CLEAN grant (no mutation roll) via the central factory.
-        local starter = Catalog.GetStarter()
-        table.insert(
-            profile.Data.OwnedBrainrots,
-            BrainrotFactory.create(player, starter, 1, BrainrotFactory.RollFor.Starter)
-        )
-        -- ProfileStore auto-saves periodically and on session end; no manual save needed.
+    -- M10.1: the GUARANTEED STARTER, granted EXACTLY ONCE (idempotent flag). Direct-buy is retired,
+    -- so a brand-new player (empty roster, not yet granted) gets one starter to begin; an existing
+    -- save (already owns units) is just MARKED granted on first post-update load -> no bonus starter;
+    -- a player who later sells everything is NOT re-granted (they catch in the wild). No dead-end.
+    if not profile.Data.StarterGranted then
+        if #profile.Data.OwnedBrainrots == 0 then
+            local starter = Catalog.GetStarter()
+            table.insert(
+                profile.Data.OwnedBrainrots,
+                BrainrotFactory.create(player, starter, 1, BrainrotFactory.RollFor.Starter)
+            )
+        end
+        profile.Data.StarterGranted = true
     end
 
     for _, brainrot in ipairs(profile.Data.OwnedBrainrots) do

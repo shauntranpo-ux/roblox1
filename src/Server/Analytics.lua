@@ -56,6 +56,8 @@ Analytics.Events = { -- custom (retention/engagement) event names
     BossReward = "boss_reward", -- M11.3 a participant received their boss reward
     BossFlee = "boss_flee", -- M11.3 a world boss left un-beaten (timeout)
     ExclusiveGrant = "exclusive_grant", -- M11.4 a seasonal exclusive granted (brainrot/mutation/cosmetic)
+    WildSpawn = "wild_spawn", -- M10.1 a wild brainrot spawned (value = rarity order)
+    WildCatch = "wild_catch", -- M10.1 a wild brainrot caught (value = rarity order)
 }
 
 Analytics.Funnel = { -- new-player onboarding funnel steps { stepNumber, stepName }

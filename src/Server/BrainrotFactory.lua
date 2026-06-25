@@ -25,6 +25,7 @@ BrainrotFactory.RollFor = {
     Code = false, -- code brainrot reward
     Product = false, -- Robux dev-product brainrot grant (never sell randomness)
     Index = false, -- completion-reward brainrot
+    Catch = true, -- M10.1 wild-catch -> rolls a mutation (respects the luck hook), like a purchase
 }
 
 -- Marks a mutation Key as discovered on a profile (called when a player comes to own a mutated

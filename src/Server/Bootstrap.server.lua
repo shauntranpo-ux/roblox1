@@ -35,6 +35,8 @@ local SeasonService = require(script.Parent.SeasonService)
 local SeasonRewardService = require(script.Parent.SeasonRewardService)
 -- M11.4: seasonal exclusives (gating + grants atop the seasons/claim systems).
 local ExclusivesService = require(script.Parent.ExclusivesService)
+-- M10.1: wild-catch spawn engine + catch mechanic (the acquisition pivot).
+local WildSpawnService = require(script.Parent.WildSpawnService)
 -- M9.1: selling (the economy floor sink).
 local SellService = require(script.Parent.SellService)
 -- M9.2: fusion + stars (turn duplicates into fuel).
@@ -97,6 +99,8 @@ start("SeasonService", SeasonService.Init)
 start("SeasonRewardService", SeasonRewardService.Init)
 -- M11.4: bind the exclusives remote + the season-change announce watcher.
 start("ExclusivesService", ExclusivesService.Init)
+-- M10.1: wild-catch spawn loop + catch handler (server-authoritative registry).
+start("WildSpawnService", WildSpawnService.Init)
 -- M9.1: the sell sink (binds SellRequest).
 start("SellService", SellService.Init)
 -- M9.2: fusion + stars (binds FuseRequest).
@@ -221,6 +225,8 @@ local function onPlayerRemoving(player)
     -- M11.3: drop this player from any live boss's contribution map (no stale ref; they won't be
     -- granted a reward they can't receive). The boss is ephemeral + server-memory only.
     BossService.ClearPlayer(player)
+    -- M10.1: drop this player's wild spawns from the registry (ephemeral, server-memory only).
+    WildSpawnService.ClearPlayer(player)
     -- Final leaderboard write while the profile is STILL loaded (captures values synchronously,
     -- then writes off-thread) -- must precede MonetizationService.ClearPlayer, which drops the
     -- income multiplier this read depends on, and ProfileManager.ReleaseProfile.

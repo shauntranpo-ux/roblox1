@@ -37,6 +37,7 @@ local Nameplates = require(UI.Nameplates)
 local Atmosphere = require(UI.Atmosphere)
 local WorldStyler = require(UI.WorldStyler)
 local ShieldWall = require(UI.ShieldWall)
+local WildCatch = require(UI.WildCatch)
 
 local player = Players.LocalPlayer
 
@@ -74,6 +75,8 @@ local remotes = {
     EvolveRequest = remotesFolder:WaitForChild("EvolveRequest"),
     BossUpdate = remotesFolder:WaitForChild("BossUpdate"),
     ExclusiveAction = remotesFolder:WaitForChild("ExclusiveAction"),
+    WildUpdate = remotesFolder:WaitForChild("WildUpdate"),
+    WildCatch = remotesFolder:WaitForChild("WildCatch"),
 }
 
 local context = { player = player, remotes = remotes }
@@ -159,6 +162,9 @@ safeMount("WorldStyler", function()
 end)
 safeMount("ShieldWall", function()
     ShieldWall.mount(context)
+end)
+safeMount("WildCatch", function()
+    WildCatch.mount(context)
 end)
 safeMount("Nameplates", function()
     Nameplates.mount(context)

@@ -53,6 +53,10 @@ Remotes.EvolveRequest = nil -- RemoteFunction : client -> server (unitId) -> { R
 -- broadcasts. The boss fight itself is driven by a server-side ProximityPrompt (no client attack remote
 -- -- the client never asserts HP/contribution/death).
 Remotes.BossUpdate = nil -- RemoteEvent : server -> ALL clients, { Kind, Name?, Biome?, Meter?, Max?, Pos?, TimeLeft? }
+-- M10.1 wild-catch. WildUpdate streams a player's OWN instanced spawns to them (the client renders +
+-- holds + catches); WildCatch is the catch INTENT (a spawn id). Server owns the registry + validation.
+Remotes.WildUpdate = nil -- RemoteEvent : server -> owner client, { Kind="spawn"|"move"|"despawn", Id, ... }
+Remotes.WildCatch = nil -- RemoteFunction : client -> server (spawnId) -> { Result, Name?/Message? }
 -- M11.4 seasonal exclusives. Client sends INTENT ONLY ({ Action="get"|"buy", Key? }); server gates by
 -- server-time season window + the idempotent claim set.
 Remotes.ExclusiveAction = nil -- RemoteFunction : client -> server ({ Action, Key? }) -> { Result, State?/Message }
@@ -92,6 +96,8 @@ Remotes.ExpectedNames = {
     "EvolveRequest",
     "BossUpdate",
     "ExclusiveAction",
+    "WildUpdate",
+    "WildCatch",
 }
 
 local folder = nil
@@ -228,6 +234,14 @@ function Remotes.Init()
     exclusiveAction.Name = "ExclusiveAction"
     exclusiveAction.Parent = folder
 
+    local wildUpdate = Instance.new("RemoteEvent")
+    wildUpdate.Name = "WildUpdate"
+    wildUpdate.Parent = folder
+
+    local wildCatch = Instance.new("RemoteFunction")
+    wildCatch.Name = "WildCatch"
+    wildCatch.Parent = folder
+
     folder.Parent = ReplicatedStorage
 
     Remotes.PurchaseRequest = purchase
@@ -261,6 +275,8 @@ function Remotes.Init()
     Remotes.EvolveRequest = evolveRequest
     Remotes.BossUpdate = bossUpdate
     Remotes.ExclusiveAction = exclusiveAction
+    Remotes.WildUpdate = wildUpdate
+    Remotes.WildCatch = wildCatch
 end
 
 -- Sends a toast to a single player. kind = "success" | "error" | "info". Optional `cue` is a

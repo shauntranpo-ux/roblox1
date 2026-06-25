@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Catalog = require(ReplicatedStorage.Shared.Catalog)
 local Rarity = require(ReplicatedStorage.Shared.Rarity)
+local WildConfig = require(ReplicatedStorage.Shared.WildConfig)
 
 local Remotes = require(script.Parent.Remotes)
 local Analytics = require(script.Parent.Analytics)
@@ -37,6 +38,17 @@ local function onPurchase(player, itemId)
         return
     end
     lastPurchase[player] = now
+
+    -- M10.1: direct-buy is RETIRED -- wild-catch is the primary acquisition. The server refuses every
+    -- cash buy while disabled (config flag); a brand-new player still gets the guaranteed starter.
+    if WildConfig.DirectBuyDisabled then
+        Remotes.NotifyPlayer(
+            player,
+            "error",
+            "Brainrots are CAUGHT in the wild now -- go hunt them!"
+        )
+        return
+    end
 
     -- The client sends only an id; resolve the real item from the server catalog.
     if type(itemId) ~= "string" then
