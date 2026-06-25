@@ -1,0 +1,15 @@
+# Line length before StyLua tries to break expressions onto multiple lines
+column_width = 100
+
+# Unix line endings — consistent across Windows/Mac/Linux
+line_endings = "Unix"
+
+# 4-space indentation (Roblox community standard)
+indent_type = "Spaces"
+indent_width = 4
+
+# Use double quotes; fall back to single if string contains a double-quote
+quote_style = "AutoPreferDouble"
+
+# Always write call parentheses: foo() not foo
+call_parentheses = "Always"
