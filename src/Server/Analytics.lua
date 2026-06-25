@@ -60,6 +60,9 @@ Analytics.Events = { -- custom (retention/engagement) event names
     WildCatch = "wild_catch", -- M10.1 a wild brainrot caught (value = rarity order)
     BiomeEnter = "biome_enter", -- M10.2 a player entered a biome (value = biome order)
     BiomeUnlock = "biome_unlock", -- M10.2 a biome unlocked (value = biome order)
+    SharedSpawn = "shared_spawn", -- M10.3 a shared rare event spawned (value = rarity order)
+    SharedCatch = "shared_catch", -- M10.3 a shared rare event caught (value = rarity order)
+    SharedEscape = "shared_escape", -- M10.3 a shared rare event escaped (value = rarity order)
 }
 
 Analytics.Funnel = { -- new-player onboarding funnel steps { stepNumber, stepName }

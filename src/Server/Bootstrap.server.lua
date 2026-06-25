@@ -39,6 +39,8 @@ local ExclusivesService = require(script.Parent.ExclusivesService)
 local BiomeService = require(script.Parent.BiomeService)
 -- M10.1: wild-catch spawn engine + catch mechanic (the acquisition pivot).
 local WildSpawnService = require(script.Parent.WildSpawnService)
+-- M10.3: shared server-wide rare-event spawns (the hype layer).
+local SharedEventService = require(script.Parent.SharedEventService)
 -- M9.1: selling (the economy floor sink).
 local SellService = require(script.Parent.SellService)
 -- M9.2: fusion + stars (turn duplicates into fuel).
@@ -105,6 +107,8 @@ start("ExclusivesService", ExclusivesService.Init)
 start("BiomeService", BiomeService.Init)
 -- M10.1: wild-catch spawn loop + catch handler (server-authoritative registry).
 start("WildSpawnService", WildSpawnService.Init)
+-- M10.3: shared rare-event spawn loop + first-to-catch resolution.
+start("SharedEventService", SharedEventService.Init)
 -- M9.1: the sell sink (binds SellRequest).
 start("SellService", SellService.Init)
 -- M9.2: fusion + stars (binds FuseRequest).

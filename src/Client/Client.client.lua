@@ -39,6 +39,7 @@ local WorldStyler = require(UI.WorldStyler)
 local ShieldWall = require(UI.ShieldWall)
 local WildCatch = require(UI.WildCatch)
 local Biomes = require(UI.Biomes)
+local SharedEventHud = require(UI.SharedEventHud)
 
 local player = Players.LocalPlayer
 
@@ -79,6 +80,7 @@ local remotes = {
     WildUpdate = remotesFolder:WaitForChild("WildUpdate"),
     WildCatch = remotesFolder:WaitForChild("WildCatch"),
     BiomeAction = remotesFolder:WaitForChild("BiomeAction"),
+    SharedEvent = remotesFolder:WaitForChild("SharedEvent"),
 }
 
 local context = { player = player, remotes = remotes }
@@ -170,6 +172,9 @@ safeMount("WildCatch", function()
 end)
 safeMount("Biomes", function()
     Biomes.mount(context)
+end)
+safeMount("SharedEventHud", function()
+    SharedEventHud.mount(context)
 end)
 safeMount("Nameplates", function()
     Nameplates.mount(context)
