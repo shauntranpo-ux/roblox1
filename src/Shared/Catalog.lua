@@ -318,6 +318,20 @@ Catalog.Items = {
         Premium = true,
         IconId = 0,
     },
+
+    -- BOSS-ONLY (M11.3) -- obtainable ONLY as a world-boss reward. BossOnly + Buyable=false keep it
+    -- out of the cash shop, and FusionService excludes it from the tier-up pool, so it can't be got
+    -- any other way. It places/earns/steals/evolves like any unit once owned.
+    {
+        Id = "titan_spawn",
+        DisplayName = "Titan Spawn",
+        Rarity = "Mythic",
+        Price = 0,
+        IncomePerSec = 8000000,
+        Buyable = false,
+        BossOnly = true,
+        IconId = 0,
+    },
 }
 
 -- Id -> item lookup, built once so the server validates a purchase in O(1).

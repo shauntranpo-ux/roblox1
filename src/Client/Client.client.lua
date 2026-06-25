@@ -26,6 +26,7 @@ local Seasons = require(UI.Seasons)
 local Fusion = require(UI.Fusion)
 local Loadout = require(UI.Loadout)
 local Evolution = require(UI.Evolution)
+local BossHud = require(UI.BossHud)
 local PanelManager = require(UI.PanelManager)
 local ClickFX = require(UI.ClickFX)
 
@@ -63,6 +64,7 @@ local remotes = {
     FuseRequest = remotesFolder:WaitForChild("FuseRequest"),
     LoadoutRequest = remotesFolder:WaitForChild("LoadoutRequest"),
     EvolveRequest = remotesFolder:WaitForChild("EvolveRequest"),
+    BossUpdate = remotesFolder:WaitForChild("BossUpdate"),
 }
 
 local context = { player = player, remotes = remotes }
@@ -132,6 +134,9 @@ safeMount("Loadout", function()
 end)
 safeMount("Evolution", function()
     Evolution.mount(context)
+end)
+safeMount("BossHud", function()
+    BossHud.mount(context)
 end)
 safeMount("Menu", function()
     Menu.mount(context)
@@ -281,5 +286,13 @@ end)
 remotes.MonetizationUpdate.OnClientEvent:Connect(function(payload)
     if typeof(payload) == "table" then
         Shop.applyMonetizationUpdate(payload)
+    end
+end)
+
+-- M11.3 Server -> ALL clients: world-boss spawn alert / live meter / defeat. The client renders only;
+-- it never asserts the boss's HP or that it died.
+remotes.BossUpdate.OnClientEvent:Connect(function(payload)
+    if typeof(payload) == "table" then
+        BossHud.onUpdate(payload)
     end
 end)

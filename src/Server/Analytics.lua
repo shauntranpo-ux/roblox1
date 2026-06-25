@@ -51,6 +51,10 @@ Analytics.Events = { -- custom (retention/engagement) event names
     PerkEquip = "perk_equip", -- M11.1 a unit equipped to a perk slot (value = holder rarity order)
     PerkUnequip = "perk_unequip", -- M11.1 a unit unequipped from a perk slot
     Evolve = "evolve", -- M11.2 a unit evolved (value = the new evolution stage)
+    BossSpawn = "boss_spawn", -- M11.3 a world boss spawned
+    BossKill = "boss_kill", -- M11.3 a world boss defeated (value = qualifying participant count)
+    BossReward = "boss_reward", -- M11.3 a participant received their boss reward
+    BossFlee = "boss_flee", -- M11.3 a world boss left un-beaten (timeout)
 }
 
 Analytics.Funnel = { -- new-player onboarding funnel steps { stepNumber, stepName }

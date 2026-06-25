@@ -41,6 +41,8 @@ local FusionService = require(script.Parent.FusionService)
 local LoadoutService = require(script.Parent.LoadoutService)
 -- M11.2: per-unit XP + evolution (raise units through stages).
 local EvolutionService = require(script.Parent.EvolutionService)
+-- M11.3: world-boss co-op hunts (ephemeral server-wide scramble + dupe-safe per-player rewards).
+local BossService = require(script.Parent.BossService)
 -- M9.4: set perks (themed Index sets -> permanent passive perks).
 local SetService = require(script.Parent.SetService)
 -- VM0: boot/join health check + the dev-only sacred-invariant validator.
@@ -99,6 +101,8 @@ start("FusionService", FusionService.Init)
 start("LoadoutService", LoadoutService.Init)
 -- M11.2: XP accrual loop + evolve handler (binds EvolveRequest).
 start("EvolutionService", EvolutionService.Init)
+-- M11.3: world-boss spawn loop + validated catch handler (server-authoritative).
+start("BossService", BossService.Init)
 -- M9.4: set perks (binds ClaimSetPerk).
 start("SetService", SetService.Init)
 -- Admin: register the allowlisted in-chat commands (hidden from chat).
@@ -210,6 +214,9 @@ local function onPlayerRemoving(player)
     -- LastLeaveTime (Cold Storage). The saved loadout persists; perks re-derive on rejoin. Benefits
     -- perk sources are wiped below.
     LoadoutService.ClearPlayer(player)
+    -- M11.3: drop this player from any live boss's contribution map (no stale ref; they won't be
+    -- granted a reward they can't receive). The boss is ephemeral + server-memory only.
+    BossService.ClearPlayer(player)
     -- Final leaderboard write while the profile is STILL loaded (captures values synchronously,
     -- then writes off-thread) -- must precede MonetizationService.ClearPlayer, which drops the
     -- income multiplier this read depends on, and ProfileManager.ReleaseProfile.

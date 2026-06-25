@@ -49,6 +49,10 @@ Remotes.FuseRequest = nil -- RemoteFunction : client -> server ({ FodderIds, Mod
 Remotes.LoadoutRequest = nil -- RemoteFunction : client -> server ({ Action, UnitId?, Slot? }) -> result
 -- M11.2 evolve. Client sends INTENT ONLY (which unit Id to evolve); server validates + evolves atomically.
 Remotes.EvolveRequest = nil -- RemoteFunction : client -> server (unitId) -> { Result, Message, Stage? }
+-- M11.3 world bosses. Server -> ALL clients: boss spawn alert, live catch-meter snapshots, defeat/flee
+-- broadcasts. The boss fight itself is driven by a server-side ProximityPrompt (no client attack remote
+-- -- the client never asserts HP/contribution/death).
+Remotes.BossUpdate = nil -- RemoteEvent : server -> ALL clients, { Kind, Name?, Biome?, Meter?, Max?, Pos?, TimeLeft? }
 
 -- Every remote name this module creates -- the SINGLE list the boot diagnostic verifies the
 -- ReplicatedStorage/Remotes surface against. Keep in sync with Init() below AND the client's
@@ -83,6 +87,7 @@ Remotes.ExpectedNames = {
     "FuseRequest",
     "LoadoutRequest",
     "EvolveRequest",
+    "BossUpdate",
 }
 
 local folder = nil
@@ -211,6 +216,10 @@ function Remotes.Init()
     evolveRequest.Name = "EvolveRequest"
     evolveRequest.Parent = folder
 
+    local bossUpdate = Instance.new("RemoteEvent")
+    bossUpdate.Name = "BossUpdate"
+    bossUpdate.Parent = folder
+
     folder.Parent = ReplicatedStorage
 
     Remotes.PurchaseRequest = purchase
@@ -242,6 +251,7 @@ function Remotes.Init()
     Remotes.FuseRequest = fuseRequest
     Remotes.LoadoutRequest = loadoutRequest
     Remotes.EvolveRequest = evolveRequest
+    Remotes.BossUpdate = bossUpdate
 end
 
 -- Sends a toast to a single player. kind = "success" | "error" | "info". Optional `cue` is a
@@ -272,6 +282,14 @@ end
 function Remotes.BroadcastKillFeed(payload)
     if Remotes.KillFeed ~= nil then
         Remotes.KillFeed:FireAllClients(payload)
+    end
+end
+
+-- Broadcasts a world-boss state change to EVERY client (spawn alert / meter snapshot / defeat / flee).
+-- payload = { Kind = "spawn"|"update"|"defeat"|"flee"|"gone", Name?, Biome?, Meter?, Max?, Pos?, TimeLeft? }.
+function Remotes.BroadcastBoss(payload)
+    if Remotes.BossUpdate ~= nil then
+        Remotes.BossUpdate:FireAllClients(payload)
     end
 end
 

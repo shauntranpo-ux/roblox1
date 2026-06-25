@@ -61,6 +61,17 @@ MutationConfig.Mutations = {
         Material = Enum.Material.Neon,
         Available = true,
     },
+    -- BOSS-ONLY (M11.3): Available=false -> NEVER rolls via the normal acquisition roll. Granted ONLY
+    -- as a world-boss reward (BossService sets unit.Mutation directly). A huge chase multiplier.
+    {
+        Key = "cosmic",
+        DisplayName = "Cosmic",
+        IncomeMultiplier = 50,
+        RollWeight = 0,
+        Color = Color3.fromRGB(180, 80, 255),
+        Material = Enum.Material.Neon,
+        Available = false,
+    },
 }
 
 -- A documented config switch: if true, higher-rarity species get slightly better mutation odds.
