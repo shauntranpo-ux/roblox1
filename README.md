@@ -2,7 +2,7 @@
 
 Multiplayer Roblox idle/theft game. Players collect meme creatures ("brainrot") that generate passive cash, unlock rarer ones, and steal each other's units.
 
-Built in milestones. This is M0 — toolchain skeleton only.
+Built in milestones. Current: **M1 — bare playable economy loop** (server-authoritative). A player spawns at a base, owns one placeholder brainrot that earns cash every second, sees their cash in the player list, and the data saves via ProfileStore.
 
 ## Stack
 
@@ -19,14 +19,31 @@ Built in milestones. This is M0 — toolchain skeleton only.
 
 ```
 src/
-  Server/        → ServerScriptService > Server
-  Client/        → StarterPlayer > StarterPlayerScripts > Client
-  Shared/        → ReplicatedStorage > Shared
-  StarterGui/    → StarterGui
-  ServerStorage/ → ServerStorage > Assets
+  Server/                    → ServerScriptService > Server
+    Bootstrap.server.lua     wires services + owns join ordering
+    ProfileManager.lua       ProfileStore wrapper (load/save, mock fallback, accessors)
+    PlotService.lua          builds bases + per-session plot assignment
+    BrainrotService.lua      grants/restores/spawns brainrots on pads
+    IncomeService.lua        Heartbeat server-authoritative income loop
+    Leaderstats.lua          leaderstats.Cash readout in the player list
+    Lib/ProfileStore.luau    vendored third-party data lib (loleris)
+  Client/                    → StarterPlayer > StarterPlayerScripts > Client
+  Shared/                    → ReplicatedStorage > Shared
+    Config.lua               data-driven brainrot roster + plot tuning
+  StarterGui/                → StarterGui
+  ServerStorage/             → ServerStorage > Assets  (plot/brainrot model templates later)
 
-Packages/        → ReplicatedStorage > Packages  (Wally, git-ignored)
+Packages/                    → ReplicatedStorage > Packages  (Wally, git-ignored)
 ```
+
+### Data saving (ProfileStore)
+
+`ProfileStore` is **vendored** as a single ModuleScript at `src/Server/Lib/ProfileStore.luau`
+(downloaded from `MadStudioRoblox/ProfileStore`) rather than pulled via Wally — it lives under
+ServerScriptService so it is server-only, tracked in git, and needs no install step after cloning.
+`ProfileManager` auto-detects whether real DataStores are available and otherwise uses ProfileStore's
+in-memory **mock** store, so the loop is testable in Studio immediately. The console prints which store
+is active on startup.
 
 ## Setup (one-time after cloning)
 

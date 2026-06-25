@@ -1,3 +1,6 @@
 # Use Roblox standard library definitions so Selene knows about
 # game, workspace, Instance, print, task, etc. without false-positive warnings.
 std = "roblox"
+
+# Vendored third-party library — don't lint loleris' ProfileStore source.
+exclude = ["src/Server/Lib/**"]
