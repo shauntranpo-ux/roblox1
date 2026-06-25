@@ -32,6 +32,7 @@ local Catalog = require(ReplicatedStorage.Shared.Catalog)
 local Rarity = require(ReplicatedStorage.Shared.Rarity)
 local MutationConfig = require(ReplicatedStorage.Shared.MutationConfig)
 local PerksConfig = require(ReplicatedStorage.Shared.PerksConfig)
+local EvolutionConfig = require(ReplicatedStorage.Shared.EvolutionConfig)
 
 local ProfileManager = require(script.Parent.ProfileManager)
 local PlotService = require(script.Parent.PlotService)
@@ -162,9 +163,11 @@ local function transferOwnership(steal)
     entry.PadIndex = steal.ReservedPadIndex
     table.insert(thiefProfile.Data.OwnedBrainrots, entry)
     thiefProfile.Data.Discovered[entry.Type] = true
-    -- TRANSFER SAFETY (M9.2): `entry` is the WHOLE per-unit record, so its intrinsic Mutation AND
-    -- Star fields move with it UNCHANGED -- never re-rolled, stripped, or duplicated (the steal only
-    -- moves the table reference between inventories). The thief now owns it -> discover the mutation.
+    -- TRANSFER SAFETY (M9.2 + M11.2): `entry` is the WHOLE per-unit record, so its intrinsic Mutation,
+    -- Star, EvolutionStage AND XP all move with it UNCHANGED -- never re-rolled, stripped, reset, or
+    -- duplicated (the steal only moves the ONE table reference between inventories). An evolved unit
+    -- keeps its exact stage + XP for the thief (which makes evolved units premium steal targets). The
+    -- thief now owns it -> discover the mutation.
     if entry.Mutation ~= nil then
         thiefProfile.Data.MutationsDiscovered[entry.Mutation] = true
     end
@@ -364,6 +367,9 @@ local function onPromptTriggered(prompt, thief)
         if victimStun then
             applyStun(thief, victim, victimPlot)
         end
+        -- M11.2 XP: the targeted unit SURVIVED a steal attempt -> it banks XP toward evolving (capped
+        -- gracefully at max stage). This is intrinsic to the unit record; nothing else changes.
+        EvolutionConfig.AddXP(entry, EvolutionConfig.SurviveStealXP)
         Remotes.NotifyPlayer(
             thief,
             "error",

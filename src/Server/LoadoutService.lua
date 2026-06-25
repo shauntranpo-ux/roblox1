@@ -265,6 +265,14 @@ function LoadoutService.ClearPlayer(player)
     PerkEffects.ClearPlayer(player)
 end
 
+-- M11.2: a public recompute hook. EvolutionService calls this after a unit evolves so that, IF the
+-- unit is equipped, its signature-perk magnitude (which now scales with EvolutionStage via
+-- PerksConfig.Scale) is re-derived idempotently -- exactly once, under the cap. Harmless (just a
+-- recompute + income refresh) when the evolved unit isn't equipped.
+function LoadoutService.RecomputePlayer(player, profile)
+    recompute(player, profile)
+end
+
 function LoadoutService.GetLoadout(player)
     local profile = ProfileManager.GetProfile(player)
     if profile == nil then

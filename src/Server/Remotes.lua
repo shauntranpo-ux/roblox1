@@ -47,6 +47,8 @@ Remotes.SellRequest = nil -- RemoteFunction : client -> server ({ Action, Id?/Mo
 Remotes.FuseRequest = nil -- RemoteFunction : client -> server ({ FodderIds, Mode? }) -> result
 -- M11.1 loadout. Client sends INTENT ONLY (a unit Id + perk slot, or a slot to unequip / "get").
 Remotes.LoadoutRequest = nil -- RemoteFunction : client -> server ({ Action, UnitId?, Slot? }) -> result
+-- M11.2 evolve. Client sends INTENT ONLY (which unit Id to evolve); server validates + evolves atomically.
+Remotes.EvolveRequest = nil -- RemoteFunction : client -> server (unitId) -> { Result, Message, Stage? }
 
 -- Every remote name this module creates -- the SINGLE list the boot diagnostic verifies the
 -- ReplicatedStorage/Remotes surface against. Keep in sync with Init() below AND the client's
@@ -80,6 +82,7 @@ Remotes.ExpectedNames = {
     "SellRequest",
     "FuseRequest",
     "LoadoutRequest",
+    "EvolveRequest",
 }
 
 local folder = nil
@@ -204,6 +207,10 @@ function Remotes.Init()
     loadoutRequest.Name = "LoadoutRequest"
     loadoutRequest.Parent = folder
 
+    local evolveRequest = Instance.new("RemoteFunction")
+    evolveRequest.Name = "EvolveRequest"
+    evolveRequest.Parent = folder
+
     folder.Parent = ReplicatedStorage
 
     Remotes.PurchaseRequest = purchase
@@ -234,6 +241,7 @@ function Remotes.Init()
     Remotes.SellRequest = sellRequest
     Remotes.FuseRequest = fuseRequest
     Remotes.LoadoutRequest = loadoutRequest
+    Remotes.EvolveRequest = evolveRequest
 end
 
 -- Sends a toast to a single player. kind = "success" | "error" | "info". Optional `cue` is a

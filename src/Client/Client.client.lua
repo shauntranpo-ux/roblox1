@@ -25,6 +25,7 @@ local Events = require(UI.Events)
 local Seasons = require(UI.Seasons)
 local Fusion = require(UI.Fusion)
 local Loadout = require(UI.Loadout)
+local Evolution = require(UI.Evolution)
 local PanelManager = require(UI.PanelManager)
 local ClickFX = require(UI.ClickFX)
 
@@ -61,6 +62,7 @@ local remotes = {
     SellRequest = remotesFolder:WaitForChild("SellRequest"),
     FuseRequest = remotesFolder:WaitForChild("FuseRequest"),
     LoadoutRequest = remotesFolder:WaitForChild("LoadoutRequest"),
+    EvolveRequest = remotesFolder:WaitForChild("EvolveRequest"),
 }
 
 local context = { player = player, remotes = remotes }
@@ -128,6 +130,9 @@ end)
 safeMount("Loadout", function()
     Loadout.mount(context)
 end)
+safeMount("Evolution", function()
+    Evolution.mount(context)
+end)
 safeMount("Menu", function()
     Menu.mount(context)
     -- Menu list entries OPEN their panel through the manager (the Menu closes itself first).
@@ -136,6 +141,9 @@ safeMount("Menu", function()
     end)
     Menu.addButton("🎽 Loadout", function()
         PanelManager.open("Loadout")
+    end)
+    Menu.addButton("🧬 Evolve", function()
+        PanelManager.open("Evolution")
     end)
     Menu.addButton("🏆 Seasons", function()
         PanelManager.open("Seasons")
@@ -189,6 +197,7 @@ safeMount("PanelManager registry", function()
     PanelManager.register("Settings", Settings.toggle)
     PanelManager.register("Fusion", Fusion.toggle)
     PanelManager.register("Loadout", Loadout.toggle)
+    PanelManager.register("Evolution", Evolution.toggle)
 end)
 
 -- Hide the "Hold to steal" prompt on the LOCAL player's OWN brainrots (you can't steal your

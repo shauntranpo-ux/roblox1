@@ -211,7 +211,10 @@ local function fuseStarUp(player, profile, fodder)
         removeSet[unit.Id] = true
     end
     profile.Data.OwnedBrainrots = withoutIds(profile, removeSet)
-    local result = BrainrotFactory.create(player, def, resultPad, false) -- clean record (Star 1)
+    -- M11.2 FUSION INTERACTION: the result is a NEW factory record, so it starts at Evolution Stage 1
+    -- / XP 0 -- the fodder's evolution is CONSUMED with the fodder (a deliberate "raise this one vs
+    -- sacrifice it" tension). Only Star + Mutation are carried up; EvolutionStage/XP are NOT.
+    local result = BrainrotFactory.create(player, def, resultPad, false) -- clean record (Star 1, Stage 1)
     result.Star = newStar
     result.Mutation = resultMut
     table.insert(profile.Data.OwnedBrainrots, result)

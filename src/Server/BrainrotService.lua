@@ -16,6 +16,7 @@ local Format = require(ReplicatedStorage.Shared.Format)
 local StealConfig = require(ReplicatedStorage.Shared.StealConfig)
 local MutationConfig = require(ReplicatedStorage.Shared.MutationConfig)
 local UnitIncome = require(ReplicatedStorage.Shared.UnitIncome)
+local EvolutionConfig = require(ReplicatedStorage.Shared.EvolutionConfig)
 local BrainrotFactory = require(script.Parent.BrainrotFactory)
 
 local BrainrotService = {}
@@ -80,7 +81,11 @@ local function addInfoLabel(part, def, unit)
     local prefix = (mutation ~= nil and mutation.DisplayName ~= "")
             and (mutation.DisplayName .. " ")
         or ""
-    label.Text = prefix
+    -- M11.2: show the evolution stage badge once a unit is past stage 1.
+    local stage = EvolutionConfig.StageOf(unit)
+    local stageTag = stage > 1 and ("[S" .. stage .. "] ") or ""
+    label.Text = stageTag
+        .. prefix
         .. def.DisplayName
         .. "\n+$"
         .. Format.short(UnitIncome.effective(unit))
@@ -121,6 +126,31 @@ local function addArtBillboard(part, def, mutation)
     end
 end
 
+-- M11.2 placeholder evolved look: a stage-colored outline/glow on a unit past stage 1 (thicker +
+-- glowing at higher stages). Works for both the picture path and the placeholder path. Real evolved
+-- models are reserved (EvolutionConfig.Visual.ModelName) for a later art pass.
+local function addEvolutionAura(part, brainrot)
+    if part == nil then
+        return
+    end
+    local stage = EvolutionConfig.StageOf(brainrot)
+    if stage <= 1 then
+        return
+    end
+    local visual = EvolutionConfig.Visual(stage)
+    if visual.Aura == nil then
+        return
+    end
+    local box = Instance.new("SelectionBox")
+    box.Name = "EvoAura"
+    box.Adornee = part
+    box.LineThickness = 0.05 + stage * 0.03
+    box.Color3 = visual.Aura
+    box.SurfaceColor3 = visual.Aura
+    box.SurfaceTransparency = visual.Glow and 0.3 or 0.7
+    box.Parent = part
+end
+
 -- Builds the on-pad visual for one brainrot: the 2D picture (if it has an IconId) or, until art is
 -- added, a rarity-tinted placeholder cube. A mutated unit overrides the tint/accent so it reads.
 local function makeBrainrotPart(def, brainrot, pad)
@@ -128,11 +158,15 @@ local function makeBrainrotPart(def, brainrot, pad)
     local mutation = brainrot.Mutation ~= nil and MutationConfig.Get(brainrot.Mutation) or nil
     local tint = mutation ~= nil and mutation.Color or rarity.Color
 
+    -- M11.2: evolved units are visibly bigger (placeholder evolved look; real models reserved).
+    local evoScale = EvolutionConfig.Visual(EvolutionConfig.StageOf(brainrot)).Scale or 1
+    local size = 4 * evoScale
+
     local part = Instance.new("Part")
     part.Name = "Brainrot_" .. brainrot.Id
     part.Anchored = true
     part.CanCollide = false
-    part.Size = Vector3.new(4, 4, 4)
+    part.Size = Vector3.new(size, size, size)
     part.Material = mutation ~= nil and mutation.Material or Enum.Material.SmoothPlastic
     part.Color = tint
     part.CFrame = placementCFrame(pad)
@@ -219,6 +253,7 @@ function BrainrotService.SpawnBrainrot(player, plot, brainrot)
     end
 
     attachStealPrompt(mainPart(instance), player, brainrot, def)
+    addEvolutionAura(mainPart(instance), brainrot) -- M11.2: stage glow on evolved units
     instance.Parent = plot.Model
 
     if spawnedModels[player] == nil then
@@ -345,6 +380,9 @@ function BrainrotService.SetupPlayer(player, profile, plot)
         BrainrotFactory.MarkDiscovered(profile, brainrot.Mutation)
         -- M9.2 RECONCILE: legacy units have no Star field -> default to ★1 (persists on next save).
         brainrot.Star = brainrot.Star or 1
+        -- M11.2 RECONCILE: legacy units default to evolution stage 1 / XP 0 (persists on next save).
+        brainrot.EvolutionStage = brainrot.EvolutionStage or 1
+        brainrot.XP = brainrot.XP or 0
         BrainrotService.SpawnBrainrot(player, plot, brainrot)
     end
 end

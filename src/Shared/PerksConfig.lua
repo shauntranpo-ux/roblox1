@@ -49,6 +49,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local MutationConfig = require(Shared:WaitForChild("MutationConfig"))
+local EvolutionConfig = require(Shared:WaitForChild("EvolutionConfig"))
 
 local PerksConfig = {}
 
@@ -302,14 +303,16 @@ PerksConfig.Perks = {
     },
 }
 
--- The per-unit scaling scalar from STAR (level) x MUTATION (multiplier). Read from the unit's real
--- stored stats (server-side). Rarity is already baked into each perk's base magnitude.
+-- The per-unit scaling scalar from STAR (level) x MUTATION (multiplier) x EVOLUTION (stage). Read
+-- from the unit's real stored stats (server-side). Rarity is already baked into each perk's base
+-- magnitude. M11.2: an evolved equipped unit's perk gets stronger via EvolutionConfig.PerkScale.
 function PerksConfig.Scale(unit)
     local star = (type(unit.Star) == "number" and unit.Star >= 1) and math.floor(unit.Star) or 1
     local starScale = 1 + PerksConfig.StarPerLevel * (star - 1)
     local mutMult = MutationConfig.MultiplierFor(unit.Mutation)
     local mutScale = 1 + PerksConfig.MutScaleFactor * (mutMult - 1)
-    return starScale * mutScale
+    local evoScale = EvolutionConfig.PerkScale(EvolutionConfig.StageOf(unit))
+    return starScale * mutScale * evoScale
 end
 
 function PerksConfig.Get(perkKey)

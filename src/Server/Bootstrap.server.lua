@@ -39,6 +39,8 @@ local SellService = require(script.Parent.SellService)
 local FusionService = require(script.Parent.FusionService)
 -- M11.1: signature perks + loadout (units become an equippable arsenal; replaces M9.3 roles).
 local LoadoutService = require(script.Parent.LoadoutService)
+-- M11.2: per-unit XP + evolution (raise units through stages).
+local EvolutionService = require(script.Parent.EvolutionService)
 -- M9.4: set perks (themed Index sets -> permanent passive perks).
 local SetService = require(script.Parent.SetService)
 -- VM0: boot/join health check + the dev-only sacred-invariant validator.
@@ -95,6 +97,8 @@ start("SellService", SellService.Init)
 start("FusionService", FusionService.Init)
 -- M11.1: signature perks + loadout (binds LoadoutRequest).
 start("LoadoutService", LoadoutService.Init)
+-- M11.2: XP accrual loop + evolve handler (binds EvolveRequest).
+start("EvolutionService", EvolutionService.Init)
 -- M9.4: set perks (binds ClaimSetPerk).
 start("SetService", SetService.Init)
 -- Admin: register the allowlisted in-chat commands (hidden from chat).

@@ -298,9 +298,10 @@ local function performSwap(session)
                 unit.PadIndex = padIndex
                 table.insert(toProfile.Data.OwnedBrainrots, unit)
                 toProfile.Data.Discovered[unit.Type] = true
-                -- TRANSFER SAFETY (M9.2): `unit` is the WHOLE per-unit record, so its Mutation AND
-                -- Star fields travel UNCHANGED with it (never re-rolled/stripped/duplicated -- the
-                -- swap only moves the table reference). The receiver now owns it -> discover mutation.
+                -- TRANSFER SAFETY (M9.2 + M11.2): `unit` is the WHOLE per-unit record, so its Mutation,
+                -- Star, EvolutionStage AND XP all travel UNCHANGED with it (never re-rolled/stripped/
+                -- reset/duplicated -- the swap only moves the ONE table reference). An evolved unit keeps
+                -- its exact stage + XP for the receiver. The receiver now owns it -> discover mutation.
                 if unit.Mutation ~= nil then
                     toProfile.Data.MutationsDiscovered[unit.Mutation] = true
                 end

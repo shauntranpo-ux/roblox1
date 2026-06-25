@@ -50,6 +50,7 @@ Analytics.Events = { -- custom (retention/engagement) event names
     SetComplete = "set_complete", -- M9.4 a themed-set perk claimed
     PerkEquip = "perk_equip", -- M11.1 a unit equipped to a perk slot (value = holder rarity order)
     PerkUnequip = "perk_unequip", -- M11.1 a unit unequipped from a perk slot
+    Evolve = "evolve", -- M11.2 a unit evolved (value = the new evolution stage)
 }
 
 Analytics.Funnel = { -- new-player onboarding funnel steps { stepNumber, stepName }

@@ -55,11 +55,14 @@ function BrainrotFactory.create(player, def, padIndex, rollMutation)
     return {
         Id = HttpService:GenerateGUID(false),
         Type = def.Id,
-        IncomePerSec = def.IncomePerSec, -- species BASE, never mutated/starred in storage
+        IncomePerSec = def.IncomePerSec, -- species BASE, never mutated/starred/evolved in storage
         PadIndex = padIndex,
         Mutation = mutation, -- nil = Normal
         Star = 1, -- M9.2: every unit starts at ★1; FusionService raises it. Income star factor
         -- is applied ONLY by Shared/UnitIncome (never baked into IncomePerSec).
+        EvolutionStage = 1, -- M11.2: every unit starts at stage 1; EvolutionService raises it. The
+        XP = 0, -- evolution income factor is applied ONLY by Shared/UnitIncome (never baked in).
+        -- XP is banked server-side (income loop + surviving steals); the client never sets it.
     }
 end
 

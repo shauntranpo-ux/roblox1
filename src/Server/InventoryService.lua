@@ -56,6 +56,8 @@ local function getInventory(player)
             Star = brainrot.Star or 1, -- M9.2: star level (default 1; income reflects it via the helper)
             Sellable = sellable, -- M9.1: false for premium (protected)
             SellValue = sellValue, -- M9.1: display value (server recomputes on sell)
+            EvolutionStage = brainrot.EvolutionStage or 1, -- M11.2: evolution stage (income reflects it)
+            XP = brainrot.XP or 0, -- M11.2: banked XP toward the next stage (client compares vs config)
         })
     end
     return owned
