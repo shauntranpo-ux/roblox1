@@ -86,6 +86,10 @@ Analytics.Events = { -- custom (retention/engagement) event names
     AdminBan = "admin_ban", -- M13.4 a ban issued (value = minutes; 0 = permanent)
     AdminMute = "admin_mute", -- M13.4 a mute issued (value = minutes; 0 = until unmute)
     PlayerReport = "player_report", -- M13.4 a player-submitted report
+    TradeConfirm = "trade_confirm", -- M13.5 a side confirmed the current locked offer
+    TradeVoid = "trade_void", -- M13.5 an edit voided a standing confirmation (anti-switcheroo)
+    TradeCountdownCancel = "trade_countdown_cancel", -- M13.5 the post-confirm countdown was aborted
+    GiftConfirm = "gift_confirm", -- M13.5 a sender confirmed a one-way gift
 }
 
 Analytics.Funnel = { -- new-player onboarding funnel steps { stepNumber, stepName }

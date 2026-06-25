@@ -8,6 +8,7 @@ local TradeConfig = {}
 TradeConfig.RequestTimeout = 30 -- s a trade request waits for the target to accept
 TradeConfig.SessionTimeout = 180 -- s of inactivity before an open trade auto-cancels
 TradeConfig.SettleDelay = 1 -- s after ANY offer edit before "Ready" can be clicked (anti-switcheroo)
+TradeConfig.ConfirmCountdown = 3 -- s AFTER both confirm before the swap fires; any edit/cancel aborts it
 TradeConfig.MaxItemsPerSide = 6 -- max brainrots one side can offer
 TradeConfig.CashTradingEnabled = true -- allow cash in trades?
 TradeConfig.MaxCashPerTrade = 1000000000 -- per-side cash offer cap

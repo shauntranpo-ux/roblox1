@@ -8,10 +8,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Builder = require(script.Parent.Builder)
 local Theme = require(script.Parent.Theme)
+local Notifications = require(script.Parent.Notifications)
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Format = require(Shared:WaitForChild("Format"))
 local Rarity = require(Shared:WaitForChild("Rarity"))
+local MutationConfig = require(Shared:WaitForChild("MutationConfig"))
 
 local Trade = {}
 
@@ -21,6 +23,8 @@ local gui = nil
 local list = nil
 local snapshot = nil -- last "update" snapshot
 local prevReady = false
+local prevConfirm = false -- to surface when a change RESET our confirmation
+local countdownToken = 0 -- invalidates a stale local countdown ticker when a new snapshot arrives
 
 local function send(action, extra)
     local payload = { Action = action }
@@ -47,7 +51,7 @@ local function nextOrder()
 end
 
 local function label(text, color, size)
-    Builder.create("TextLabel", {
+    return Builder.create("TextLabel", {
         Size = UDim2.new(1, 0, 0, size or 26),
         BackgroundTransparency = 1,
         Font = Theme.FontBold,
@@ -59,6 +63,43 @@ local function label(text, color, size)
         LayoutOrder = nextOrder(),
         Parent = list,
     })
+end
+
+-- The anti-scam stat string for a unit: ★star, [mutation], EvoN -- so EXACTLY what's exchanged is
+-- visible (rarity is the row color; income is appended by the caller).
+local function statSuffix(item)
+    local s = ""
+    if item.Star ~= nil and item.Star > 1 then
+        s = s .. " ★" .. item.Star
+    end
+    if item.Mutation ~= nil then
+        local okM, mDef = pcall(MutationConfig.Get, item.Mutation)
+        if okM and mDef ~= nil and mDef.DisplayName ~= nil and mDef.DisplayName ~= "" then
+            s = s .. " [" .. mDef.DisplayName .. "]"
+        end
+    end
+    if item.Evolution ~= nil and item.Evolution > 1 then
+        s = s .. " Evo" .. item.Evolution
+    end
+    return s
+end
+
+-- A "N units (+$X/s, $Y cash)" one-line summary of one side of the trade.
+local function sideSummary(side, cashEnabled)
+    local inc = 0
+    for _, it in ipairs(side.Items) do
+        inc += it.IncomePerSec or 0
+    end
+    local text = string.format(
+        "%d unit%s (+$%s/s)",
+        #side.Items,
+        #side.Items == 1 and "" or "s",
+        Format.short(inc)
+    )
+    if cashEnabled and (side.Cash or 0) > 0 then
+        text = text .. " + $" .. Format.short(side.Cash) .. " cash"
+    end
+    return text
 end
 
 local function button(text, color, onClick)
@@ -89,7 +130,12 @@ local function itemRow(item, removable)
         BackgroundTransparency = 1,
         Size = UDim2.new(1, removable and -70 or -4, 1, 0),
         Font = Theme.Font,
-        Text = string.format("%s  +$%s/s", item.Name, Format.short(item.IncomePerSec)),
+        Text = string.format(
+            "%s%s  +$%s/s",
+            item.Name,
+            statSuffix(item),
+            Format.short(item.IncomePerSec)
+        ),
         TextColor3 = rarity.Color,
         TextSize = 14,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -154,20 +200,38 @@ end
 
 function Trade.renderActive(payload)
     snapshot = payload
+    countdownToken += 1 -- invalidate any previous local countdown ticker
     clear()
     order = 0
 
-    if payload.You.Ready and not payload.You.Confirm then
-        label("Both Ready -> now press CONFIRM.", Theme.Colors.Accent)
+    -- Anti-scam notices: surface LOUDLY when a change reset our Ready / Confirm.
+    if prevConfirm and not payload.You.Confirm then
+        label(
+            "⚠ The offer CHANGED -- both confirmations were reset. Re-check, then confirm again.",
+            Theme.Colors.Danger,
+            42
+        )
     elseif prevReady and not payload.You.Ready then
         label(
             "⚠ Offer changed -- your Ready was reset! Re-check before confirming.",
-            Theme.Colors.Danger
+            Theme.Colors.Danger,
+            42
         )
+    elseif payload.BothReady and payload.You.Ready and not payload.You.Confirm then
+        label("Both Ready -> now press CONFIRM.", Theme.Colors.Accent)
     end
     prevReady = payload.You.Ready
+    prevConfirm = payload.You.Confirm
 
     label("Trading with " .. tostring(payload.Partner), Theme.Colors.Accent, 24)
+
+    -- Unambiguous give/receive summary (exactly what is exchanged).
+    label("You GIVE: " .. sideSummary(payload.You, payload.CashEnabled), Theme.Colors.Gold, 24)
+    label(
+        "You RECEIVE: " .. sideSummary(payload.Them, payload.CashEnabled),
+        Theme.Colors.Positive,
+        24
+    )
 
     label(
         "YOUR OFFER "
@@ -176,12 +240,14 @@ function Trade.renderActive(payload)
         Theme.Colors.Positive
     )
     for _, item in ipairs(payload.You.Items) do
-        itemRow(item, true)
+        itemRow(item, not payload.InCountdown) -- offer is locked-in during the countdown
     end
     if payload.CashEnabled then
         label("Your cash offered: $" .. Format.short(payload.You.Cash), Theme.Colors.SubText, 22)
     end
-    button("+ Add unit", Theme.Colors.Accent, renderPicker)
+    if not payload.InCountdown then
+        button("+ Add unit", Theme.Colors.Accent, renderPicker)
+    end
 
     label(
         "PARTNER'S OFFER "
@@ -200,21 +266,46 @@ function Trade.renderActive(payload)
         )
     end
 
-    button(
-        payload.You.Ready and "Unready" or "Ready",
-        payload.You.Ready and Theme.Colors.Disabled or Theme.Colors.Positive,
-        function()
-            send("ready", { Ready = not payload.You.Ready })
-        end
-    )
-    if payload.BothReady then
+    -- The server-authoritative COUNTDOWN. We only DISPLAY it (and tick locally); the server fires the
+    -- swap. During it, edits are hidden (offer locked) -- but the server still aborts on any change.
+    if payload.InCountdown then
+        local cd = label("", Theme.Colors.Gold, 34)
+        local myToken = countdownToken
+        local endT = os.clock() + (payload.Countdown or 0)
+        task.spawn(function()
+            while myToken == countdownToken and cd.Parent ~= nil do
+                local remain = math.max(0, endT - os.clock())
+                if remain <= 0 then
+                    cd.Text = "⏳ Finalizing…"
+                    break
+                end
+                cd.Text = string.format(
+                    "⏳ Trade completes in %d… ANY change cancels it!",
+                    math.ceil(remain)
+                )
+                task.wait(0.2)
+            end
+        end)
+    end
+
+    -- Ready / Confirm carry the snapshot VERSION; the server rejects a stale (changed-offer) action.
+    if not payload.InCountdown then
         button(
-            payload.You.Confirm and "Confirmed -- waiting..." or "CONFIRM TRADE",
-            Theme.Colors.Positive,
+            payload.You.Ready and "Unready" or "Ready",
+            payload.You.Ready and Theme.Colors.Disabled or Theme.Colors.Positive,
             function()
-                send("confirm")
+                send("ready", { Ready = not payload.You.Ready, Version = payload.Version })
             end
         )
+        if payload.BothReady then
+            button(
+                payload.You.Confirm and "Confirmed -- waiting for partner…" or "CONFIRM TRADE",
+                Theme.Colors.Positive,
+                function()
+                    send("confirm", { Version = payload.Version })
+                end
+            )
+        end
     end
     button("Cancel trade", Theme.Colors.Danger, function()
         send("cancel")
@@ -240,6 +331,8 @@ function Trade.renderPlayerList()
     order = 0
     snapshot = nil
     prevReady = false
+    prevConfirm = false
+    countdownToken += 1 -- kill any running countdown ticker
     label("Trade with a player in this server:", Theme.Colors.Text)
     local any = false
     for _, other in ipairs(Players:GetPlayers()) do
@@ -274,6 +367,12 @@ function Trade.mount(context)
             gui.Enabled = true
             Trade.renderActive(payload)
         elseif payload.Kind == "closed" then
+            -- Surface WHY it closed (completed / cancelled / a safe revalidation abort) so an aborted
+            -- trade is never silent -- the player sees the reason instead of a swap that didn't happen.
+            if payload.Reason ~= nil then
+                local complete = payload.Reason == "Trade complete!"
+                Notifications.show(complete and "success" or "info", payload.Reason)
+            end
             Trade.renderPlayerList()
         end
     end)

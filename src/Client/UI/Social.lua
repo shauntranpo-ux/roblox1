@@ -14,6 +14,8 @@ local PanelManager = require(script.Parent.PanelManager)
 
 local Format = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Format"))
 local Rarity = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Rarity"))
+local MutationConfig =
+    require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("MutationConfig"))
 
 local Social = {}
 
@@ -99,17 +101,38 @@ local function doGift(unitId)
     end
 end
 
-local function confirmGift(unitId, unitName)
-    confirmModal:FindFirstChild("Msg").Text = "Gift "
-        .. unitName
-        .. " to "
-        .. selectedFriend.Name
-        .. "?\nThis is permanent."
+-- The full stat string for the gift confirm (so the sender sees EXACTLY what they're giving away).
+local function unitStats(unit)
+    local s = ""
+    if unit.Star ~= nil and unit.Star > 1 then
+        s = s .. " ★" .. unit.Star
+    end
+    if unit.Mutation ~= nil then
+        local okM, mDef = pcall(MutationConfig.Get, unit.Mutation)
+        if okM and mDef ~= nil and mDef.DisplayName ~= nil and mDef.DisplayName ~= "" then
+            s = s .. " [" .. mDef.DisplayName .. "]"
+        end
+    end
+    if unit.EvolutionStage ~= nil and unit.EvolutionStage > 1 then
+        s = s .. " Evo" .. unit.EvolutionStage
+    end
+    return s
+end
+
+-- M13.5: a GIFT is ONE-WAY. The confirm spells out exactly what's given and that NOTHING comes back.
+local function confirmGift(unit)
+    confirmModal:FindFirstChild("Msg").Text = string.format(
+        "You are GIVING:\n%s%s  (+$%s/s)\nto %s.\n\nYou receive NOTHING in return.\nThis is permanent.",
+        unit.Name,
+        unitStats(unit),
+        Format.short(unit.IncomePerSec or 0),
+        selectedFriend.Name
+    )
     confirmModal.Visible = true
     local yes = confirmModal:FindFirstChild("Yes")
     yes.Activated:Once(function()
         confirmModal.Visible = false
-        doGift(unitId)
+        doGift(unit.Id)
     end)
 end
 
@@ -134,7 +157,7 @@ local function renderUnitPicker()
                 unit.Name .. star .. "  (+$" .. Format.short(unit.IncomePerSec or 0) .. "/s)",
                 Rarity.Get(unit.Rarity).Color,
                 function()
-                    confirmGift(unit.Id, unit.Name)
+                    confirmGift(unit)
                 end
             )
         end
@@ -275,7 +298,7 @@ function Social.mount(context)
     confirmModal = Builder.create("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(360, 170),
+        Size = UDim2.fromOffset(380, 240),
         BackgroundColor3 = Theme.Colors.Background,
         Visible = false,
         ZIndex = 20,
@@ -283,7 +306,7 @@ function Social.mount(context)
     }, { Builder.corner(UDim.new(0, 12)), Builder.padding(12) })
     Builder.create("TextLabel", {
         Name = "Msg",
-        Size = UDim2.new(1, 0, 0, 90),
+        Size = UDim2.new(1, 0, 0, 160),
         BackgroundTransparency = 1,
         Font = Theme.FontBody,
         Text = "",

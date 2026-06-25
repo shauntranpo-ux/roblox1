@@ -80,6 +80,7 @@ local function handleGift(sender, targetUserId, unitId, confirm)
     if confirm ~= true then
         return { Result = "Error", Message = "Confirmation required." } -- server enforces explicit confirm
     end
+    Analytics.custom(sender, Analytics.Events.GiftConfirm, 1) -- M13.5: log the one-way gift confirmation
     local recipient = Players:GetPlayerByUserId(targetUserId)
     if recipient == nil then
         return { Result = "Error", Message = "They must be in this server to receive a gift." }

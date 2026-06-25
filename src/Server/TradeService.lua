@@ -86,14 +86,26 @@ local function inOffer(offer, brainrotId)
     return false
 end
 
--- ANY offer edit resets both Ready + Confirm (anti-switcheroo) and restarts the settle timer.
+-- ANY offer edit resets both Ready + Confirm (anti-switcheroo), BUMPS the snapshot version (so any
+-- standing confirm against the old version is now stale), CANCELS any countdown, and restarts the
+-- settle timer. This is the server-enforced "change voids confirmation" guarantee.
 local function resetFlags(session)
     session.ReadyA = false
     session.ReadyB = false
     session.ConfirmA = false
     session.ConfirmB = false
+    session.CountdownUntil = nil
+    session.OfferVersion += 1
     session.LastEdit = os.clock()
     session.LastActivity = os.clock()
+end
+
+-- Logs a void (an edit cleared a standing confirmation / running countdown). Call BEFORE resetFlags.
+local function logVoidIfConfirmed(session)
+    if session.ConfirmA or session.ConfirmB or session.CountdownUntil ~= nil then
+        Analytics.custom(session.A, Analytics.Events.TradeVoid, 1)
+        Analytics.custom(session.B, Analytics.Events.TradeVoid, 1)
+    end
 end
 
 local function unlockOffer(offer)
@@ -105,6 +117,12 @@ end
 -- Tears a session down (cancel/decline/leave/complete). Unlocks all items + clears registries.
 -- `notify` is an optional reason sent to both still-present players.
 local function endSession(session, notify)
+    -- M13.5: a teardown while a countdown was running (cancel / leave / timeout, NOT a committing swap)
+    -- is an aborted countdown -- log it. Committing is true only on the commit path, where it's a success.
+    if session.CountdownUntil ~= nil and not session.Committing then
+        Analytics.custom(session.A, Analytics.Events.TradeCountdownCancel, 1)
+        Analytics.custom(session.B, Analytics.Events.TradeCountdownCancel, 1)
+    end
     unlockOffer(session.OfferA)
     unlockOffer(session.OfferB)
     if byPlayer[session.A] == session then
@@ -140,8 +158,10 @@ local function itemize(ownerProfile, offer)
                 Id = id,
                 Name = def ~= nil and def.DisplayName or unit.Type,
                 Rarity = def ~= nil and def.Rarity or "Common",
-                IncomePerSec = UnitIncome.effective(unit), -- mutation-aware so players can value it
+                IncomePerSec = UnitIncome.effective(unit), -- mutation+star+evolution-aware effective value
                 Mutation = unit.Mutation,
+                Star = unit.Star or 1, -- M13.5: shown in the anti-scam value display
+                Evolution = unit.EvolutionStage or 1, -- M13.5: shown in the anti-scam value display
             })
         end
     end
@@ -154,6 +174,9 @@ local function pushUpdate(session)
     end
     local now = os.clock()
     local settleRemaining = math.max(0, TradeConfig.SettleDelay - (now - session.LastEdit))
+    local countdownRemaining = session.CountdownUntil ~= nil
+            and math.max(0, session.CountdownUntil - now)
+        or 0
     local profA = ProfileManager.GetProfile(session.A)
     local profB = ProfileManager.GetProfile(session.B)
 
@@ -185,6 +208,11 @@ local function pushUpdate(session)
             BothReady = session.ReadyA and session.ReadyB,
             SettleRemaining = settleRemaining,
             CashEnabled = TradeConfig.CashTradingEnabled,
+            -- M13.5: the offer-snapshot version the client must echo back on Ready/Confirm, plus the
+            -- live post-confirm countdown state.
+            Version = session.OfferVersion,
+            InCountdown = session.CountdownUntil ~= nil,
+            Countdown = countdownRemaining,
         }
     end
 
@@ -410,6 +438,10 @@ local function handleRequest(player, targetUserId)
         ReadyB = false,
         ConfirmA = false,
         ConfirmB = false,
+        -- M13.5: the SERVER's offer snapshot version. Every edit increments it; Ready/Confirm intents
+        -- carry the version the client saw and are REJECTED if it no longer matches (stale/forged confirm).
+        OfferVersion = 0,
+        CountdownUntil = nil, -- os.clock() the post-both-confirm countdown fires (nil = not counting)
         LastEdit = now,
         LastActivity = now,
         Created = now,
@@ -479,6 +511,7 @@ local function handleAddItem(player, brainrotId)
     end
     table.insert(offer.Items, brainrotId)
     TradeLockRegistry.Set(brainrotId, true)
+    logVoidIfConfirmed(session)
     resetFlags(session)
     pushUpdate(session)
 end
@@ -496,6 +529,7 @@ local function handleRemoveItem(player, brainrotId)
         if id == brainrotId then
             table.remove(offer.Items, i)
             TradeLockRegistry.Set(brainrotId, false)
+            logVoidIfConfirmed(session)
             resetFlags(session)
             pushUpdate(session)
             return
@@ -521,34 +555,45 @@ local function handleSetCash(player, amount)
         return
     end
     offerFor(session, player).Cash = amount
+    logVoidIfConfirmed(session)
     resetFlags(session)
     pushUpdate(session)
 end
 
-local function handleReady(player, ready)
+local function handleReady(player, ready, version)
     local session = activeSessionFor(player)
     if session == nil then
         return
     end
-    if ready and (os.clock() - session.LastEdit) < TradeConfig.SettleDelay then
-        return -- settle delay not elapsed
+    if ready then
+        if (os.clock() - session.LastEdit) < TradeConfig.SettleDelay then
+            return -- settle delay not elapsed
+        end
+        -- M13.5: locking in must be against the CURRENT offer snapshot. A stale version means the offer
+        -- changed under the player -> reject + resync (they re-see the current offer before re-locking).
+        if type(version) == "number" and version ~= session.OfferVersion then
+            pushUpdate(session)
+            return
+        end
     end
     if session.A == player then
         session.ReadyA = ready
         if not ready then
             session.ConfirmA = false
+            session.CountdownUntil = nil -- withdrawing readiness aborts any countdown
         end
     else
         session.ReadyB = ready
         if not ready then
             session.ConfirmB = false
+            session.CountdownUntil = nil
         end
     end
     session.LastActivity = os.clock()
     pushUpdate(session)
 end
 
-local function handleConfirm(player)
+local function handleConfirm(player, version)
     local session = activeSessionFor(player)
     if session == nil then
         return
@@ -556,16 +601,26 @@ local function handleConfirm(player)
     if not (session.ReadyA and session.ReadyB) then
         return -- both must be Ready before Confirm
     end
+    -- M13.5: the confirm MUST be against the current snapshot version. A stale/forged version (the offer
+    -- changed since the client saw it) is rejected here -> the "confirm the old offer" scam can't land.
+    if type(version) == "number" and version ~= session.OfferVersion then
+        pushUpdate(session)
+        return
+    end
     if session.A == player then
         session.ConfirmA = true
     else
         session.ConfirmB = true
     end
+    Analytics.custom(player, Analytics.Events.TradeConfirm, 1)
     session.LastActivity = os.clock()
-    pushUpdate(session)
-    if session.ConfirmA and session.ConfirmB then
-        commit(session)
+    -- M13.5: both confirmed the SAME version -> start the server-authoritative COUNTDOWN (NOT an instant
+    -- swap). Any edit/unready/cancel during it aborts (resetFlags / handleReady / endSession clear it);
+    -- the countdown loop fires commit() at zero, which RE-VALIDATES before the atomic swap.
+    if session.ConfirmA and session.ConfirmB and session.CountdownUntil == nil then
+        session.CountdownUntil = os.clock() + TradeConfig.ConfirmCountdown
     end
+    pushUpdate(session)
 end
 
 local function handleCancel(player)
@@ -700,11 +755,45 @@ function TradeService.Init()
         elseif action == "setcash" then
             handleSetCash(player, payload.Amount)
         elseif action == "ready" then
-            handleReady(player, payload.Ready == true)
+            handleReady(player, payload.Ready == true, payload.Version)
         elseif action == "confirm" then
-            handleConfirm(player)
+            handleConfirm(player, payload.Version)
         elseif action == "cancel" then
             handleCancel(player)
+        end
+    end)
+
+    -- M13.5: the post-confirm COUNTDOWN executor. When a session's countdown reaches zero AND both
+    -- sides are still Ready+Confirm, fire commit() -- which RE-VALIDATES ownership/lock/pads against live
+    -- profiles and runs the EXISTING atomic swap (or a clean no-op). Any edit/unready/cancel during the
+    -- countdown already cleared CountdownUntil, so this never fires on a changed offer.
+    task.spawn(function()
+        while true do
+            task.wait(0.2)
+            local now = os.clock()
+            local seen = {}
+            local toCommit = {} -- collect first; commit() mutates byPlayer, so never do it mid-iteration
+            for _, session in pairs(byPlayer) do
+                if not seen[session] and not session.Ended and not session.Committing then
+                    seen[session] = true
+                    if session.CountdownUntil ~= nil and now >= session.CountdownUntil then
+                        session.CountdownUntil = nil
+                        if
+                            session.ReadyA
+                            and session.ReadyB
+                            and session.ConfirmA
+                            and session.ConfirmB
+                        then
+                            table.insert(toCommit, session)
+                        else
+                            pushUpdate(session) -- defensive: state changed -> resync, no swap
+                        end
+                    end
+                end
+            end
+            for _, session in ipairs(toCommit) do
+                commit(session) -- re-validates, then the unchanged atomic swap (exactly once)
+            end
         end
     end)
 
