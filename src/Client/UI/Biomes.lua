@@ -20,6 +20,7 @@ local Atmosphere = require(script.Parent.Atmosphere)
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Format = require(Shared:WaitForChild("Format"))
 local BiomeConfig = require(Shared:WaitForChild("BiomeConfig"))
+local WorldConfig = require(Shared:WaitForChild("WorldConfig")) -- VM6 per-biome atmosphere profiles
 
 local Biomes = {}
 
@@ -182,7 +183,7 @@ function Biomes.mount(context)
         if biome ~= nil then
             biomeLabel.Text = biome.Name
             Banner.show("ENTERING <hl>" .. biome.Name .. "</hl>", 3.5)
-            Atmosphere.setZone(biome.Atmosphere) -- nil-safe; visual content arrives in the look-pass
+            Atmosphere.setZone(WorldConfig.AtmosphereFor(id)) -- VM6 per-biome atmosphere swap (nil-safe)
         end
     end
     player:GetAttributeChangedSignal("CurrentBiome"):Connect(onBiome)

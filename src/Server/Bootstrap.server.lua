@@ -10,6 +10,8 @@ local GameInfo = require(ReplicatedStorage.Shared.GameInfo)
 
 local ProfileManager = require(script.Parent.ProfileManager)
 local Remotes = require(script.Parent.Remotes)
+-- VM6: procedurally generates + tags the world (runs FIRST so PlotService clones the plot template).
+local WorldBuilder = require(script.Parent.WorldBuilder)
 local PlotService = require(script.Parent.PlotService)
 local BrainrotService = require(script.Parent.BrainrotService)
 local IncomeService = require(script.Parent.IncomeService)
@@ -82,6 +84,8 @@ end
 -- Data layer, network surface, world, defense, income loop, then the client-facing handlers.
 start("ProfileManager", ProfileManager.Init)
 start("Remotes", Remotes.Init)
+-- VM6: generate the voxel world + the plot template BEFORE PlotService builds/assigns plots.
+start("WorldBuilder", WorldBuilder.Init)
 start("PlotService", PlotService.Init)
 start("ProtectionService", ProtectionService.Init)
 start("IncomeService", IncomeService.Start)
