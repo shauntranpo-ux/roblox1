@@ -71,6 +71,21 @@ local function tag(instance, name)
     CollectionService:AddTag(instance, name)
 end
 
+-- Horizontal unit direction from the world center out to `pos` (defaults +X if `pos` is the center).
+local function outwardDir(pos)
+    local flat = Vector3.new(pos.X, 0, pos.Z)
+    if flat.Magnitude < 0.001 then
+        return Vector3.new(1, 0, 0)
+    end
+    return flat.Unit
+end
+
+-- A CFrame at `pos` (at height y) whose -Z faces the world center (so a wall's thin face / a road's
+-- length / a sign reads square to the spoke). `pos` is horizontal; `y` sets the height.
+local function facingCenter(pos, y)
+    return CFrame.lookAt(Vector3.new(pos.X, y, pos.Z), WorldConfig.Center + Vector3.new(0, y, 0))
+end
+
 -- A blocky 2-part cube tree (trunk + leaf cube). Capped by the caller.
 local function tree(parent, pos, trunkColor, leafColor)
     local trunkH = S.TreeHeight * 0.45
@@ -147,18 +162,18 @@ local function fixture(parent, pos, size, color, tagName, label, neon)
     return block
 end
 
--- ── HUB ─────────────────────────────────────────────────────────────────────────────────────
+-- ── HUB (central plaza at origin) ────────────────────────────────────────────────────────────
 local function buildHub(folder)
     local hub = WorldConfig.Hub
     local c = hub.Center
-    -- plaza ground (one big slab; top at y=0)
+
     part({
         Size = Vector3.new(hub.Size.X, S.GroundThickness, hub.Size.Z),
         Position = c + Vector3.new(0, -S.GroundThickness / 2, 0),
         Color = P.HubStone,
     }, folder)
 
-    -- SpawnLocation (players spawn here; PlotService then moves them to their base).
+    -- SpawnLocation (players spawn on the plaza; PlotService then moves them to their base).
     local spawn = Instance.new("SpawnLocation")
     spawn.Name = "HubSpawn"
     spawn.Anchored = true
@@ -166,53 +181,54 @@ local function buildHub(folder)
     spawn.Size = Vector3.new(16, 1, 16)
     spawn.Color = P.Gold
     spawn.Material = Enum.Material.SmoothPlastic
-    spawn.Position = c + Vector3.new(0, 0.5, 60)
+    spawn.Position = c + Vector3.new(0, 0.5, 0)
     spawn.TopSurface = Enum.SurfaceType.Smooth
     spawn.Parent = folder
 
-    -- central LANDMARK (a stacked monument -- NOT a portal)
+    -- central LANDMARK monument (stacked; NOT a portal).
     part(
-        { Size = Vector3.new(20, 4, 20), Position = c + Vector3.new(0, 2, 0), Color = P.HubStone },
+        { Size = Vector3.new(20, 4, 20), Position = c + Vector3.new(0, 2, -70), Color = P.HubStone },
         folder
     )
     part(
-        { Size = Vector3.new(14, 10, 14), Position = c + Vector3.new(0, 9, 0), Color = P.Sand },
+        { Size = Vector3.new(14, 10, 14), Position = c + Vector3.new(0, 9, -70), Color = P.Sand },
         folder
     )
     part(
-        { Size = Vector3.new(8, 12, 8), Position = c + Vector3.new(0, 20, 0), Color = P.RedTrim },
+        { Size = Vector3.new(8, 12, 8), Position = c + Vector3.new(0, 20, -70), Color = P.RedTrim },
         folder
     )
     part({
         Size = Vector3.new(5, 5, 5),
-        Position = c + Vector3.new(0, 29, 0),
+        Position = c + Vector3.new(0, 29, -70),
         Color = P.Gold,
         Neon = true,
     }, folder)
 
-    -- WATERFALL feature (cyan + white foam pool) on the hub edge
+    -- SLINGSHOT launch pad (tagged; the client's Slingshot menu + the prompt live on this).
+    local slingPos = c + WorldConfig.Slingshot.Position
+    local base =
+        fixture(folder, slingPos, Vector3.new(12, 4, 12), P.ShieldCyan, "Slingshot", "SLINGSHOT")
+    for _, sx in ipairs({ -1, 1 }) do
+        part({
+            Size = Vector3.new(2, 16, 2),
+            Position = slingPos + Vector3.new(sx * 4, 12, 0),
+            Color = P.Wood,
+            Material = Enum.Material.Wood,
+        }, folder)
+    end
     part({
-        Size = Vector3.new(24, 28, 4),
-        Position = c + Vector3.new(-180, 14, 0),
-        Color = P.Water,
-        Neon = false,
-        Transparency = 0.25,
+        Size = Vector3.new(12, 1.5, 1.5),
+        Position = slingPos + Vector3.new(0, 20, 0),
+        Color = P.Gold,
+        Neon = true,
     }, folder)
-    part(
-        { Size = Vector3.new(30, 2, 16), Position = c + Vector3.new(-180, 1, 10), Color = P.Foam },
-        folder
-    )
-    part({
-        Size = Vector3.new(40, 1, 24),
-        Position = c + Vector3.new(-180, 0, 18),
-        Color = P.Water,
-        Transparency = 0.2,
-    }, folder)
+    base:SetAttribute("LaunchHeight", 24)
 
-    -- shop stalls + free-reward blocks + leaderboard pillars (tagged fixtures)
+    -- shop stalls + free-reward blocks (tagged fixtures), arranged around the plaza.
     fixture(
         folder,
-        c + Vector3.new(-60, 0, -40),
+        c + Vector3.new(-90, 0, -40),
         Vector3.new(14, 12, 10),
         P.Grass,
         "NetShop",
@@ -220,7 +236,7 @@ local function buildHub(folder)
     )
     fixture(
         folder,
-        c + Vector3.new(60, 0, -40),
+        c + Vector3.new(90, 0, -40),
         Vector3.new(14, 12, 10),
         P.Gold,
         "PremiumShop",
@@ -229,7 +245,7 @@ local function buildHub(folder)
     )
     fixture(
         folder,
-        c + Vector3.new(-110, 0, 20),
+        c + Vector3.new(-130, 0, 30),
         Vector3.new(8, 8, 8),
         P.RedTrim,
         "DailyChest",
@@ -237,7 +253,7 @@ local function buildHub(folder)
     )
     fixture(
         folder,
-        c + Vector3.new(-90, 0, 30),
+        c + Vector3.new(-110, 0, 50),
         Vector3.new(8, 8, 8),
         P.ShieldCyan,
         "FreeGift",
@@ -245,7 +261,7 @@ local function buildHub(folder)
     )
     fixture(
         folder,
-        c + Vector3.new(110, 0, 20),
+        c + Vector3.new(130, 0, 30),
         Vector3.new(10, 10, 10),
         P.Gold,
         "SpinWheel",
@@ -257,7 +273,7 @@ local function buildHub(folder)
     for i, key in ipairs(boards) do
         local pillar = fixture(
             folder,
-            c + Vector3.new(-44 + (i - 1) * 44, 0, -90),
+            c + Vector3.new(-44 + (i - 1) * 44, 0, -110),
             Vector3.new(8, 16, 8),
             P.PlotBase,
             "LeaderboardPillar",
@@ -265,41 +281,24 @@ local function buildHub(folder)
         )
         pillar:SetAttribute("Board", key)
     end
-
-    -- a few decorative props (lamps + crates), capped
-    for i = -1, 1, 2 do
-        part({
-            Size = Vector3.new(2, 14, 2),
-            Position = c + Vector3.new(i * 120, 7, 70),
-            Color = P.Wood,
-            Material = Enum.Material.Wood,
-        }, folder)
-        part({
-            Size = Vector3.new(4, 4, 4),
-            Position = c + Vector3.new(i * 120, 15, 70),
-            Color = P.Gold,
-            Neon = true,
-        }, folder)
-    end
 end
 
--- ── BASE DISTRICT (ground under PlotService's plots + PlotAnchor markers) ────────────────────
+-- ── BASE DISTRICT (central ground slab + PlotAnchor markers on the base RING) ─────────────────
 local function buildDistrict(folder)
     local d = WorldConfig.District
-    local center = (d.Min + d.Max) / 2
-    local size = d.Max - d.Min
     part({
-        Size = Vector3.new(size.X, S.GroundThickness, size.Z),
-        Position = Vector3.new(center.X, -S.GroundThickness / 2, center.Z),
+        Size = Vector3.new(d.GroundSize.X, S.GroundThickness, d.GroundSize.Z),
+        Position = Vector3.new(0, -S.GroundThickness / 2, 0),
         Color = P.Grass,
         Material = Enum.Material.Grass,
     }, folder)
-    -- PlotAnchor markers at each plot center (PlotService positions plots; these are contract markers).
+
+    local ringR = WorldConfig.Radial.PlotRingRadius
     for index = 1, Config.Plots.Count do
-        local anchorPos = Vector3.new((index - 1) * Config.Plots.Spacing, 0.5, d.PlotAnchorZ)
+        local angle = math.rad((index - 1) * (360 / Config.Plots.Count))
         local anchor = part({
             Size = Vector3.new(2, 1, 2),
-            Position = anchorPos,
+            Position = Vector3.new(math.cos(angle) * ringR, 0.5, math.sin(angle) * ringR),
             Transparency = 1,
             CanCollide = false,
         }, folder)
@@ -624,75 +623,76 @@ local function buildBiome(folder, cfg)
     tag(arena, "BossArena")
     arena:SetAttribute("Biome", cfg.Id)
 
-    -- biome name sign at the entrance edge
-    worldSign(folder, c + Vector3.new(-30, 0, cfg.GateInset), string.upper(cfg.Name), cfg.Accent)
+    -- biome name sign on the spoke, just inside the gate (toward the center).
+    local signPos = outwardDir(cfg.Center) * (cfg.Radius - cfg.Size.Z / 2 - 24)
+    worldSign(folder, signPos, string.upper(cfg.Name), cfg.Accent)
 
     biomeProps(folder, cfg)
 end
 
--- ── GATES (physical barriers at each non-starter biome entrance) ────────────────────────────
+-- ── GATES (a center-facing barrier at each non-starter biome's inner edge) ────────────────────
 local function buildGate(folder, cfg)
     if cfg.Open then
-        return -- the starter meadow is open (no barrier)
+        return
     end
-    local entrance = cfg.Center + Vector3.new(0, 0, cfg.GateInset)
+    local dir = outwardDir(cfg.Center)
+    local entrance = dir * (cfg.Radius - cfg.Size.Z / 2)
     local w, h = S.GateWidth, S.WallHeight
-    -- left + right solid wing walls (always block) flanking the gate opening
+    local cf = facingCenter(entrance, h / 2)
+
     local wingW = (cfg.Size.X - w) / 2
     for _, sx in ipairs({ -1, 1 }) do
         part({
             Size = Vector3.new(wingW, h, 4),
-            Position = entrance + Vector3.new(sx * (w / 2 + wingW / 2), h / 2, 0),
+            CFrame = cf * CFrame.new(sx * (w / 2 + wingW / 2), 0, 0),
             Color = P.Dirt,
         }, folder)
     end
-    -- the GATE barrier (M10.2 opens this per-player on unlock)
-    local barrier = part({
-        Size = Vector3.new(w, h, 4),
-        Position = entrance + Vector3.new(0, h / 2, 0),
-        Color = P.RedTrim,
-    }, folder)
+
+    local barrier = part({ Size = Vector3.new(w, h, 4), CFrame = cf, Color = P.RedTrim }, folder)
     barrier.Name = "Gate_" .. cfg.Id
     tag(barrier, "BiomeGate")
-    barrier:SetAttribute("TargetBiome", cfg.Id) -- what Biomes.lua reads
-    barrier:SetAttribute("Biome", cfg.Id) -- the VM6 contract
+    barrier:SetAttribute("TargetBiome", cfg.Id)
+    barrier:SetAttribute("Biome", cfg.Id)
+
     part({
         Size = Vector3.new(w + 4, 2, 5),
-        Position = entrance + Vector3.new(0, h, 0),
+        CFrame = cf * CFrame.new(0, h / 2 + 1, 0),
         Color = P.Gold,
         Neon = true,
     }, folder)
-    -- posts
     for _, sx in ipairs({ -1, 1 }) do
         part({
             Size = Vector3.new(3, h + 4, 3),
-            Position = entrance + Vector3.new(sx * w / 2, (h + 4) / 2, 0),
+            CFrame = cf * CFrame.new(sx * w / 2, 2, 0),
             Color = P.Wood,
             Material = Enum.Material.Wood,
         }, folder)
     end
 end
 
--- ── ROADS (one long flush road down the corridor + a hub connector) ─────────────────────────
+-- ── ROADS (a spoke from the central plaza out to each biome's inner edge) ─────────────────────
 local function buildRoads(folder)
-    local hub = WorldConfig.Hub
-    local firstZ = hub.RoadExitZ
-    local lastBiome = WorldConfig.Biomes[#WorldConfig.Biomes]
-    local lastZ = lastBiome.Center.Z - lastBiome.Size.Z / 2
-    local length = firstZ - lastZ
-    local midZ = (firstZ + lastZ) / 2
-    -- main road (one big flush slab) + two red trim edges
-    part({
-        Size = Vector3.new(S.PathWidth, 0.6, length),
-        Position = Vector3.new(160, 0.1, midZ),
-        Color = P.Sand,
-    }, folder)
-    for _, sx in ipairs({ -1, 1 }) do
-        part({
-            Size = Vector3.new(2, 0.8, length),
-            Position = Vector3.new(160 + sx * (S.PathWidth / 2 + 1), 0.2, midZ),
-            Color = P.RedTrim,
-        }, folder)
+    local hubR = WorldConfig.Radial.HubRadius
+    for _, cfg in ipairs(WorldConfig.Biomes) do
+        local dir = outwardDir(cfg.Center)
+        local innerDist = cfg.Radius - cfg.Size.Z / 2
+        local length = innerDist - hubR
+        if length > 0 then
+            local mid = dir * (hubR + length / 2)
+            local cf = facingCenter(mid, 0.1)
+            part(
+                { Size = Vector3.new(S.PathWidth + 8, 0.6, length), CFrame = cf, Color = P.Sand },
+                folder
+            )
+            for _, sx in ipairs({ -1, 1 }) do
+                part({
+                    Size = Vector3.new(2, 0.8, length),
+                    CFrame = cf * CFrame.new(sx * (S.PathWidth / 2 + 5), 0.1, 0),
+                    Color = P.RedTrim,
+                }, folder)
+            end
+        end
     end
 end
 
