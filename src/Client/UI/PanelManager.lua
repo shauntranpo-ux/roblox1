@@ -4,26 +4,25 @@
 --
 -- HOW IT ENFORCES THAT: each panel is still a ScreenGui that flips its own `.Enabled` (its existing
 -- open/refresh/close logic is untouched). The manager OBSERVES every registered panel's `.Enabled`
--- and reacts: the instant one becomes enabled it disables whatever else was open, raises a single
--- shared scrim, and animates the panel in; when the open one disables, it drops the scrim. So even
--- a panel that opens itself (Trade auto-opening on an incoming request) is coordinated -- two panels
--- can never coexist, and there is only ever one close (X).
+-- and reacts: the instant one becomes enabled it disables whatever else was open and animates the
+-- panel in. So even a panel that opens itself (Trade auto-opening on an incoming request) is
+-- coordinated -- two panels can never coexist, and there is only ever one close (X).
 --
--- toggle(name) is what the HUD/Menu nav buttons call: open it if closed, close it if it's the open
--- one. The scrim (tap-off) and the Escape key both close the open panel. Rapid toggles are debounced
--- and in-flight open tweens are cancelled so spamming can't leave a panel half-open.
+-- NO BACKDROP: opening a panel does NOT dim the world or block input -- you can still drag the
+-- camera and move your character with a panel open, and tapping off a panel does NOT close it.
+-- Close via the panel's X, tapping its nav button again, or Escape. toggle(name) is what the
+-- HUD/Menu nav buttons call: open if closed, close if it's the open one. Rapid toggles are
+-- debounced and in-flight open tweens are cancelled so spamming can't leave a panel half-open.
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 
-local Builder = require(script.Parent.Builder)
 local UIStyle = require(script.Parent.UIStyle)
 
 local PanelManager = {}
 
-local SCRIM_ORDER = 5 -- scrim sits below panels (and below the HUD, which is raised above it)
-local PANEL_ORDER = 10 -- every primary panel renders above the scrim
+local PANEL_ORDER = 10 -- every primary panel renders above the HUD
 local DEBOUNCE = 0.12 -- s between accepted toggles
 local OPEN_TIME = 0.2 -- s open animation
 
@@ -31,8 +30,6 @@ local panels = {} -- [name] = { gui, toggle, frame }
 local listeners = {} -- active-panel-change subscribers (e.g. HUD highlight)
 local current = nil -- name of the open panel, or nil
 local lastToggle = 0
-local scrimGui = nil
-local scrim = nil
 local openTween = nil
 
 local function notify(activeName)
@@ -44,30 +41,6 @@ end
 -- Subscribe to "which panel is open" changes (passed the panel name, or nil when nothing is open).
 function PanelManager.onChange(fn)
     table.insert(listeners, fn)
-end
-
-local function showScrim()
-    if scrimGui == nil then
-        return
-    end
-    scrimGui.Enabled = true
-    scrim.BackgroundTransparency = 1
-    TweenService:Create(scrim, TweenInfo.new(0.18), {
-        BackgroundTransparency = UIStyle.ScrimTransparency,
-    }):Play()
-end
-
-local function hideScrim()
-    if scrimGui == nil then
-        return
-    end
-    local tween = TweenService:Create(scrim, TweenInfo.new(0.14), { BackgroundTransparency = 1 })
-    tween:Play()
-    tween.Completed:Once(function()
-        if current == nil and scrimGui ~= nil then
-            scrimGui.Enabled = false
-        end
-    end)
 end
 
 -- Quick scale 0.85 -> 1.0 pop (Back/Out) on the panel's main frame.
@@ -103,17 +76,15 @@ local function onEnabledChanged(name)
             return
         end
         local prev = current
-        current = name -- set first so the prev's own change handler no-ops (won't drop the scrim)
+        current = name -- set first so the prev's own change handler no-ops
         if prev ~= nil and panels[prev] ~= nil and panels[prev].gui.Enabled then
             panels[prev].gui.Enabled = false
         end
-        showScrim()
         animateIn(entry.frame)
         notify(name)
     else
         if current == name then
             current = nil
-            hideScrim()
             notify(nil)
         end
     end
@@ -182,21 +153,10 @@ function PanelManager.register(name, toggleFn)
     end
 end
 
-function PanelManager.init(context)
-    local playerGui = context.player:WaitForChild("PlayerGui")
-
-    scrimGui = Builder.screenGui("PanelScrim", playerGui, false)
-    scrimGui.DisplayOrder = SCRIM_ORDER
-
-    scrim = Instance.new("TextButton")
-    scrim.Name = "Scrim"
-    scrim.Size = UDim2.fromScale(1, 1)
-    scrim.Position = UDim2.fromScale(0, 0)
-    UIStyle.styleScrim(scrim)
-    scrim.Parent = scrimGui
-    scrim.Activated:Connect(PanelManager.close)
-
-    -- Escape (or the console/back equivalent) closes the open panel.
+-- No backdrop is created: an open panel never dims the world or blocks input, so the camera and
+-- character stay fully controllable and tapping off a panel does not close it.
+function PanelManager.init(_context)
+    -- Escape (PC/console) closes the open panel -- a deliberate key press, not a stray tap.
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then
             return

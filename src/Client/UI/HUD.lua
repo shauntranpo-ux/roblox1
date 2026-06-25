@@ -61,7 +61,7 @@ end
 function HUD.mount(context, actions)
     player = context.player
     local gui = Builder.screenGui("HUD", player:WaitForChild("PlayerGui"), true)
-    gui.DisplayOrder = 7 -- above the panel scrim (5), below the panels (10) -- cash stays readable
+    gui.DisplayOrder = 7 -- below the panels (10) so an open panel layers above the HUD cash pill
 
     -- Top-center cash pill.
     pill = Builder.create("Frame", {

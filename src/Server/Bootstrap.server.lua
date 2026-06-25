@@ -36,6 +36,8 @@ local SeasonRewardService = require(script.Parent.SeasonRewardService)
 -- VM0: boot/join health check + the dev-only sacred-invariant validator.
 local Diagnostics = require(script.Parent.Diagnostics)
 local InvariantValidator = require(script.Parent.InvariantValidator)
+-- Admin/troubleshooting: in-chat commands (allowlisted) + Studio command-bar API.
+local DevCommands = require(script.Parent.DevCommands)
 
 print("[BRAINROT] starting up...")
 
@@ -79,6 +81,8 @@ start("EventService", EventService.Init)
 -- M8.5: competitive seasons + pull-based end-of-season reward claims.
 start("SeasonService", SeasonService.Init)
 start("SeasonRewardService", SeasonRewardService.Init)
+-- Admin: register the allowlisted in-chat commands (hidden from chat).
+start("DevCommands", DevCommands.Init)
 
 -- VM0: print the boot health report (services started/failed, remote surface, REAL vs MOCK stores,
 -- SIM flag) and arm the dev-only invariant validator.
