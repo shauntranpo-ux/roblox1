@@ -340,6 +340,7 @@ local function buildToolbar()
         sortMode,
         function(v)
             sortMode = v
+            rebuildView()
             render()
         end
     )
@@ -355,6 +356,7 @@ local function buildToolbar()
         filterMode,
         function(v)
             filterMode = v
+            rebuildView()
             render()
         end
     )
