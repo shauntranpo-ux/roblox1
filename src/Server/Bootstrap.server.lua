@@ -4,6 +4,9 @@
 -- folder before clients connect.
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local GameInfo = require(ReplicatedStorage.Shared.GameInfo)
 
 local ProfileManager = require(script.Parent.ProfileManager)
 local Remotes = require(script.Parent.Remotes)
@@ -22,8 +25,10 @@ local LeaderboardBillboards = require(script.Parent.LeaderboardBillboards)
 local SettingsService = require(script.Parent.SettingsService)
 local TutorialService = require(script.Parent.TutorialService)
 local RateLimiter = require(script.Parent.RateLimiter)
+local CodesService = require(script.Parent.CodesService)
+local Analytics = require(script.Parent.Analytics)
 
-print("[BRAINROT] M6 starting -- hardening, onboarding, juice, balance + performance")
+print("[BRAINROT] M7 starting -- codes + analytics + launch hardening")
 
 -- Data layer, network surface, world, defense, income loop, then the client-facing handlers.
 ProfileManager.Init()
@@ -41,6 +46,8 @@ LeaderboardBillboards.Init()
 -- M6: client-preference persistence + the one-time onboarding handshake.
 SettingsService.Init()
 TutorialService.Init()
+-- M7: redeemable codes (binds RedeemCode + starts the boost-expiry sweep).
+CodesService.Init()
 
 local handled = {} -- [Player] = true, guards against double-joins (Studio Play Solo)
 
@@ -69,12 +76,21 @@ local function onPlayerAdded(player)
         return
     end
 
+    -- M7 analytics: session start + the onboarding funnel's first step (new players only).
+    Analytics.custom(player, Analytics.Events.SessionStart)
+    if not profile.Data.TutorialDone then
+        Analytics.funnelStepOnce(player, Analytics.Funnel.Spawn)
+    end
+
     -- 3) Cash readout + brainrot visuals (grants the starter for brand-new players),
     --    then publish the replicated HUD attributes (after the starter is granted so
     --    the initial IncomePerSec is correct).
     Leaderstats.Setup(player, profile)
     BrainrotService.SetupPlayer(player, profile, plot)
     PlayerStats.Setup(player, profile)
+    if not profile.Data.TutorialDone then
+        Analytics.funnelStepOnce(player, Analytics.Funnel.SawStarter)
+    end
 
     -- New-player grace: protect the base on spawn (raises the dome + disables the steal
     -- prompts on their units until the grace window expires).
@@ -85,6 +101,14 @@ local function onPlayerAdded(player)
     -- correct. Benefit application is idempotent (safe on every join).
     MonetizationService.SetupPlayer(player, profile)
     LeaderboardService.UpdatePlayer(player)
+
+    -- M7: re-apply a still-valid timed code boost (or clean up an expired one), then show the
+    -- "What's New" card once per version bump (drives return visits + announces new codes).
+    CodesService.SetupPlayer(player, profile)
+    if profile.Data.LastSeenVersion ~= GameInfo.Version then
+        profile.Data.LastSeenVersion = GameInfo.Version
+        Remotes.FireWhatsNew(player)
+    end
 
     -- 4) Place the character on the base now and on every respawn.
     player.CharacterAdded:Connect(function()
@@ -104,6 +128,10 @@ local function onPlayerRemoving(player)
     -- then writes off-thread) -- must precede MonetizationService.ClearPlayer, which drops the
     -- income multiplier this read depends on, and ProfileManager.ReleaseProfile.
     LeaderboardService.OnPlayerRemoving(player)
+    -- M7: flush this player's aggregated income as a final economy-source event while the
+    -- profile is still loaded, then drop their analytics session guards.
+    IncomeService.FlushAnalytics(player)
+    Analytics.clearPlayer(player)
     ProtectionService.ClearPlayer(player)
     MonetizationService.ClearPlayer(player)
     BrainrotService.ClearPlayer(player)

@@ -1,0 +1,137 @@
+-- Analytics: a thin, FAIL-SAFE wrapper over Roblox's AnalyticsService so post-launch I can see
+-- retention, the new-player funnel, and economy health. EVERY call is pcall-wrapped, so analytics
+-- can NEVER affect gameplay (a bad arg / throttle / API change is swallowed). All event names,
+-- funnel steps, currency, and transaction types live in ONE constants block below.
+--
+-- API SIGNATURES (verify on the Creator docs; they evolve -- everything here is pcall-guarded):
+--   AnalyticsService:LogEconomyEvent(player, flowType: Enum.AnalyticsEconomyFlowType,
+--       currencyType: string, amount: number, endingBalance: number, transactionType: string,
+--       itemSku: string?)
+--   AnalyticsService:LogOnboardingFunnelStepEvent(player, step: number, stepName: string?)
+--   AnalyticsService:LogCustomEvent(player, eventName: string, value: number?)
+-- Transaction-type strings below mirror Enum.AnalyticsEconomyTransactionType item names; we pass
+-- the string (defensive against enum-item drift). flowType uses the enum directly.
+
+local AnalyticsService = game:GetService("AnalyticsService")
+
+local Analytics = {}
+
+-- ===== ONE constants block =================================================================
+Analytics.Currency = "Cash"
+
+Analytics.Tx = { -- economy transaction-type strings (Enum.AnalyticsEconomyTransactionType names)
+    Gameplay = "Gameplay", -- passive income
+    Shop = "Shop", -- cash purchases (sink)
+    IAP = "IAP", -- Robux dev-product grants
+    TimedReward = "TimedReward", -- code rewards / boosts
+}
+
+Analytics.Events = { -- custom (retention/engagement) event names
+    SessionStart = "session_start",
+    FirstSteal = "first_steal",
+    FirstRobbed = "first_robbed",
+    TierUp = "tier_up", -- first Legendary+ owned
+    GamepassPurchased = "gamepass_purchased",
+    CodeRedeemed = "code_redeemed",
+}
+
+Analytics.Funnel = { -- new-player onboarding funnel steps { stepNumber, stepName }
+    Spawn = { 1, "spawn" },
+    SawStarter = { 2, "saw_starter" },
+    FirstPurchase = { 3, "first_purchase" },
+    Hooked = { 4, "hooked" }, -- owns 3+ brainrots
+}
+-- ===========================================================================================
+
+-- Per-player session guards so "once" events (funnel steps, firsts) fire at most once per session.
+local fired = {} -- [Player] = { [key] = true }
+
+local function once(player, key)
+    local perPlayer = fired[player]
+    if perPlayer == nil then
+        perPlayer = {}
+        fired[player] = perPlayer
+    end
+    if perPlayer[key] then
+        return false
+    end
+    perPlayer[key] = true
+    return true
+end
+
+local function safeNumber(n)
+    n = tonumber(n) or 0
+    if n ~= n or n == math.huge or n == -math.huge then
+        return 0
+    end
+    return math.floor(n)
+end
+
+-- Economy SOURCE (faucet): income, code/IAP grants. Skipped for non-positive amounts.
+function Analytics.economySource(player, amount, endingBalance, transactionType, itemSku)
+    amount = safeNumber(amount)
+    if amount <= 0 then
+        return
+    end
+    pcall(function()
+        AnalyticsService:LogEconomyEvent(
+            player,
+            Enum.AnalyticsEconomyFlowType.Source,
+            Analytics.Currency,
+            amount,
+            safeNumber(endingBalance),
+            transactionType,
+            itemSku
+        )
+    end)
+end
+
+-- Economy SINK (drain): cash purchases.
+function Analytics.economySink(player, amount, endingBalance, transactionType, itemSku)
+    amount = safeNumber(amount)
+    if amount <= 0 then
+        return
+    end
+    pcall(function()
+        AnalyticsService:LogEconomyEvent(
+            player,
+            Enum.AnalyticsEconomyFlowType.Sink,
+            Analytics.Currency,
+            amount,
+            safeNumber(endingBalance),
+            transactionType,
+            itemSku
+        )
+    end)
+end
+
+-- New-player onboarding funnel step (fires at most once per session per step).
+function Analytics.funnelStepOnce(player, stepPair)
+    if not once(player, "funnel_" .. stepPair[2]) then
+        return
+    end
+    pcall(function()
+        AnalyticsService:LogOnboardingFunnelStepEvent(player, stepPair[1], stepPair[2])
+    end)
+end
+
+-- Custom event (every call).
+function Analytics.custom(player, eventName, value)
+    pcall(function()
+        AnalyticsService:LogCustomEvent(player, eventName, value)
+    end)
+end
+
+-- Custom event, at most once per session (for "first X" milestones).
+function Analytics.customOnce(player, eventName, value)
+    if not once(player, "custom_" .. eventName) then
+        return
+    end
+    Analytics.custom(player, eventName, value)
+end
+
+function Analytics.clearPlayer(player)
+    fired[player] = nil
+end
+
+return Analytics

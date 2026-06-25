@@ -37,6 +37,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local DevConfig = require(script.Parent.DevConfig)
 local Benefits = require(script.Parent.Benefits)
 local RateLimiter = require(script.Parent.RateLimiter)
+local Analytics = require(script.Parent.Analytics)
 local ProfileManager = require(script.Parent.ProfileManager)
 local PlotService = require(script.Parent.PlotService)
 local ProtectionService = require(script.Parent.ProtectionService)
@@ -260,6 +261,16 @@ local function applyReceiptCore(player, profile, def, purchaseId)
     PlayerStats.UpdateIncome(player, profile)
     Leaderstats.Update(player, profile)
     Remotes.NotifyPlayer(player, "success", "Purchase complete: " .. def.Name)
+    -- Analytics: Robux-driven cash grants as an economy SOURCE (IAP).
+    if def.Grant.Type == "Cash" then
+        Analytics.economySource(
+            player,
+            def.Grant.Amount,
+            profile.Data.Cash,
+            Analytics.Tx.IAP,
+            "product:" .. def.Name
+        )
+    end
     return Enum.ProductPurchaseDecision.PurchaseGranted
 end
 
@@ -368,6 +379,7 @@ local function onPromptGamepassFinished(player, gamePassId, wasPurchased)
     applyBenefit(player, entry.Key, entry.Def.Benefit) -- idempotent
     Remotes.PushMonetizationUpdate(player, entry.Key, true)
     Remotes.NotifyPlayer(player, "success", "Unlocked " .. entry.Def.Name .. "!")
+    Analytics.custom(player, Analytics.Events.GamepassPurchased, gamePassId)
 end
 
 -- ===========================================================================================

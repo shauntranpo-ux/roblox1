@@ -2,7 +2,7 @@
 
 Multiplayer Roblox idle/theft game. Players collect meme creatures ("brainrot") that generate passive cash, unlock rarer ones, and steal each other's units.
 
-Built in milestones. Current: **M6 — hardening, onboarding, juice, balance & performance**. A full adversarial security audit (every remote's trust boundary documented + enforced; ONE guarded cash accessor; steal + receipt paths re-proven dupe/double-grant-proof; rate limiting on every client remote), a wordless first-session tutorial, a lightweight pooled juice layer (particles / camera shake / sound + a settings panel), a fast-early balance pass, and a scale pass (cached income loop, distance-capped labels, janitor cleanup, `BindToClose` flush). No new systems — hardening + feel only. (M5: monetization + leaderboards. M4: dupe-proof steal mechanic + timer defense. M3: rarity roster + scaling economy. M2: mobile HUD + secure purchase. M1: income loop + ProfileStore. M0: toolchain.) Everything economic and every ownership change is server-authoritative — the client only requests intent; the server validates and mutates.
+Built in milestones. Current: **M7 — launch readiness: codes + analytics + final hardening**. A server-authoritative, idempotent, data-driven **codes** system (cash / timed-boost / brainrot rewards through the existing guarded paths; crash-safe grant+record; rate-limited; opt-in cross-server limits), **AnalyticsService** telemetry (economy source/sink, onboarding funnel, retention events — all pcall-wrapped, names in one constants block), a **What's New** once-per-version hook, and `/docs/launch` launch-prep documents. The codes config is **server-only** (never replicated) so codes can't be dumped by clients. (Prior: M6 hardening/onboarding/juice/balance/perf · M5 monetization + leaderboards · M4 dupe-proof steal + defense · M3 rarity roster + economy · M2 mobile HUD + secure purchase · M1 income loop + ProfileStore · M0 toolchain.) Everything economic and every ownership change is server-authoritative — the client only requests intent; the server validates and mutates.
 
 ## Stack
 
@@ -240,6 +240,37 @@ buys land every ~20–25s — the loop hooks in the first minute; pacing documen
 file); starting pads in `Shared/Config` (`DefaultUnlockedPads`); steal feel in `Shared/StealConfig`
 (hold, grace/post-robbery windows, cooldown, immunity, carry timeout/range/penalty — intent
 documented inline). No balance number is hardcoded in logic.
+
+### Codes, analytics & launch (M7)
+
+**Codes** (`src/Server/CodesService.lua` + `src/Server/CodesConfig.lua`) — redeem a string for a
+reward. **Server-only config** (codes are never replicated, so they can't be dumped). The client
+sends only the typed string to the `RedeemCode` RemoteFunction; the server trims + upper-normalizes
+it, validates (exists / active / not expired / not already redeemed), then **grants + records the
+code in `RedeemedCodes` in the SAME mutation** (crash-safe: never grant-without-record). Reward
+types reuse existing guarded paths: **Cash** (`AddCash`), a **timed Boost** (an income-multiplier
+source persisted by expiry + re-applied on join + swept clean), and a **Brainrot** (placed on a free
+pad, refused-not-recorded if full). Rate-limited per player (anti-brute-force); opt-in `MaxGlobalUses`
+via a pcall+backoff DataStore counter (falls back to per-player-once on Studio mock). Retune in
+`CodesConfig.lua`. There's a HUD **🎁 Codes** panel.
+
+**Analytics** (`src/Server/Analytics.lua`) — a fail-safe wrapper over Roblox `AnalyticsService`;
+**every call is pcall-wrapped** so it can never affect gameplay. One constants block holds event
+names, the onboarding funnel steps, currency, and transaction types. Logs economy **source/sink**
+(income aggregated + flushed on a 60s cadence — never per-frame; purchases; IAP; code rewards), the
+**onboarding funnel** (`spawn → saw_starter → first_purchase → hooked`), and **retention** customs
+(session start, first steal/robbed, tier-up, gamepass, code). *The exact `AnalyticsService`
+signatures evolve; the ones used match the documented API and are guarded.*
+
+**What's New** — `Shared/GameInfo` holds the version + changelog; the server shows the card once per
+version bump (saved `LastSeenVersion`). Bump the version each update to re-announce new codes.
+
+**Launch self-audit:** codes can't double-redeem (persisted `RedeemedCodes`, atomic grant+record)
+or dupe/lose (reuse guarded paths; no-pad brainrot is refused-not-recorded); the timed boost is a
+keyed multiplier source (no double-stack, swept clean on expiry); analytics is non-blocking; the SIM
+flag stays Studio-gated; `BindToClose` flushes profiles + boards; reconciliation adds `RedeemedCodes`
+/ boost / `LastSeenVersion` to old saves. `/docs/launch` holds the publish checklist, store-page kit,
+art brief, marketing playbook, and LiveOps plan — guidance for the human launch steps.
 
 ### Data saving (ProfileStore)
 

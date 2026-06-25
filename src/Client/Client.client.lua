@@ -15,6 +15,8 @@ local KillFeed = require(UI.KillFeed)
 local Effects = require(UI.Effects)
 local Settings = require(UI.Settings)
 local Tutorial = require(UI.Tutorial)
+local Codes = require(UI.Codes)
+local Announce = require(UI.Announce)
 
 local player = Players.LocalPlayer
 
@@ -32,6 +34,8 @@ local remotes = {
     Tutorial = remotesFolder:WaitForChild("Tutorial"),
     GetSettings = remotesFolder:WaitForChild("GetSettings"),
     SaveSettings = remotesFolder:WaitForChild("SaveSettings"),
+    RedeemCode = remotesFolder:WaitForChild("RedeemCode"),
+    WhatsNew = remotesFolder:WaitForChild("WhatsNew"),
 }
 
 local context = { player = player, remotes = remotes }
@@ -66,10 +70,17 @@ end)
 safeMount("Tutorial", function()
     Tutorial.mount(context)
 end)
+safeMount("Codes", function()
+    Codes.mount(context)
+end)
+safeMount("Announce", function()
+    Announce.mount(context)
+end)
 safeMount("HUD", function()
     HUD.mount(context, {
         onShop = Shop.toggle,
         onInventory = Inventory.toggle,
+        onCodes = Codes.toggle,
         onSettings = Settings.toggle,
     })
 end)
@@ -132,6 +143,11 @@ remotes.KillFeed.OnClientEvent:Connect(function(payload)
     if typeof(payload) == "table" and payload.Thief == player.Name then
         Effects.playSfx("steal")
     end
+end)
+
+-- Server -> client: show the "What's New" card once per version bump (drives return visits).
+remotes.WhatsNew.OnClientEvent:Connect(function()
+    Announce.showWhatsNew()
 end)
 
 -- Juice: celebrate cash milestones (1K, 10K, 100K, ...) as the player crosses each.

@@ -32,6 +32,7 @@ local PlayerStats = require(script.Parent.PlayerStats)
 local Remotes = require(script.Parent.Remotes)
 local TransitRegistry = require(script.Parent.TransitRegistry)
 local Benefits = require(script.Parent.Benefits)
+local Analytics = require(script.Parent.Analytics)
 
 local StealService = {}
 
@@ -170,6 +171,7 @@ function deposit(steal)
     ProtectionService.GrantPostRobbery(steal.Victim)
 
     Remotes.NotifyPlayer(steal.Thief, "success", "Deposited your steal!", "deposit")
+    Analytics.customOnce(steal.Thief, Analytics.Events.FirstSteal)
 end
 
 -- REVERT (IN_TRANSIT -> ON_PAD on the victim's ORIGINAL pad). A no-op on ownership: the unit
@@ -319,6 +321,7 @@ local function onPromptTriggered(prompt, thief)
         Name = def.DisplayName,
         Rarity = def.Rarity,
     })
+    Analytics.customOnce(victim, Analytics.Events.FirstRobbed)
 end
 
 -- Reverts a carry if the thief's character dies or is removed (covers death mid-carry and a

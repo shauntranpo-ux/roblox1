@@ -14,12 +14,28 @@ local ProfileManager = require(script.Parent.ProfileManager)
 local Leaderstats = require(script.Parent.Leaderstats)
 local PlayerStats = require(script.Parent.PlayerStats)
 local Benefits = require(script.Parent.Benefits)
+local Analytics = require(script.Parent.Analytics)
 
 local IncomeService = {}
 
 local PUSH_INTERVAL = 0.1 -- seconds between display refreshes (~10 Hz)
+local ANALYTICS_FLUSH = 60 -- seconds between aggregated income economy-source logs (NOT per frame)
 local connection = nil
 local pushAccum = 0
+local flushAccum = 0
+local earned = {} -- [Player] = cash earned since the last analytics flush (aggregated, not logged per frame)
+
+-- Logs (and resets) a player's accumulated income as one economy SOURCE event. Called on the
+-- throttled flush tick and on leave, so analytics stays well under per-call frequency limits.
+function IncomeService.FlushAnalytics(player)
+    local amount = earned[player]
+    if amount ~= nil and amount > 0 then
+        local profile = ProfileManager.GetProfile(player)
+        local balance = profile ~= nil and profile.Data.Cash or amount
+        Analytics.economySource(player, amount, balance, Analytics.Tx.Gameplay)
+    end
+    earned[player] = nil
+end
 
 function IncomeService.Start()
     if connection ~= nil then
@@ -33,6 +49,12 @@ function IncomeService.Start()
             pushAccum = 0
         end
 
+        flushAccum += deltaTime
+        local flushNow = flushAccum >= ANALYTICS_FLUSH
+        if flushNow then
+            flushAccum = 0
+        end
+
         for _, player in ipairs(Players:GetPlayers()) do
             local profile = ProfileManager.GetProfile(player)
             if profile ~= nil then
@@ -42,11 +64,16 @@ function IncomeService.Start()
                 -- the single guarded accessor -> never negative, never NaN/inf.
                 local rate = PlayerStats.GetBaseRate(player) * Benefits.GetIncomeMultiplier(player)
                 if rate > 0 then
-                    ProfileManager.AddCash(player, rate * deltaTime)
+                    local gained = rate * deltaTime
+                    ProfileManager.AddCash(player, gained)
+                    earned[player] = (earned[player] or 0) + gained -- aggregate for analytics
                 end
                 if pushNow then
                     Leaderstats.Update(player, profile)
                     PlayerStats.PushCash(player, profile)
+                end
+                if flushNow then
+                    IncomeService.FlushAnalytics(player)
                 end
             end
         end

@@ -7,8 +7,10 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Catalog = require(ReplicatedStorage.Shared.Catalog)
+local Rarity = require(ReplicatedStorage.Shared.Rarity)
 
 local Remotes = require(script.Parent.Remotes)
+local Analytics = require(script.Parent.Analytics)
 local ProfileManager = require(script.Parent.ProfileManager)
 local PlotService = require(script.Parent.PlotService)
 local BrainrotService = require(script.Parent.BrainrotService)
@@ -95,6 +97,17 @@ local function onPurchase(player, itemId)
     Leaderstats.Update(player, profile)
 
     Remotes.NotifyPlayer(player, "success", "Bought " .. item.DisplayName .. "!", "buy")
+
+    -- Analytics (pcall-wrapped inside; can't affect gameplay): cash SINK, onboarding funnel
+    -- (first purchase, then "hooked" at 3+ units), and a first-Legendary+ tier-up milestone.
+    Analytics.economySink(player, item.Price, profile.Data.Cash, Analytics.Tx.Shop, item.Id)
+    Analytics.funnelStepOnce(player, Analytics.Funnel.FirstPurchase)
+    if #profile.Data.OwnedBrainrots >= 3 then
+        Analytics.funnelStepOnce(player, Analytics.Funnel.Hooked)
+    end
+    if Rarity.Get(item.Rarity).Order >= 4 then
+        Analytics.customOnce(player, Analytics.Events.TierUp, Rarity.Get(item.Rarity).Order)
+    end
 end
 
 function PurchaseService.Init()

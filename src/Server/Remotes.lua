@@ -21,6 +21,9 @@ Remotes.MonetizationUpdate = nil -- RemoteEvent  : server -> client, a gamepass 
 Remotes.Tutorial = nil -- RemoteEvent  : server -> client "start"; client -> server "done"|"skip"
 Remotes.GetSettings = nil -- RemoteFunction : client -> server, returns the saved { Music, SFX, Shake }
 Remotes.SaveSettings = nil -- RemoteEvent  : client -> server, saves validated boolean prefs
+-- M7 codes + what's-new. Client sends ONLY the typed code string; server validates + grants.
+Remotes.RedeemCode = nil -- RemoteFunction : client -> server (code string) -> { Result, Message }
+Remotes.WhatsNew = nil -- RemoteEvent  : server -> client, show the changelog once per version
 
 local folder = nil
 
@@ -76,6 +79,14 @@ function Remotes.Init()
     saveSettings.Name = "SaveSettings"
     saveSettings.Parent = folder
 
+    local redeemCode = Instance.new("RemoteFunction")
+    redeemCode.Name = "RedeemCode"
+    redeemCode.Parent = folder
+
+    local whatsNew = Instance.new("RemoteEvent")
+    whatsNew.Name = "WhatsNew"
+    whatsNew.Parent = folder
+
     folder.Parent = ReplicatedStorage
 
     Remotes.PurchaseRequest = purchase
@@ -89,6 +100,8 @@ function Remotes.Init()
     Remotes.Tutorial = tutorial
     Remotes.GetSettings = getSettings
     Remotes.SaveSettings = saveSettings
+    Remotes.RedeemCode = redeemCode
+    Remotes.WhatsNew = whatsNew
 end
 
 -- Sends a toast to a single player. kind = "success" | "error" | "info". Optional `cue` is a
@@ -104,6 +117,13 @@ end
 function Remotes.StartTutorial(player)
     if Remotes.Tutorial ~= nil then
         Remotes.Tutorial:FireClient(player, "start")
+    end
+end
+
+-- Tells one client to show the "What's New" card (server decides, once per version bump).
+function Remotes.FireWhatsNew(player)
+    if Remotes.WhatsNew ~= nil then
+        Remotes.WhatsNew:FireClient(player)
     end
 end
 

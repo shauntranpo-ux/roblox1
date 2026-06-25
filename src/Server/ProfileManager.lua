@@ -38,6 +38,16 @@ local PROFILE_TEMPLATE = {
     TutorialDone = false,
     -- M6: persisted client preferences (booleans only; SettingsService validates the shape).
     Settings = { Music = false, SFX = true, Shake = true },
+    -- M7: set of NORMALIZED (trimmed+UPPER) code strings this player has redeemed (code -> true).
+    -- A code's grant and its entry here are written in the SAME mutation, so a code grants
+    -- EXACTLY once even across crashes/restarts/servers. Reconciles onto old saves as empty.
+    RedeemedCodes = {},
+    -- M7: a timed income BOOST from a code -- a multiplier active until an expiry timestamp.
+    -- Re-applied on join only if still valid, expired cleanly server-side, never double-applied.
+    BoostMultiplier = 1,
+    BoostExpiry = 0, -- os.time() the boost ends (0 = none)
+    -- M7: last GameInfo.Version this player saw the "What's New" card for (drives show-once).
+    LastSeenVersion = "",
 }
 
 local Profiles = {} -- [Player] = Profile
