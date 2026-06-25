@@ -23,11 +23,11 @@
 -- thief, each atomic + dupe-proof, and a thief's loss reverts ALL of them dupe-safely.
 
 local Players = game:GetService("Players")
-local ProximityPromptService = game:GetService("ProximityPromptService")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local StealConfig = require(ReplicatedStorage.Shared.StealConfig)
+local TapConfig = require(ReplicatedStorage.Shared.TapConfig) -- tap-to-progress: taps-to-steal
 local Catalog = require(ReplicatedStorage.Shared.Catalog)
 local Rarity = require(ReplicatedStorage.Shared.Rarity)
 local MutationConfig = require(ReplicatedStorage.Shared.MutationConfig)
@@ -266,19 +266,11 @@ local function applyStun(thief, victim, victimPlot)
     end)
 end
 
--- INITIATE (ON_PAD -> IN_TRANSIT). Fires on the SERVER when a "Hold to steal" prompt
--- completes, so completion is inherently server-authoritative. ALL preconditions are
--- re-checked here; if any fails, nothing changes and the thief gets a clear toast.
-local function onPromptTriggered(prompt, thief)
-    if prompt.Name ~= "StealPrompt" then
-        return
-    end
-    local brainrotId = prompt:GetAttribute("BrainrotId")
-    local ownerUserId = prompt:GetAttribute("OwnerUserId")
-    if brainrotId == nil or ownerUserId == nil then
-        return
-    end
-
+-- INITIATE (ON_PAD -> IN_TRANSIT). TAP-TO-PROGRESS: called by TapComplete when the steal meter fills,
+-- so completion stays fully server-authoritative. ALL preconditions are re-checked here; if any fails,
+-- nothing changes and the thief gets a clear toast. (The dupe-proof ON_PAD->IN_TRANSIT machine below is
+-- UNCHANGED -- the rework only changed how the meter fills, hold -> tap.)
+local function initiateSteal(thief, brainrotId, ownerUserId)
     -- DOUBLE-STEAL RACE: if already in transit, the second trigger loses. Checked before any
     -- yield, and nothing below yields before we write ActiveSteals -> race-proof.
     if ActiveSteals[brainrotId] ~= nil then
@@ -447,6 +439,63 @@ local function onPromptTriggered(prompt, thief)
     Analytics.customOnce(victim, Analytics.Events.FirstRobbed)
 end
 
+-- Finds the in-server owner + on-pad entry of a unit by id (the StealPrompt no longer carries the owner
+-- through to completion, so the server resolves it from live data). Returns (victim, entry) or nil.
+local function findOwnerOf(brainrotId)
+    for player, profile in pairs(ProfileManager.GetAllProfiles()) do
+        local entry = findEntry(profile, brainrotId)
+        if entry ~= nil then
+            return player, entry
+        end
+    end
+    return nil, nil
+end
+
+-- TAP-TO-PROGRESS: is this steal interaction valid right now? Returns (ok, tapsNeeded). Cheap re-checks
+-- (not in transit, not locked, victim present + unprotected, thief in range of the unit's pad); the FULL
+-- re-validation + the dupe-proof COMMIT happen in initiateSteal at completion.
+function StealService.TapValidate(thief, brainrotId)
+    if type(brainrotId) ~= "string" then
+        return false, TapConfig.StealTaps
+    end
+    if ActiveSteals[brainrotId] ~= nil then
+        return false, TapConfig.StealTaps -- already mid-steal
+    end
+    if TradeLockRegistry.Has(brainrotId) or DeployLockRegistry.Has(brainrotId) then
+        return false, TapConfig.StealTaps -- locked in a trade / equipped
+    end
+    local victim, entry = findOwnerOf(brainrotId)
+    if victim == nil or victim == thief then
+        return false, TapConfig.StealTaps
+    end
+    if ProtectionService.IsProtected(victim) then
+        return false, TapConfig.StealTaps
+    end
+    -- SERVER distance check (the native prompt range no longer gates completion): thief near the unit's pad.
+    local character = thief.Character
+    local hrp = character and character:FindFirstChild("HumanoidRootPart")
+    local pad = PlotService.GetPad(victim, entry.PadIndex)
+    if hrp == nil or pad == nil then
+        return false, TapConfig.StealTaps
+    end
+    if (hrp.Position - pad.Position).Magnitude > StealConfig.PromptMaxDistance then
+        return false, TapConfig.StealTaps -- moved out of range -> reset the fill
+    end
+    return true, TapConfig.StealTaps
+end
+
+-- TAP-TO-PROGRESS completion: the steal meter filled -> run the EXISTING initiate (full re-validation +
+-- the dupe-proof ON_PAD->IN_TRANSIT pickup, exactly once via the ActiveSteals guard). Returns true if the
+-- pickup committed.
+function StealService.TapComplete(thief, brainrotId)
+    local victim = findOwnerOf(brainrotId)
+    if victim == nil then
+        return false
+    end
+    initiateSteal(thief, brainrotId, victim.UserId)
+    return ActiveSteals[brainrotId] ~= nil
+end
+
 -- Reverts ALL of a thief's carries if their character dies or is removed (covers death mid-carry
 -- and a character removed without Died firing). Each unit returns to its victim, dupe-safely.
 local function onThiefLost(player)
@@ -531,9 +580,8 @@ function StealService.IsBusy(player)
 end
 
 function StealService.Init()
-    -- Server-authoritative completion: the prompt fires here, never asserted by the client.
-    ProximityPromptService.PromptTriggered:Connect(onPromptTriggered)
-
+    -- TAP-TO-PROGRESS: the StealPrompt is now only a TARGET marker (HoldDuration 0); completion fires via
+    -- TapService -> StealService.TapComplete -> initiateSteal. No prompt-trigger binding here anymore.
     for _, player in ipairs(Players:GetPlayers()) do
         hookPlayer(player)
     end

@@ -99,6 +99,12 @@ Remotes.GroupAction = nil -- RemoteFunction : client -> server ({ Action }) -> {
 -- Slingshot travel. Client sends INTENT only ({ Action="get"|"launch", BiomeId? }); the server checks
 -- the destination is unlocked + returns the landing point. The client applies the arc to its own char.
 Remotes.SlingshotAction = nil -- RemoteFunction : client -> server -> { Result, Biomes?/Target?/FlightTime?/Message }
+-- TAP-TO-PROGRESS: the ONE new client->server path for the uncapped-tapping rework (catch/steal/combat).
+-- The client batches its local tap-count + sends { Kind, TargetId?, Taps } every ~0.12s; the server
+-- validates + clamps to a human-max ceiling. TapUpdate reconciles the optimistic client meter to the
+-- server's authoritative progress.
+Remotes.TapBatch = nil -- RemoteEvent : client -> server, { Kind="catch"|"steal"|"combat", TargetId?, Taps }
+Remotes.TapUpdate = nil -- RemoteEvent : server -> a client, { Kind, TargetId, Count, Need, Done } (progress reconcile)
 
 -- Every remote name this module creates -- the SINGLE list the boot diagnostic verifies the
 -- ReplicatedStorage/Remotes surface against. Keep in sync with Init() below AND the client's
@@ -155,6 +161,8 @@ Remotes.ExpectedNames = {
     "AdminBroadcast",
     "GroupAction",
     "SlingshotAction",
+    "TapBatch",
+    "TapUpdate",
 }
 
 local folder = nil
@@ -370,6 +378,13 @@ function Remotes.Init()
     local slingshotAction = Instance.new("RemoteFunction")
     slingshotAction.Name = "SlingshotAction"
     slingshotAction.Parent = folder
+    local tapBatch = Instance.new("RemoteEvent")
+    tapBatch.Name = "TapBatch"
+    tapBatch.Parent = folder
+
+    local tapUpdate = Instance.new("RemoteEvent")
+    tapUpdate.Name = "TapUpdate"
+    tapUpdate.Parent = folder
 
     folder.Parent = ReplicatedStorage
 
@@ -424,6 +439,8 @@ function Remotes.Init()
     Remotes.AdminBroadcast = adminBroadcast
     Remotes.GroupAction = groupAction
     Remotes.SlingshotAction = slingshotAction
+    Remotes.TapBatch = tapBatch
+    Remotes.TapUpdate = tapUpdate
 end
 
 -- Sends a toast to a single player. kind = "success" | "error" | "info". Optional `cue` is a
@@ -476,6 +493,14 @@ end
 function Remotes.PushMonetizationUpdate(player, passKey, owned)
     if Remotes.MonetizationUpdate ~= nil then
         Remotes.MonetizationUpdate:FireClient(player, { Key = passKey, Owned = owned })
+    end
+end
+
+-- Reconciles ONE tapping client's optimistic meter to the server's authoritative tap progress.
+-- payload = { Kind, TargetId, Count, Need, Done }.
+function Remotes.PushTap(player, payload)
+    if Remotes.TapUpdate ~= nil then
+        Remotes.TapUpdate:FireClient(player, payload)
     end
 end
 

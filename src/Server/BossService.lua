@@ -32,7 +32,6 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BossConfig = require(ReplicatedStorage.Shared.BossConfig)
@@ -49,7 +48,6 @@ local EvolutionService = require(script.Parent.EvolutionService)
 local ExclusivesService = require(script.Parent.ExclusivesService)
 local Analytics = require(script.Parent.Analytics)
 local GameSignals = require(script.Parent.GameSignals) -- M12.1 quest observation bus
-local RateLimiter = require(script.Parent.RateLimiter)
 local Remotes = require(script.Parent.Remotes)
 
 local BossService = {}
@@ -107,9 +105,9 @@ local function makeBossModel(def)
 
     local prompt = Instance.new("ProximityPrompt")
     prompt.Name = "BossPrompt"
-    prompt.ActionText = "Attack"
+    prompt.ActionText = "Tap to Attack"
     prompt.ObjectText = def.DisplayName
-    prompt.HoldDuration = def.AttackHold -- a quick TAP per attack (damage = the attacker's team power)
+    prompt.HoldDuration = 0 -- TAP-TO-PROGRESS: the prompt is only a TARGET marker; damage flows via TapBatch
     prompt.MaxActivationDistance = def.PromptRange
     prompt.RequiresLineOfSight = false
     prompt.Parent = part
@@ -317,16 +315,14 @@ end
 -- ===========================================================================================
 -- The validated hit (server-authoritative; the ONLY way the meter drains)
 -- ===========================================================================================
-local function onBossPromptTriggered(prompt, player)
-    if prompt.Name ~= "BossPrompt" then
-        return
-    end
+-- TAP-TO-PROGRESS: apply `taps` VALIDATED attacks at once. TapService already clamped `taps` to the
+-- human-max rate (replacing the old per-tap AttackInterval cap), so this bounds DPS without throttling
+-- the feel. DAMAGE = taps x the attacker's SERVER-COMPUTED team power (loadout x factors x combat perks,
+-- capped). The client NEVER sends power/damage/death. Contribution accrues; the kill resolves EXACTLY
+-- ONCE via the unchanged resolveKill guard.
+function BossService.TapAttack(player, taps)
     local boss = activeBoss
-    if boss == nil or boss.Resolved or boss.Prompt ~= prompt then
-        return
-    end
-    -- Server-enforced attack RATE CAP (per player) -- blunts spam + bounds a player's DPS.
-    if not RateLimiter.check(player, "boss", boss.Def.AttackInterval) then
+    if boss == nil or boss.Resolved then
         return
     end
     -- Server-side proximity re-check on the REAL character: the client can't spoof being near the boss.
@@ -339,17 +335,14 @@ local function onBossPromptTriggered(prompt, player)
         return
     end
 
-    -- DAMAGE = the attacker's SERVER-COMPUTED team power (their equipped loadout x factors x combat
-    -- perks, capped) x attack scalar + base tap. The client NEVER sends power/damage/death. The damage
-    -- is added to this player's contribution entry (M11.3 contribution = total DAMAGE dealt now).
-    local dmg = CombatPower.AttackDamage(player)
+    local dmg = CombatPower.AttackDamage(player) * taps
     boss.HP = math.max(0, boss.HP - dmg)
     boss.Contribution[player] = (boss.Contribution[player] or 0) + dmg
     if boss.Fill ~= nil then
         boss.Fill.Size = UDim2.fromScale(math.clamp(boss.HP / boss.MaxHP, 0, 1), 1)
     end
-    -- Targeted attack-juice cue: this attacker sees their OWN damage number pop at the boss (the
-    -- big shared HP bar drains via the throttled broadcast below).
+    -- Targeted attack-juice: this attacker sees their OWN batch damage pop at the boss (the big shared
+    -- HP bar drains via the throttled broadcast in the heartbeat).
     Remotes.BossUpdate:FireClient(player, { Kind = "hit", Damage = dmg, Pos = boss.Model.Position })
 
     if boss.HP <= 0 then
@@ -384,9 +377,8 @@ function BossService.ForceSpawn()
 end
 
 function BossService.Init()
-    -- Server-authoritative completion: the prompt fires here, never asserted by the client.
-    ProximityPromptService.PromptTriggered:Connect(onBossPromptTriggered)
-
+    -- TAP-TO-PROGRESS: damage flows via TapService -> BossService.TapAttack; the BossPrompt is only a
+    -- target marker now (HoldDuration 0, no PromptTriggered binding here).
     if not BossConfig.Enabled then
         return
     end

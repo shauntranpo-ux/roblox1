@@ -42,28 +42,6 @@ local function captureAnchor(model)
     return UDim2.fromScale(math.clamp(sp.X / v.X, 0, 1), math.clamp(sp.Y / v.Y, 0, 1))
 end
 
-local function doCatch(id)
-    local model = models[id]
-    local rarity = (model ~= nil and model.rarity) or "Common"
-    local anchor = captureAnchor(model)
-    local ok, result = pcall(function()
-        return remotes.WildCatch:InvokeServer(id)
-    end)
-    if not ok or type(result) ~= "table" then
-        return
-    end
-    if result.Result == "Success" then
-        local info = Rarity.Get(rarity)
-        Effects.burst(anchor, info.Color, math.min(20, 8 + info.Order * 3))
-        Effects.flash(info.Color)
-        Effects.playSfx(info.Order >= 4 and "catch_rare" or "catch")
-        local mut = (result.Mutation ~= nil) and (tostring(result.Mutation) .. " ") or ""
-        Notifications.show("success", "Caught a " .. mut .. tostring(result.Name) .. "!")
-    elseif result.Message ~= nil then
-        Notifications.show("error", tostring(result.Message))
-    end
-end
-
 local function makeModel(payload)
     local part = Instance.new("Part")
     part.Name = "Wild_" .. tostring(payload.Id)
@@ -94,15 +72,14 @@ local function makeModel(payload)
 
     local prompt = Instance.new("ProximityPrompt")
     prompt.Name = "CatchPrompt"
-    prompt.ActionText = "Catch"
+    prompt.ActionText = "Tap to Catch"
     prompt.ObjectText = tostring(payload.Name)
-    prompt.HoldDuration = math.max(0.3, tonumber(payload.Hold) or 1.5)
+    prompt.HoldDuration = 0 -- TAP-TO-PROGRESS: target marker only; catching fills by TAPPING (TapInput)
     prompt.MaxActivationDistance = math.max(4, tonumber(payload.Range) or 12)
     prompt.RequiresLineOfSight = false
+    prompt:SetAttribute("Need", tonumber(payload.Need) or 6) -- taps to catch (TapInput shows the meter)
+    prompt:SetAttribute("SpawnId", tostring(payload.Id)) -- TapInput reads this as the catch TargetId
     prompt.Parent = part
-    prompt.Triggered:Connect(function()
-        doCatch(payload.Id)
-    end)
 
     part.Parent = Workspace
 
@@ -127,6 +104,7 @@ local function makeModel(payload)
         target = payload.Pos,
         rarity = payload.Rarity,
         revealed = payload.Revealed,
+        name = payload.Name,
         marker = marker,
     }
 end
@@ -157,11 +135,24 @@ function WildCatch.onUpdate(payload)
             model.target = payload.Pos -- (reveal state is set at spawn; markers track via RenderStepped)
         end
     elseif kind == "despawn" then
-        -- FLEE cue: a rare that escaped uncaught (not via our catch) gives a small "got away" sting.
         local model = models[payload.Id]
-        if model ~= nil and payload.Caught ~= true and Rarity.Get(model.rarity).Order >= 4 then
-            Effects.playSfx("flee")
-            Notifications.show("error", "A rare brainrot got away...")
+        if model ~= nil then
+            if payload.Caught == true then
+                -- CATCH JUICE (the tap meter filled + the server minted): rarity-scaled burst + flash +
+                -- sound + a "Caught!" toast. Anchor captured before the model is destroyed below.
+                local info = Rarity.Get(model.rarity)
+                Effects.burst(captureAnchor(model), info.Color, math.min(20, 8 + info.Order * 3))
+                Effects.flash(info.Color)
+                Effects.playSfx(info.Order >= 4 and "catch_rare" or "catch")
+                Notifications.show(
+                    "success",
+                    "Caught a " .. tostring(model.name or "brainrot") .. "!"
+                )
+            elseif Rarity.Get(model.rarity).Order >= 4 then
+                -- FLEE cue: a rare that escaped uncaught gives a small "got away" sting.
+                Effects.playSfx("flee")
+                Notifications.show("error", "A rare brainrot got away...")
+            end
         end
         removeModel(payload.Id)
     end
