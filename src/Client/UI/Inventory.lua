@@ -124,7 +124,10 @@ local function paintCell(cell, entry)
     cell.selDot.Visible = multiSelect
     cell.selDot.BackgroundColor3 = selected[entry.Id] and Theme.Colors.Positive
         or Theme.Colors.DarkPill
-    cell.sellBtn.Visible = not multiSelect and entry.Sellable and (entry.Value or 0) > 0
+    cell.sellBtn.Visible = not multiSelect
+        and entry.Sellable
+        and not entry.Locked
+        and (entry.Value or 0) > 0
     cell.sellBtn.Text = "Sell $" .. Format.short(entry.Value or 0)
 end
 
@@ -182,7 +185,6 @@ local function toggleFlag(entry, flag)
     if ok and type(result) == "table" and result.Result == "Success" then
         entry.Locked = result.Locked
         entry.Favorited = result.Favorited
-        entry.Sellable = entry.Sellable and not result.Locked
         rebuildView()
         render()
     end
