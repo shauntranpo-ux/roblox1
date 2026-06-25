@@ -78,18 +78,18 @@ local function doLaunch(biomeId)
         return remotes.SlingshotAction:InvokeServer({ Action = "launch", BiomeId = biomeId })
     end)
     if not ok or type(result) ~= "table" then
-        Notifications.show("error", "Slingshot jammed -- try again.")
+        Notifications.show("error", "Elevator stuck -- try again.")
         return
     end
     if result.Result ~= "Success" then
-        Notifications.show("info", result.Message or "Can't launch there.")
+        Notifications.show("info", result.Message or "Can't ride there.")
         return
     end
     gui.Enabled = false
     if fling(result.Target, result.FlightTime) then
-        Notifications.show("success", "Launching!")
+        Notifications.show("success", "Going up!")
     else
-        Notifications.show("error", "Couldn't launch (no character).")
+        Notifications.show("error", "Couldn't ride (no character).")
     end
 end
 
@@ -99,7 +99,7 @@ function Slingshot.refresh()
     end
     clear()
     order = 0
-    label("Pick where to launch:", Theme.Colors.Gold, 28)
+    label("Pick a level to ride the elevator to:", Theme.Colors.Gold, 28)
     local ok, result = pcall(function()
         return remotes.SlingshotAction:InvokeServer({ Action = "get" })
     end)
@@ -110,15 +110,12 @@ function Slingshot.refresh()
     end
     for _, b in ipairs(biomes) do
         if b.Unlocked then
-            rowButton("🎯  " .. b.Name, Theme.Colors.Positive, function()
+            rowButton("🛗  " .. b.Name, Theme.Colors.Positive, function()
                 doLaunch(b.BiomeId)
             end)
         else
             rowButton("🔒  " .. b.Name .. " (locked)", Theme.Colors.DarkPill, function()
-                Notifications.show(
-                    "info",
-                    "Unlock " .. b.Name .. " by walking through its gate first."
-                )
+                Notifications.show("info", "Unlock " .. b.Name .. " first to ride up there.")
             end)
         end
     end
@@ -128,9 +125,9 @@ function Slingshot.mount(context)
     player = context.player
     remotes = context.remotes
     gui = Builder.screenGui("Slingshot", player:WaitForChild("PlayerGui"), false)
-    list = Builder.panel(gui, "Slingshot", function()
+    list = Builder.panel(gui, "Elevator", function()
         gui.Enabled = false
-    end)
+    end, "Slingshot")
 end
 
 function Slingshot.toggle()

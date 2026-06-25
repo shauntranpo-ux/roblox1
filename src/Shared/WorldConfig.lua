@@ -77,14 +77,17 @@ WorldConfig.Terrain = {
     PlotPadColor = rgb(70, 76, 96), -- the clean raised level platform under each base
     PlotPadInset = 8, -- the platform extends this far past the plot footprint (a clean margin)
 }
--- ── CONCENTRIC-RING LAYOUT (bullseye: bases CENTER, each biome a ring around the previous) ────
+-- ── STACKED-LEVEL LAYOUT (a vertical TOWER: bases on the bottom 'start' platform; each biome a floating
+-- disc platform stacked ABOVE the previous with a big height gap; ride the ELEVATOR up to the next level.
+-- Meadow = level 1 (ground), Void = the top. "+ add more if needed" = just add biomes; tiers auto-stack) ─
 WorldConfig.Center = Vector3.new(0, 0, 0)
-WorldConfig.Rings = {
-    PlotRingRadius = 100, -- the central base RING (PlotService MUST use this exact value)
-    HubRadius = 170, -- the central plaza disc; the FIRST biome ring starts at this radius
-    RingWidth = 150, -- each biome band's radial width (inner..outer)
-    GatePathAngleDeg = 0, -- the single radial PATH (degrees) where the gates + the road sit
-    DiscStep = 0.05, -- tiny per-ring vertical step (inner rings sit microscopically higher; no z-fight)
+WorldConfig.Levels = {
+    PlotRingRadius = 100, -- the central base RING on the bottom (start) platform (PlotService uses this)
+    PlatformRadius = 160, -- each biome platform's radius (a floating disc)
+    LevelHeight = 130, -- vertical gap between consecutive level platforms (lots of height between them)
+    PlatformThickness = 8,
+    ElevatorAngleDeg = 0, -- the angle (deg) on each platform where the elevator pad + drop-off sit
+    ElevatorRadius = 80, -- how far from the platform center the elevator sits
 }
 
 -- ── HUB (central plaza at the world origin; holds the slingshot + fixtures) ───────────────────
@@ -105,19 +108,16 @@ WorldConfig.District = {
     GroundSize = Vector3.new(440, 1, 440), -- one central slab covering the plaza + the base ring
 }
 
--- Each biome is an ANNULAR RING [InnerR, OuterR] at an increasing radius -> it fully circles the center.
--- `tier` (1 = innermost, the starter meadow) sets the band. MidR is the band's middle (spawn/slingshot).
+-- Each biome is a floating LEVEL PLATFORM stacked vertically. `tier` (1 = the bottom 'start' level, the
+-- meadow) sets its height Y. Y = (tier-1) x LevelHeight -> evenly spaced, lots of height between levels.
 local function biome(id, name, tier, ground, accent, material, style, open)
-    local R = WorldConfig.Rings
-    local innerR = R.HubRadius + (tier - 1) * R.RingWidth
+    local L = WorldConfig.Levels
     return {
         Id = id,
         Name = name,
         Tier = tier,
-        InnerR = innerR,
-        OuterR = innerR + R.RingWidth,
-        MidR = innerR + R.RingWidth / 2,
-        TopY = tier * R.DiscStep, -- this ring's ground top Y (inner rings slightly higher)
+        Y = (tier - 1) * L.LevelHeight, -- the platform's TOP surface height (level 1 = ground, y=0)
+        Radius = L.PlatformRadius,
         GroundColor = ground,
         Accent = accent,
         GroundMaterial = material,
@@ -201,28 +201,23 @@ function WorldConfig.Get(id)
     return WorldConfig.ById[id]
 end
 
--- DISTANCE-BASED biome lookup: which ring band contains a horizontal distance from the world center.
--- Inside the hub (below the first ring) -> the starter; beyond the outermost ring -> the last biome.
-function WorldConfig.RingFor(dist)
-    for _, b in ipairs(WorldConfig.Biomes) do
-        if dist >= b.InnerR and dist < b.OuterR then
-            return b.Id
-        end
-    end
-    if dist < WorldConfig.Biomes[1].InnerR then
-        return WorldConfig.Biomes[1].Id
-    end
-    return WorldConfig.Biomes[#WorldConfig.Biomes].Id
+-- HEIGHT-BASED biome lookup: which stacked LEVEL a vertical height falls on (the platform you're on).
+-- Below the bottom -> level 1; above the top -> the last biome.
+function WorldConfig.LevelFor(y)
+    local L = WorldConfig.Levels
+    local idx = math.floor(y / L.LevelHeight + 0.5) + 1
+    idx = math.clamp(idx, 1, #WorldConfig.Biomes)
+    return WorldConfig.Biomes[idx].Id
 end
 
--- The world point the slingshot lands a player at for a ring: its mid-radius, ON the gate/road path.
-function WorldConfig.RingLanding(id)
+-- Where the ELEVATOR drops the player onto a level platform (just off-center, at the elevator exit).
+function WorldConfig.LevelLanding(id)
     local b = WorldConfig.Get(id)
     if b == nil then
         return WorldConfig.Center
     end
-    local a = math.rad(WorldConfig.Rings.GatePathAngleDeg)
-    return Vector3.new(math.cos(a) * b.MidR, b.TopY + 5, math.sin(a) * b.MidR)
+    local a = math.rad(WorldConfig.Levels.ElevatorAngleDeg)
+    return Vector3.new(math.cos(a) * 36, b.Y + 6, math.sin(a) * 36)
 end
 
 -- ── PER-BIOME ATMOSPHERE (drives the existing Atmosphere.setZone hook on a biome crossing) ──

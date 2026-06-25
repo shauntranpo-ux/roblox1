@@ -50,7 +50,10 @@ local function handleLaunch(player, biomeId)
     Analytics.custom(player, Analytics.Events.SlingshotLaunch, worldBiome.Tier or 0)
     return {
         Result = "Success",
-        Target = worldBiome.Center + Vector3.new(0, SlingshotConfig.LandingHeight, 0),
+        -- ELEVATOR: ride the player UP to the chosen LEVEL platform (the world is a vertical stack now;
+        -- the old slingshot landed at a ground 'Center'). LevelLanding gives the platform drop-off point.
+        Target = WorldConfig.LevelLanding(biomeId)
+            + Vector3.new(0, SlingshotConfig.LandingHeight, 0),
         FlightTime = SlingshotConfig.FlightTime,
     }
 end

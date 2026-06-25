@@ -40,6 +40,12 @@ local Mods = {
     -- [323456789] = true,
 }
 
+-- Builder/owner USERNAMES granted Owner tier + a BYPASS of all biome-level locks (matched by name so you
+-- don't need the UserId). Lowercase. The elevator + biome routing treat these players as fully unlocked.
+local OwnerNames = {
+    ["kaapv"] = true,
+}
+
 -- ===========================================================================================
 -- PER-COMMAND minimum tier. Editing this is how you re-scope what each tier may do.
 -- ===========================================================================================
@@ -111,7 +117,19 @@ end
 
 -- True if `userId` has ANY tier (used only to decide whether to surface the admin panel button).
 function AdminConfig.IsAdmin(userId)
-    return AdminConfig.GetTier(userId) ~= nil
+    return AdminConfig.GetTier(userId) ~= nil or false
+end
+
+-- True if this PLAYER is an OWNER (by username in OwnerNames, or Owner-tier by UserId). Used to BYPASS
+-- all biome-level locks (the builder/owner reaches every level) + to surface the admin panel for them.
+function AdminConfig.IsOwnerPlayer(player)
+    if player == nil then
+        return false
+    end
+    if OwnerNames[string.lower(player.Name)] then
+        return true
+    end
+    return AdminConfig.GetTier(player.UserId) == "Owner"
 end
 
 return AdminConfig

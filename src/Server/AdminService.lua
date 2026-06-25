@@ -492,8 +492,9 @@ function AdminService.dispatch(caller, command, payload)
         return err("slow down")
     end
 
-    -- ===== AUTHORITY: re-checked here on EVERY command, server-side, against the locked allowlist.
-    if not AdminConfig.Can(caller.UserId, command) then
+    -- ===== AUTHORITY: re-checked here on EVERY command, server-side, against the locked allowlist (the
+    -- owner/builder kaapv, matched by name, may run anything).
+    if not (AdminConfig.IsOwnerPlayer(caller) or AdminConfig.Can(caller.UserId, command)) then
         addLog({
             Type = "denied",
             ActorName = TextFilter.NameFor(caller),
@@ -581,7 +582,7 @@ end
 -- (so the client knows whether to surface the admin panel button -- the allowlist stays server-only).
 function AdminService.SetupPlayer(player)
     task.spawn(TextFilter.PublishName, player)
-    local tier = AdminConfig.GetTier(player.UserId)
+    local tier = AdminConfig.IsOwnerPlayer(player) and "Owner" or AdminConfig.GetTier(player.UserId)
     if tier ~= nil then
         player:SetAttribute("AdminTier", tier)
     end

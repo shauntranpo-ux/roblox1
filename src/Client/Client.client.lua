@@ -279,7 +279,7 @@ safeMount("Menu", function()
     Menu.addButton("🚩 Report", function()
         PanelManager.open("Report")
     end)
-    Menu.addButton("🎯 Slingshot", function()
+    Menu.addButton("🛗 Elevator", function()
         PanelManager.open("Slingshot")
     end)
     -- M13.4: the Admin entry appears ONLY if the SERVER stamped an AdminTier on us (the allowlist is

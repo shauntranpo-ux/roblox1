@@ -23,61 +23,28 @@
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BiomeConfig = require(ReplicatedStorage.Shared.BiomeConfig)
+local WorldConfig = require(ReplicatedStorage.Shared.WorldConfig) -- stacked-level (height) biome lookup
 
 local ProfileManager = require(script.Parent.ProfileManager)
 local RateLimiter = require(script.Parent.RateLimiter)
 local Remotes = require(script.Parent.Remotes)
 local Analytics = require(script.Parent.Analytics)
 local GameSignals = require(script.Parent.GameSignals) -- M12.1 quest observation bus
+local AdminConfig = require(script.Parent.AdminConfig) -- owner (kaapv) bypasses all biome-level locks
 
 local BiomeService = {}
 
-local VOLUME_TAG = "BiomeVolume" -- dev tags a part with this + attribute Biome = "<biomeId>"
 local DETECT_INTERVAL = 0.5
 local detectAccum = 0
 local lastBiome = {} -- [Player] = biomeId
-local warnedNoVolumes = false
 
--- Is `point` inside this (possibly rotated) volume part?
-local function inside(part, point)
-    local rel = part.CFrame:PointToObjectSpace(point)
-    local half = part.Size * 0.5
-    return math.abs(rel.X) <= half.X and math.abs(rel.Y) <= half.Y and math.abs(rel.Z) <= half.Z
-end
-
--- The biome whose tagged volume contains `point`, or nil if none (untagged-safe).
+-- HEIGHT-BASED detection: in the STACKED-LEVEL world the biome is the platform LEVEL the player's height
+-- falls on (WorldConfig.LevelFor maps Y -> the level's biome id). No tagged volumes to mis-place.
 local function pointBiome(point)
-    local tagged = CollectionService:GetTagged(VOLUME_TAG)
-    if #tagged == 0 then
-        if not warnedNoVolumes then
-            warnedNoVolumes = true
-            warn(
-                "[Biomes] No '"
-                    .. VOLUME_TAG
-                    .. "' volumes tagged -> defaulting everyone to the starter biome ("
-                    .. BiomeConfig.StarterBiome
-                    .. "). Tag flat parts (attribute Biome=<id>) to enable routing."
-            )
-        end
-        return nil
-    end
-    for _, part in ipairs(tagged) do
-        if part:IsA("BasePart") then
-            local biomeId = part:GetAttribute("Biome")
-            if
-                type(biomeId) == "string"
-                and BiomeConfig.Get(biomeId) ~= nil
-                and inside(part, point)
-            then
-                return biomeId
-            end
-        end
-    end
-    return nil
+    return WorldConfig.LevelFor(point.Y)
 end
 
 local function rootOf(player)
@@ -115,7 +82,8 @@ local function routedBiome(player)
     local root = rootOf(player)
     local current = root ~= nil and pointBiome(root.Position) or nil
     current = current or BiomeConfig.StarterBiome
-    if isUnlocked(profile, current) then
+    -- OWNER BYPASS: the builder/owner (kaapv) is treated as having every level unlocked.
+    if AdminConfig.IsOwnerPlayer(player) or isUnlocked(profile, current) then
         return current
     end
     return highestUnlocked(profile)
@@ -204,6 +172,9 @@ end
 -- Public unlock check (the slingshot reuses this so there is ONE unlock authority). Returns false if the
 -- profile isn't loaded. The starter biome is always unlocked.
 function BiomeService.IsUnlocked(player, biomeId)
+    if AdminConfig.IsOwnerPlayer(player) then
+        return true -- OWNER BYPASS: kaapv can ride the elevator to / be routed in EVERY level
+    end
     local profile = ProfileManager.GetProfile(player)
     if profile == nil then
         return false
