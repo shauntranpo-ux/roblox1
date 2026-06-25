@@ -383,6 +383,21 @@ function StealService.IsInTransit(brainrotId)
     return ActiveSteals[brainrotId] ~= nil
 end
 
+-- True if the player is involved in any in-flight steal (as thief carrying, or as a victim whose
+-- unit is mid-carry). Used by RebirthService/TradeService to refuse a destructive op mid-steal so
+-- nothing can be duped or stranded.
+function StealService.IsBusy(player)
+    if carryingByThief[player] ~= nil then
+        return true
+    end
+    for _, steal in pairs(ActiveSteals) do
+        if steal.Victim == player or steal.Thief == player then
+            return true
+        end
+    end
+    return false
+end
+
 function StealService.Init()
     -- Server-authoritative completion: the prompt fires here, never asserted by the client.
     ProximityPromptService.PromptTriggered:Connect(onPromptTriggered)

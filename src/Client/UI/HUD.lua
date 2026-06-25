@@ -31,7 +31,7 @@ end
 local function makeButton(parent, text, order, onClick)
     local button = Builder.create("TextButton", {
         LayoutOrder = order,
-        Size = UDim2.fromScale(0.23, 1),
+        Size = UDim2.fromScale(0.3, 1),
         BackgroundColor3 = Theme.Colors.Accent,
         BorderSizePixel = 0,
         AutoButtonColor = true,
@@ -115,11 +115,8 @@ function HUD.mount(context, actions)
 
     makeButton(bar, "🛒 Shop", 1, actions.onShop)
     makeButton(bar, "🎒 Inv", 2, actions.onInventory)
-    if actions.onCodes ~= nil then
-        makeButton(bar, "🎁", 3, actions.onCodes)
-    end
-    if actions.onSettings ~= nil then
-        makeButton(bar, "⚙", 4, actions.onSettings)
+    if actions.onMenu ~= nil then
+        makeButton(bar, "☰ Menu", 3, actions.onMenu)
     end
 
     -- Initial values + live listeners.

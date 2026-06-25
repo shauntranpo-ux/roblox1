@@ -33,6 +33,8 @@ Analytics.Events = { -- custom (retention/engagement) event names
     TierUp = "tier_up", -- first Legendary+ owned
     GamepassPurchased = "gamepass_purchased",
     CodeRedeemed = "code_redeemed",
+    Rebirth = "rebirth", -- M8.1 prestige reset (value = new rebirth count)
+    IndexComplete = "index_complete", -- M8.1 completion milestone claimed
 }
 
 Analytics.Funnel = { -- new-player onboarding funnel steps { stepNumber, stepName }

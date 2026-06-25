@@ -62,7 +62,11 @@ function IncomeService.Start()
                 -- is O(players) per frame, not O(brainrots). The multiplier is read live so a
                 -- benefit change (e.g. 2x Cash) takes effect immediately. All cash flows through
                 -- the single guarded accessor -> never negative, never NaN/inf.
-                local rate = PlayerStats.GetBaseRate(player) * Benefits.GetIncomeMultiplier(player)
+                -- prestige is a SEPARATE multiplicative axis OUTSIDE the global cap (see RebirthConfig).
+                local prestige = profile.Data.PrestigeMultiplier or 1
+                local rate = PlayerStats.GetBaseRate(player)
+                    * Benefits.GetIncomeMultiplier(player)
+                    * prestige
                 if rate > 0 then
                     local gained = rate * deltaTime
                     ProfileManager.AddCash(player, gained)

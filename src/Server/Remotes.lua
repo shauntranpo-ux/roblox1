@@ -24,6 +24,10 @@ Remotes.SaveSettings = nil -- RemoteEvent  : client -> server, saves validated b
 -- M7 codes + what's-new. Client sends ONLY the typed code string; server validates + grants.
 Remotes.RedeemCode = nil -- RemoteFunction : client -> server (code string) -> { Result, Message }
 Remotes.WhatsNew = nil -- RemoteEvent  : server -> client, show the changelog once per version
+-- M8.1 rebirth + collection index. Client sends INTENT ONLY (rebirth request; milestone id).
+Remotes.RequestRebirth = nil -- RemoteFunction : client -> server (no args) -> { Result, Message }
+Remotes.GetIndex = nil -- RemoteFunction : client -> server -> { Discovered, Claimed, Score }
+Remotes.ClaimIndexReward = nil -- RemoteFunction : client -> server (milestoneId) -> { Result, Message }
 
 local folder = nil
 
@@ -87,6 +91,18 @@ function Remotes.Init()
     whatsNew.Name = "WhatsNew"
     whatsNew.Parent = folder
 
+    local requestRebirth = Instance.new("RemoteFunction")
+    requestRebirth.Name = "RequestRebirth"
+    requestRebirth.Parent = folder
+
+    local getIndex = Instance.new("RemoteFunction")
+    getIndex.Name = "GetIndex"
+    getIndex.Parent = folder
+
+    local claimIndexReward = Instance.new("RemoteFunction")
+    claimIndexReward.Name = "ClaimIndexReward"
+    claimIndexReward.Parent = folder
+
     folder.Parent = ReplicatedStorage
 
     Remotes.PurchaseRequest = purchase
@@ -102,6 +118,9 @@ function Remotes.Init()
     Remotes.SaveSettings = saveSettings
     Remotes.RedeemCode = redeemCode
     Remotes.WhatsNew = whatsNew
+    Remotes.RequestRebirth = requestRebirth
+    Remotes.GetIndex = getIndex
+    Remotes.ClaimIndexReward = claimIndexReward
 end
 
 -- Sends a toast to a single player. kind = "success" | "error" | "info". Optional `cue` is a

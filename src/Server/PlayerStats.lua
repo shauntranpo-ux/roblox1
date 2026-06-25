@@ -38,7 +38,12 @@ end
 local function refreshRate(player, profile)
     local base = computeBaseRate(profile)
     rateCache[player] = base
-    player:SetAttribute("IncomePerSec", math.floor(base * Benefits.GetIncomeMultiplier(player)))
+    -- Display the SAME rate cash actually accrues at: capped global multiplier * prestige factor.
+    local prestige = profile.Data.PrestigeMultiplier or 1
+    player:SetAttribute(
+        "IncomePerSec",
+        math.floor(base * Benefits.GetIncomeMultiplier(player) * prestige)
+    )
 end
 
 -- Initializes both attributes for a player whose profile just loaded.

@@ -48,6 +48,14 @@ local PROFILE_TEMPLATE = {
     BoostExpiry = 0, -- os.time() the boost ends (0 = none)
     -- M7: last GameInfo.Version this player saw the "What's New" card for (drives show-once).
     LastSeenVersion = "",
+    -- M8.1 REBIRTH: how many times the player has prestiged, and the resulting PERMANENT prestige
+    -- income multiplier (a SEPARATE multiplicative axis, outside the global cap; re-derived from
+    -- the count on join). Reconcile onto old saves as 0 / 1.
+    RebirthCount = 0,
+    PrestigeMultiplier = 1,
+    -- M8.1 INDEX: set of completion-milestone Ids already claimed (Id -> true). The grant + this
+    -- record commit together so a completion reward is granted EXACTLY once. Reconciles as empty.
+    ClaimedIndexRewards = {},
 }
 
 local Profiles = {} -- [Player] = Profile

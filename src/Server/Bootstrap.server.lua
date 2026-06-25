@@ -27,8 +27,10 @@ local TutorialService = require(script.Parent.TutorialService)
 local RateLimiter = require(script.Parent.RateLimiter)
 local CodesService = require(script.Parent.CodesService)
 local Analytics = require(script.Parent.Analytics)
+local RebirthService = require(script.Parent.RebirthService)
+local IndexService = require(script.Parent.IndexService)
 
-print("[BRAINROT] M7 starting -- codes + analytics + launch hardening")
+print("[BRAINROT] M8.1 starting -- rebirth/prestige + collection index")
 
 -- Data layer, network surface, world, defense, income loop, then the client-facing handlers.
 ProfileManager.Init()
@@ -48,6 +50,9 @@ SettingsService.Init()
 TutorialService.Init()
 -- M7: redeemable codes (binds RedeemCode + starts the boost-expiry sweep).
 CodesService.Init()
+-- M8.1: rebirth/prestige + collection-index completion rewards.
+RebirthService.Init()
+IndexService.Init()
 
 local handled = {} -- [Player] = true, guards against double-joins (Studio Play Solo)
 
@@ -105,6 +110,10 @@ local function onPlayerAdded(player)
     -- M7: re-apply a still-valid timed code boost (or clean up an expired one), then show the
     -- "What's New" card once per version bump (drives return visits + announces new codes).
     CodesService.SetupPlayer(player, profile)
+    -- M8.1: re-derive prestige multiplier + attributes, and re-apply claimed completion
+    -- multiplier sources (both idempotent) so income reflects them on join.
+    RebirthService.SetupPlayer(player, profile)
+    IndexService.SetupPlayer(player, profile)
     if profile.Data.LastSeenVersion ~= GameInfo.Version then
         profile.Data.LastSeenVersion = GameInfo.Version
         Remotes.FireWhatsNew(player)
@@ -138,6 +147,7 @@ local function onPlayerRemoving(player)
     -- M6 cleanup: drop the cached income rate + per-player rate-limit timestamps so nothing
     -- lingers after leave (verified leak-free across repeated join/leave cycles).
     PlayerStats.ClearPlayer(player)
+    RebirthService.ClearPlayer(player)
     PlotService.FreePlot(player)
     RateLimiter.clear(player)
     ProfileManager.ReleaseProfile(player)

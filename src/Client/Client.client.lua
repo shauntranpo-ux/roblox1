@@ -17,6 +17,9 @@ local Settings = require(UI.Settings)
 local Tutorial = require(UI.Tutorial)
 local Codes = require(UI.Codes)
 local Announce = require(UI.Announce)
+local Menu = require(UI.Menu)
+local Rebirth = require(UI.Rebirth)
+local Index = require(UI.Index)
 
 local player = Players.LocalPlayer
 
@@ -36,6 +39,9 @@ local remotes = {
     SaveSettings = remotesFolder:WaitForChild("SaveSettings"),
     RedeemCode = remotesFolder:WaitForChild("RedeemCode"),
     WhatsNew = remotesFolder:WaitForChild("WhatsNew"),
+    RequestRebirth = remotesFolder:WaitForChild("RequestRebirth"),
+    GetIndex = remotesFolder:WaitForChild("GetIndex"),
+    ClaimIndexReward = remotesFolder:WaitForChild("ClaimIndexReward"),
 }
 
 local context = { player = player, remotes = remotes }
@@ -76,12 +82,25 @@ end)
 safeMount("Announce", function()
     Announce.mount(context)
 end)
+safeMount("Rebirth", function()
+    Rebirth.mount(context)
+end)
+safeMount("Index", function()
+    Index.mount(context)
+end)
+safeMount("Menu", function()
+    Menu.mount(context)
+    -- Register secondary panels into the Menu (later milestones add Trade/Events/Seasons here).
+    Menu.addButton("⭐ Rebirth", Rebirth.toggle)
+    Menu.addButton("📖 Index", Index.toggle)
+    Menu.addButton("🎁 Codes", Codes.toggle)
+    Menu.addButton("⚙ Settings", Settings.toggle)
+end)
 safeMount("HUD", function()
     HUD.mount(context, {
         onShop = Shop.toggle,
         onInventory = Inventory.toggle,
-        onCodes = Codes.toggle,
-        onSettings = Settings.toggle,
+        onMenu = Menu.toggle,
     })
 end)
 
