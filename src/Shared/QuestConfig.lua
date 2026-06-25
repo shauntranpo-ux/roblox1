@@ -50,10 +50,10 @@ QuestConfig.Tutorial = {
     {
         Id = "tut_catch",
         Metric = "catch_count",
-        Target = 1,
-        Reward = { Cash = 500 },
-        Title = "First Catch",
-        Desc = "CATCH your <hl>first brainrot</hl> in the wild!",
+        Target = 3,
+        Reward = { Cash = 1000 },
+        Title = "Start Your Collection",
+        Desc = "Catch your <hl>first 3 brainrots</hl> in the wild!",
     },
     {
         Id = "tut_earn",
@@ -79,6 +79,14 @@ QuestConfig.Tutorial = {
         Reward = { Cash = 2500 },
         Title = "Explorer",
         Desc = "Unlock your <hl>first biome gate</hl>.",
+    },
+    {
+        Id = "tut_steal",
+        Metric = "steals_succeeded",
+        Target = 1,
+        Reward = { Cash = 3000 },
+        Title = "First Heist",
+        Desc = "Walk to another base and <hl>steal a brainrot</hl>!",
     },
     {
         Id = "tut_mystery",
