@@ -6,6 +6,7 @@
 -- A destructive bulk action shows a confirm dialog (server still re-validates). Styling is the look-pass.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
 local Builder = require(script.Parent.Builder)
 local Theme = require(script.Parent.Theme)
@@ -122,8 +123,11 @@ local function paintCell(cell, entry)
     cell.favBtn.TextColor3 = entry.Favorited and Theme.Colors.Gold or Theme.Colors.SubText
     cell.lockBtn.Text = entry.Locked and "🔒" or "🔓"
     cell.selDot.Visible = multiSelect
-    cell.selDot.BackgroundColor3 = selected[entry.Id] and Theme.Colors.Positive
-        or Theme.Colors.DarkPill
+    local isSelected = selected[entry.Id] == true
+    TweenService:Create(cell.frame, Theme.Tween.Squish, {
+        BackgroundColor3 = isSelected and Theme.Colors.Accent or Theme.Colors.DarkPill,
+    }):Play()
+    cell.selDot.BackgroundColor3 = isSelected and Theme.Colors.Positive or Theme.Colors.DarkPill
     cell.sellBtn.Visible = not multiSelect
         and entry.Sellable
         and not entry.Locked
@@ -292,16 +296,6 @@ function Inventory.showConfirm(message, onConfirm)
 end
 
 -- ── Build ───────────────────────────────────────────────────────────────────────────────────
-local function cycleButton(label, parent)
-    return Builder.glossButton({
-        Size = UDim2.fromOffset(120, 34),
-        color = Theme.Colors.DarkPill,
-        Text = label,
-        maxText = 15,
-        Parent = parent,
-    }, nil)
-end
-
 local function buildToolbar()
     toolbar = Builder.create("Frame", {
         Size = UDim2.new(1, -16, 0, 84),
@@ -312,8 +306,9 @@ local function buildToolbar()
         Builder.create("UIListLayout", {
             FillDirection = Enum.FillDirection.Horizontal,
             Wraps = true,
-            Padding = UDim.new(0, 6),
+            Padding = UDim.new(0, 8),
             VerticalAlignment = Enum.VerticalAlignment.Center,
+            SortOrder = Enum.SortOrder.LayoutOrder,
         }),
     })
 
@@ -334,25 +329,43 @@ local function buildToolbar()
         render()
     end)
 
-    local sortBtn = cycleButton("Sort: Rarity", toolbar)
-    sortBtn.Activated:Connect(function()
-        local i = (table.find(SORTS, sortMode) or 1) % #SORTS + 1
-        sortMode = SORTS[i]
-        sortBtn.Text = "Sort: " .. sortMode
-        rebuildView()
-        render()
-    end)
+    Builder.dropdown(
+        {
+            Parent = toolbar,
+            label = "Sort",
+            color = Theme.Colors.Accent,
+            Size = UDim2.fromOffset(160, 34),
+        },
+        SORTS,
+        sortMode,
+        function(v)
+            sortMode = v
+            render()
+        end
+    )
 
-    local filterBtn = cycleButton("Filter: All", toolbar)
-    filterBtn.Activated:Connect(function()
-        local i = (table.find(FILTERS, filterMode) or 1) % #FILTERS + 1
-        filterMode = FILTERS[i]
-        filterBtn.Text = "Filter: " .. filterMode
-        rebuildView()
-        render()
-    end)
+    Builder.dropdown(
+        {
+            Parent = toolbar,
+            label = "Filter",
+            color = Theme.Colors.Accent,
+            Size = UDim2.fromOffset(160, 34),
+        },
+        FILTERS,
+        filterMode,
+        function(v)
+            filterMode = v
+            render()
+        end
+    )
 
-    local selBtn = cycleButton("Select: Off", toolbar)
+    local selBtn = Builder.glossButton({
+        Size = UDim2.fromOffset(120, 34),
+        color = Theme.Colors.DarkPill,
+        Text = "Select: Off",
+        maxText = 15,
+        Parent = toolbar,
+    }, nil)
     selBtn.Activated:Connect(function()
         multiSelect = not multiSelect
         if not multiSelect then
