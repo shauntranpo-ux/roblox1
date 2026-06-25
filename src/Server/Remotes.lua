@@ -40,6 +40,36 @@ Remotes.EventsUpdate = nil -- RemoteEvent  : server -> ALL clients, "events chan
 Remotes.GetSeasons = nil -- RemoteFunction : client -> server -> season id, countdown, top-N, my rank/score, tiers
 Remotes.SeasonsUpdate = nil -- RemoteEvent  : server -> ALL clients, "season rolled over" ping
 
+-- Every remote name this module creates -- the SINGLE list the boot diagnostic verifies the
+-- ReplicatedStorage/Remotes surface against. Keep in sync with Init() below AND the client's
+-- `remotes` table (Client.client.lua); a drift here is exactly what the diagnostic catches.
+Remotes.ExpectedNames = {
+    "PurchaseRequest",
+    "GetInventory",
+    "Notify",
+    "KillFeed",
+    "PromptGamepass",
+    "PromptProduct",
+    "GetMonetization",
+    "MonetizationUpdate",
+    "Tutorial",
+    "GetSettings",
+    "SaveSettings",
+    "RedeemCode",
+    "WhatsNew",
+    "RequestRebirth",
+    "GetIndex",
+    "ClaimIndexReward",
+    "TradeAction",
+    "TradeUpdate",
+    "GetEvents",
+    "ClaimEventReward",
+    "EventShopBuy",
+    "EventsUpdate",
+    "GetSeasons",
+    "SeasonsUpdate",
+}
+
 local folder = nil
 
 function Remotes.Init()

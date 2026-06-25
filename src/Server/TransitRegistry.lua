@@ -23,4 +23,13 @@ function TransitRegistry.Has(brainrotId)
     return inTransit[brainrotId] == true
 end
 
+-- Read-only shallow copy of the in-transit set (for the dev invariant validator).
+function TransitRegistry.All()
+    local copy = {}
+    for id in pairs(inTransit) do
+        copy[id] = true
+    end
+    return copy
+end
+
 return TransitRegistry

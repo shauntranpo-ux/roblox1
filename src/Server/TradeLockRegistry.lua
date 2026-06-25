@@ -20,4 +20,13 @@ function TradeLockRegistry.Has(brainrotId)
     return locked[brainrotId] == true
 end
 
+-- Read-only shallow copy of the trade-locked set (for the dev invariant validator).
+function TradeLockRegistry.All()
+    local copy = {}
+    for id in pairs(locked) do
+        copy[id] = true
+    end
+    return copy
+end
+
 return TradeLockRegistry

@@ -33,37 +33,57 @@ local TradeService = require(script.Parent.TradeService)
 local EventService = require(script.Parent.EventService)
 local SeasonService = require(script.Parent.SeasonService)
 local SeasonRewardService = require(script.Parent.SeasonRewardService)
+-- VM0: boot/join health check + the dev-only sacred-invariant validator.
+local Diagnostics = require(script.Parent.Diagnostics)
+local InvariantValidator = require(script.Parent.InvariantValidator)
 
-print("[BRAINROT] M8.5 starting -- leaderboard seasons (the final milestone)")
+print("[BRAINROT] starting up...")
+
+-- VM0 RESILIENCE: start each service inside a pcall so ONE service that throws on Init can't halt
+-- the whole boot (which would leave later remotes unbound + PlayerAdded never connected). Every
+-- result is recorded; Diagnostics.bootReport prints exactly which started and which failed.
+local serviceResults = {}
+local function start(name, fn)
+    local ok, err = pcall(fn)
+    table.insert(serviceResults, { Name = name, Ok = ok, Err = err })
+    if not ok then
+        warn(string.format("[Bootstrap] %s failed to start: %s", name, tostring(err)))
+    end
+end
 
 -- Data layer, network surface, world, defense, income loop, then the client-facing handlers.
-ProfileManager.Init()
-Remotes.Init()
-PlotService.Init()
-ProtectionService.Init()
-IncomeService.Start()
-PurchaseService.Init()
-InventoryService.Init()
-StealService.Init()
+start("ProfileManager", ProfileManager.Init)
+start("Remotes", Remotes.Init)
+start("PlotService", PlotService.Init)
+start("ProtectionService", ProtectionService.Init)
+start("IncomeService", IncomeService.Start)
+start("PurchaseService", PurchaseService.Init)
+start("InventoryService", InventoryService.Init)
+start("StealService", StealService.Init)
 -- M5: the Robux money path (single ProcessReceipt + gamepass ownership) and the global boards.
-MonetizationService.Init()
-LeaderboardService.Init()
-LeaderboardBillboards.Init()
+start("MonetizationService", MonetizationService.Init)
+start("LeaderboardService", LeaderboardService.Init)
+start("LeaderboardBillboards", LeaderboardBillboards.Init)
 -- M6: client-preference persistence + the one-time onboarding handshake.
-SettingsService.Init()
-TutorialService.Init()
+start("SettingsService", SettingsService.Init)
+start("TutorialService", TutorialService.Init)
 -- M7: redeemable codes (binds RedeemCode + starts the boost-expiry sweep).
-CodesService.Init()
+start("CodesService", CodesService.Init)
 -- M8.1: rebirth/prestige + collection-index completion rewards.
-RebirthService.Init()
-IndexService.Init()
+start("RebirthService", RebirthService.Init)
+start("IndexService", IndexService.Init)
 -- M8.2: same-server player-to-player trading.
-TradeService.Init()
+start("TradeService", TradeService.Init)
 -- M8.4: the limited-time events scheduler/transition engine.
-EventService.Init()
+start("EventService", EventService.Init)
 -- M8.5: competitive seasons + pull-based end-of-season reward claims.
-SeasonService.Init()
-SeasonRewardService.Init()
+start("SeasonService", SeasonService.Init)
+start("SeasonRewardService", SeasonRewardService.Init)
+
+-- VM0: print the boot health report (services started/failed, remote surface, REAL vs MOCK stores,
+-- SIM flag) and arm the dev-only invariant validator.
+Diagnostics.bootReport(serviceResults)
+InvariantValidator.Init()
 
 local handled = {} -- [Player] = true, guards against double-joins (Studio Play Solo)
 
@@ -91,6 +111,9 @@ local function onPlayerAdded(player)
         PlotService.FreePlot(player)
         return
     end
+
+    -- VM0: log this join's health (profile loaded? every template field present? store mode?).
+    Diagnostics.playerReport(player, profile)
 
     -- M7 analytics: session start + the onboarding funnel's first step (new players only).
     Analytics.custom(player, Analytics.Events.SessionStart)

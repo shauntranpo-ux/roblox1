@@ -164,6 +164,22 @@ function ProfileManager.GetProfile(player)
     return Profiles[player]
 end
 
+-- Read-only shallow copy of [Player] = Profile for every currently-loaded session. For the
+-- dev invariant validator + diagnostics ONLY (never mutate the returned map or its profiles here).
+function ProfileManager.GetAllProfiles()
+    return table.clone(Profiles)
+end
+
+-- The top-level field names the template guarantees (after :Reconcile()). The boot/join diagnostic
+-- uses this to confirm an existing save loaded with every field present (no reconciliation gap).
+function ProfileManager.GetTemplateFieldNames()
+    local names = {}
+    for key in pairs(PROFILE_TEMPLATE) do
+        table.insert(names, key)
+    end
+    return names
+end
+
 function ProfileManager.GetCash(player)
     local profile = Profiles[player]
     if profile ~= nil then
