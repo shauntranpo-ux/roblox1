@@ -96,6 +96,9 @@ Remotes.AdminBroadcast = nil -- RemoteEvent : server -> ALL clients, a filtered 
 -- M13.6 group hook. Client sends INTENT only ({ Action="get"|"claim" }); the server checks membership
 -- + owns the idempotent reward grant. (Settings persist reuses GetSettings/SaveSettings -- no new remote.)
 Remotes.GroupAction = nil -- RemoteFunction : client -> server ({ Action }) -> { Result, State?/Message }
+-- Slingshot travel. Client sends INTENT only ({ Action="get"|"launch", BiomeId? }); the server checks
+-- the destination is unlocked + returns the landing point. The client applies the arc to its own char.
+Remotes.SlingshotAction = nil -- RemoteFunction : client -> server -> { Result, Biomes?/Target?/FlightTime?/Message }
 
 -- Every remote name this module creates -- the SINGLE list the boot diagnostic verifies the
 -- ReplicatedStorage/Remotes surface against. Keep in sync with Init() below AND the client's
@@ -151,6 +154,7 @@ Remotes.ExpectedNames = {
     "ReportPlayer",
     "AdminBroadcast",
     "GroupAction",
+    "SlingshotAction",
 }
 
 local folder = nil
@@ -363,6 +367,10 @@ function Remotes.Init()
     groupAction.Name = "GroupAction"
     groupAction.Parent = folder
 
+    local slingshotAction = Instance.new("RemoteFunction")
+    slingshotAction.Name = "SlingshotAction"
+    slingshotAction.Parent = folder
+
     folder.Parent = ReplicatedStorage
 
     Remotes.PurchaseRequest = purchase
@@ -415,6 +423,7 @@ function Remotes.Init()
     Remotes.ReportPlayer = reportPlayer
     Remotes.AdminBroadcast = adminBroadcast
     Remotes.GroupAction = groupAction
+    Remotes.SlingshotAction = slingshotAction
 end
 
 -- Sends a toast to a single player. kind = "success" | "error" | "info". Optional `cue` is a

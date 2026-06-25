@@ -201,6 +201,16 @@ function BiomeService.ClearPlayer(player)
     lastBiome[player] = nil
 end
 
+-- Public unlock check (the slingshot reuses this so there is ONE unlock authority). Returns false if the
+-- profile isn't loaded. The starter biome is always unlocked.
+function BiomeService.IsUnlocked(player, biomeId)
+    local profile = ProfileManager.GetProfile(player)
+    if profile == nil then
+        return false
+    end
+    return isUnlocked(profile, biomeId)
+end
+
 function BiomeService.Init()
     Remotes.BiomeAction.OnServerInvoke = function(player, payload)
         if type(payload) ~= "table" or type(payload.Action) ~= "string" then
