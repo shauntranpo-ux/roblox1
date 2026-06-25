@@ -14,6 +14,7 @@ local PlotService = {}
 
 local PLOT_SIZE = Vector3.new(32, 1, 32)
 local PAD_SIZE = Vector3.new(6, 1, 6)
+local PLOT_RING_RADIUS = 100 -- MUST match WorldConfig.Radial.PlotRingRadius
 
 local plots = {} -- array of plot records (see PlotService.Init)
 local assigned = {} -- [Player] = plot record
@@ -108,7 +109,13 @@ function PlotService.Init()
     plotsFolder.Parent = workspace
 
     for index = 1, Config.Plots.Count do
-        local origin = CFrame.new((index - 1) * Config.Plots.Spacing, 0, 0)
+        -- central RING: evenly spaced around the origin, each base's front (+Z) facing OUTWARD toward
+        -- the biomes. lookAt(pos, center) points -Z at the center, so +Z (the template's pad/shield
+        -- front) faces away from the middle. Plot-internal pad lookup is by instance, so rotation is safe.
+        local angle = math.rad((index - 1) * (360 / Config.Plots.Count))
+        local pos =
+            Vector3.new(math.cos(angle) * PLOT_RING_RADIUS, 0, math.sin(angle) * PLOT_RING_RADIUS)
+        local origin = CFrame.lookAt(pos, Vector3.new(0, 0, 0))
         local model = buildPlot(index, origin)
         model.Parent = plotsFolder
 
@@ -122,9 +129,8 @@ function PlotService.Init()
             Model = model,
             Pads = pads,
             Owner = nil,
-            Origin = origin, -- plot center CFrame (used to place the protection dome)
-            -- Where the player's character is placed so the plot reads as "their base".
-            SpawnCFrame = origin * CFrame.new(0, 6, 14),
+            Origin = origin,
+            SpawnCFrame = origin * CFrame.new(0, 6, 14), -- on the outward (front) side of the base
         }
     end
 end
