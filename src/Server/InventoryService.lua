@@ -58,6 +58,7 @@ local function getInventory(player)
             SellValue = sellValue, -- M9.1: display value (server recomputes on sell)
             EvolutionStage = brainrot.EvolutionStage or 1, -- M11.2: evolution stage (income reflects it)
             XP = brainrot.XP or 0, -- M11.2: banked XP toward the next stage (client compares vs config)
+            ExclusiveSeason = def.ExclusiveSeason, -- M11.4: nil unless a seasonal exclusive (badge)
         })
     end
     return owned

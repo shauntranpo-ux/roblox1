@@ -16,6 +16,7 @@ local Format = require(ReplicatedStorage.Shared.Format)
 
 local ProfileManager = require(script.Parent.ProfileManager)
 local SeasonService = require(script.Parent.SeasonService)
+local ExclusivesService = require(script.Parent.ExclusivesService)
 local PlayerStats = require(script.Parent.PlayerStats)
 local Leaderstats = require(script.Parent.Leaderstats)
 local Remotes = require(script.Parent.Remotes)
@@ -74,38 +75,47 @@ function SeasonRewardService.CheckPlayer(player)
     local span = math.ceil(SeasonsConfig.ClaimWindow / SeasonsConfig.SeasonLength) + 1
     for delta = 1, span do
         local seasonId = currentId - delta
-        if isClaimable(seasonId, currentId) and not profile.Data.ClaimedSeasonRewards[seasonId] then
-            -- Reads yield; re-fetch profile guard afterwards (player may have left).
-            local score = SeasonService.GetScore(seasonId, player.UserId)
-            local rank = SeasonService.GetRankInTop(seasonId, player.UserId)
-            profile = ProfileManager.GetProfile(player)
-            if profile == nil then
-                break
-            end
-            if not profile.Data.ClaimedSeasonRewards[seasonId] then
-                local total = rewardsFor(score, rank)
-                -- ===== COMMIT: grant (cash -> never partial-fails) + record together, no yields. =====
-                if total > 0 then
-                    ProfileManager.AddCash(player, total)
+        if isClaimable(seasonId, currentId) then
+            -- Claim the season if its CASH reward is unclaimed OR a track/ranked EXCLUSIVE is still
+            -- owed (the latter has its OWN per-key dedupe, so it retries a no-pad delivery next join).
+            local needCash = not profile.Data.ClaimedSeasonRewards[seasonId]
+            local needExclusive = ExclusivesService.HasUnclaimedFor(profile, seasonId)
+            if needCash or needExclusive then
+                -- Reads yield; re-fetch profile guard afterwards (player may have left).
+                local score = SeasonService.GetScore(seasonId, player.UserId)
+                local rank = SeasonService.GetRankInTop(seasonId, player.UserId)
+                profile = ProfileManager.GetProfile(player)
+                if profile == nil then
+                    break
                 end
-                profile.Data.ClaimedSeasonRewards[seasonId] = true
-                -- ====================================================================================
-                if total > 0 or score > 0 then
-                    PlayerStats.PushCash(player, profile)
-                    Leaderstats.Update(player, profile)
-                    Remotes.NotifyPlayer(
-                        player,
-                        "success",
-                        string.format(
-                            "Season %d: you finished %s with %d pts  ->  +$%s!",
-                            seasonId,
-                            rank ~= nil and ("rank " .. rank) or "unranked",
-                            math.floor(score),
-                            Format.short(total)
+                if not profile.Data.ClaimedSeasonRewards[seasonId] then
+                    local total = rewardsFor(score, rank)
+                    -- ===== COMMIT: grant (cash -> never partial-fails) + record together, no yields. =====
+                    if total > 0 then
+                        ProfileManager.AddCash(player, total)
+                    end
+                    profile.Data.ClaimedSeasonRewards[seasonId] = true
+                    -- ====================================================================================
+                    if total > 0 or score > 0 then
+                        PlayerStats.PushCash(player, profile)
+                        Leaderstats.Update(player, profile)
+                        Remotes.NotifyPlayer(
+                            player,
+                            "success",
+                            string.format(
+                                "Season %d: you finished %s with %d pts  ->  +$%s!",
+                                seasonId,
+                                rank ~= nil and ("rank " .. rank) or "unranked",
+                                math.floor(score),
+                                Format.short(total)
+                            )
                         )
-                    )
-                    Analytics.custom(player, Analytics.Events.SeasonReward, total)
+                        Analytics.custom(player, Analytics.Events.SeasonReward, total)
+                    end
                 end
+                -- M11.4: grant any seasonal EXCLUSIVE this player earned in the frozen season (track
+                -- score / ranked finish). Idempotent per Key; safe to call every pass (retries no-pad).
+                ExclusivesService.GrantSeasonExclusives(player, profile, seasonId, score, rank)
             end
         end
     end

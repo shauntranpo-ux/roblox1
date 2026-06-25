@@ -72,6 +72,19 @@ MutationConfig.Mutations = {
         Material = Enum.Material.Neon,
         Available = false,
     },
+    -- SEASONAL EXCLUSIVE (M11.4): Available=false -> NEVER rolls. Granted ONLY by an authorized
+    -- in-window/earned exclusive source (ExclusivesService sets unit.Mutation directly during the
+    -- season window). ExclusiveSeason ties it to a SeasonId for display/audit.
+    {
+        Key = "frostbite",
+        DisplayName = "Frostbite",
+        IncomeMultiplier = 35,
+        RollWeight = 0,
+        Color = Color3.fromRGB(120, 230, 255),
+        Material = Enum.Material.Glass,
+        Available = false,
+        ExclusiveSeason = 900001,
+    },
 }
 
 -- A documented config switch: if true, higher-rarity species get slightly better mutation odds.

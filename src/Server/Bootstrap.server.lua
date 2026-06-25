@@ -33,6 +33,8 @@ local TradeService = require(script.Parent.TradeService)
 local EventService = require(script.Parent.EventService)
 local SeasonService = require(script.Parent.SeasonService)
 local SeasonRewardService = require(script.Parent.SeasonRewardService)
+-- M11.4: seasonal exclusives (gating + grants atop the seasons/claim systems).
+local ExclusivesService = require(script.Parent.ExclusivesService)
 -- M9.1: selling (the economy floor sink).
 local SellService = require(script.Parent.SellService)
 -- M9.2: fusion + stars (turn duplicates into fuel).
@@ -93,6 +95,8 @@ start("EventService", EventService.Init)
 -- M8.5: competitive seasons + pull-based end-of-season reward claims.
 start("SeasonService", SeasonService.Init)
 start("SeasonRewardService", SeasonRewardService.Init)
+-- M11.4: bind the exclusives remote + the season-change announce watcher.
+start("ExclusivesService", ExclusivesService.Init)
 -- M9.1: the sell sink (binds SellRequest).
 start("SellService", SellService.Init)
 -- M9.2: fusion + stars (binds FuseRequest).

@@ -332,6 +332,21 @@ Catalog.Items = {
         BossOnly = true,
         IconId = 0,
     },
+
+    -- SEASONAL EXCLUSIVE (M11.4) -- obtainable ONLY during its season window (ExclusiveSeason ties it
+    -- to a SeasonId). The BRAINROT FACTORY default-DENIES creating any ExclusiveSeason entry unless the
+    -- grant is an authorized in-window/earned source (ExclusivesService), so no path can mint it after
+    -- the window closes. Buyable=false keeps it out of the shop; tradeable as an owned copy (default).
+    {
+        Id = "winter_warden",
+        DisplayName = "Winter Warden",
+        Rarity = "Secret",
+        Price = 0,
+        IncomePerSec = 120000000,
+        Buyable = false,
+        ExclusiveSeason = 900001,
+        IconId = 0,
+    },
 }
 
 -- Id -> item lookup, built once so the server validates a purchase in O(1).

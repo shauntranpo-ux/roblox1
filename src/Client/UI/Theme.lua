@@ -62,6 +62,7 @@ Theme.Accents = {
     Deploy = { Top = Color3.fromRGB(120, 220, 190), Bottom = Color3.fromRGB(40, 150, 160) }, -- steel teal
     Loadout = { Top = Color3.fromRGB(255, 120, 160), Bottom = Color3.fromRGB(210, 50, 90) }, -- raid red
     Evolution = { Top = Color3.fromRGB(150, 245, 130), Bottom = Color3.fromRGB(60, 190, 90) }, -- bio green
+    Exclusives = { Top = Color3.fromRGB(120, 200, 255), Bottom = Color3.fromRGB(60, 110, 230) }, -- frost blue
 }
 
 -- Returns a fresh vertical UIGradient for an accent key (top -> bottom). Caller parents it.

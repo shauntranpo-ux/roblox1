@@ -40,6 +40,7 @@ local PlayerStats = require(script.Parent.PlayerStats)
 local Leaderstats = require(script.Parent.Leaderstats)
 local PerkEffects = require(script.Parent.PerkEffects)
 local EvolutionService = require(script.Parent.EvolutionService)
+local ExclusivesService = require(script.Parent.ExclusivesService)
 local Analytics = require(script.Parent.Analytics)
 local RateLimiter = require(script.Parent.RateLimiter)
 local Remotes = require(script.Parent.Remotes)
@@ -199,16 +200,28 @@ local function grantReward(player, boss, dmg, total)
             local pad = plot ~= nil and PlotService.FindFreePad(player, profile) or nil
             if pad ~= nil then
                 -- DUPE-SAFE: a brand-new unit minted for THIS player (never shared/transferred).
-                local unit = BrainrotFactory.create(player, def, pad, false)
-                if entry.Mutation ~= nil then
-                    unit.Mutation = entry.Mutation -- boss-only mutation granted directly
-                    profile.Data.MutationsDiscovered[entry.Mutation] = true
+                -- M11.4: if the reward species is a SEASONAL EXCLUSIVE, only mint it while its window is
+                -- OPEN now (an authorized in-window drop); otherwise the factory refuses -> cash fallback.
+                local allowExcl = def.ExclusiveSeason ~= nil
+                    and ExclusivesService.IsObtainable({
+                        Source = "boss",
+                        SeasonId = def.ExclusiveSeason,
+                    })
+                local unit = BrainrotFactory.create(player, def, pad, false, allowExcl)
+                if unit ~= nil then
+                    if entry.Mutation ~= nil then
+                        unit.Mutation = entry.Mutation -- boss-only mutation granted directly
+                        profile.Data.MutationsDiscovered[entry.Mutation] = true
+                    end
+                    table.insert(profile.Data.OwnedBrainrots, unit)
+                    profile.Data.Discovered[def.Id] = true
+                    BrainrotService.SpawnBrainrot(player, plot, unit)
+                    revealName = (entry.Mutation ~= nil and (entry.Mutation .. " ") or "")
+                        .. def.DisplayName
+                else
+                    cash += rewardDef.NoPadCash or 25000 -- exclusive window closed -> cash fallback
+                    revealName = "cash (exclusive expired)"
                 end
-                table.insert(profile.Data.OwnedBrainrots, unit)
-                profile.Data.Discovered[def.Id] = true
-                BrainrotService.SpawnBrainrot(player, plot, unit)
-                revealName = (entry.Mutation ~= nil and (entry.Mutation .. " ") or "")
-                    .. def.DisplayName
             else
                 -- NO-FREE-PAD: deliver the safe cash fallback (never lost, never duped).
                 cash += rewardDef.NoPadCash or 25000

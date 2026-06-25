@@ -53,6 +53,9 @@ Remotes.EvolveRequest = nil -- RemoteFunction : client -> server (unitId) -> { R
 -- broadcasts. The boss fight itself is driven by a server-side ProximityPrompt (no client attack remote
 -- -- the client never asserts HP/contribution/death).
 Remotes.BossUpdate = nil -- RemoteEvent : server -> ALL clients, { Kind, Name?, Biome?, Meter?, Max?, Pos?, TimeLeft? }
+-- M11.4 seasonal exclusives. Client sends INTENT ONLY ({ Action="get"|"buy", Key? }); server gates by
+-- server-time season window + the idempotent claim set.
+Remotes.ExclusiveAction = nil -- RemoteFunction : client -> server ({ Action, Key? }) -> { Result, State?/Message }
 
 -- Every remote name this module creates -- the SINGLE list the boot diagnostic verifies the
 -- ReplicatedStorage/Remotes surface against. Keep in sync with Init() below AND the client's
@@ -88,6 +91,7 @@ Remotes.ExpectedNames = {
     "LoadoutRequest",
     "EvolveRequest",
     "BossUpdate",
+    "ExclusiveAction",
 }
 
 local folder = nil
@@ -220,6 +224,10 @@ function Remotes.Init()
     bossUpdate.Name = "BossUpdate"
     bossUpdate.Parent = folder
 
+    local exclusiveAction = Instance.new("RemoteFunction")
+    exclusiveAction.Name = "ExclusiveAction"
+    exclusiveAction.Parent = folder
+
     folder.Parent = ReplicatedStorage
 
     Remotes.PurchaseRequest = purchase
@@ -252,6 +260,7 @@ function Remotes.Init()
     Remotes.LoadoutRequest = loadoutRequest
     Remotes.EvolveRequest = evolveRequest
     Remotes.BossUpdate = bossUpdate
+    Remotes.ExclusiveAction = exclusiveAction
 end
 
 -- Sends a toast to a single player. kind = "success" | "error" | "info". Optional `cue` is a

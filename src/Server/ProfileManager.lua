@@ -91,6 +91,13 @@ local PROFILE_TEMPLATE = {
     -- M11.1 SIGNATURE PERKS: wall-clock (os.time) of the player's last leave, stamped on logout, used
     -- by the Cold Storage perk to grant capped offline earnings on the next join. Reconciles to 0.
     LastLeaveTime = 0,
+    -- M11.4 SEASONAL EXCLUSIVES: idempotency ledger of exclusive Keys already granted (Key -> true).
+    -- Grant + record commit together, so an exclusive is granted EXACTLY once across servers/restarts/
+    -- logins; a no-pad reward simply isn't recorded and retries next join. Reconciles empty.
+    ClaimedExclusives = {},
+    -- M11.4 SEASONAL EXCLUSIVES: owned cosmetics ([cosmeticId] = true). Permanent, purely visual/status
+    -- (no power). Reconciles empty on existing saves.
+    OwnedCosmetics = {},
 }
 
 local Profiles = {} -- [Player] = Profile

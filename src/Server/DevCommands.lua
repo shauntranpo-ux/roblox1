@@ -19,6 +19,7 @@ local TextChatService = game:GetService("TextChatService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Catalog = require(ReplicatedStorage.Shared.Catalog)
+local EvolutionConfig = require(ReplicatedStorage.Shared.EvolutionConfig)
 
 local DevConfig = require(script.Parent.DevConfig)
 local ProfileManager = require(script.Parent.ProfileManager)
@@ -30,6 +31,9 @@ local Leaderstats = require(script.Parent.Leaderstats)
 local ProtectionService = require(script.Parent.ProtectionService)
 local RebirthService = require(script.Parent.RebirthService)
 local InvariantValidator = require(script.Parent.InvariantValidator)
+local BossService = require(script.Parent.BossService)
+local SeasonService = require(script.Parent.SeasonService)
+local ExclusivesService = require(script.Parent.ExclusivesService)
 local Remotes = require(script.Parent.Remotes)
 
 local DevCommands = {}
@@ -118,7 +122,11 @@ local function actGive(player, brainrotId, rollMutation)
     end
     local roll = rollMutation and BrainrotFactory.RollFor.Purchase
         or BrainrotFactory.RollFor.Product
-    local unit = BrainrotFactory.create(player, def, padIndex, roll)
+    -- Admin override: allowExclusive=true so /give can also mint a seasonal-exclusive species for tests.
+    local unit = BrainrotFactory.create(player, def, padIndex, roll, true)
+    if unit == nil then
+        return false, "couldn't create that unit."
+    end
     table.insert(profile.Data.OwnedBrainrots, unit)
     profile.Data.Discovered[def.Id] = true
     BrainrotService.SpawnBrainrot(player, plot, unit)
@@ -159,11 +167,63 @@ local function actValidate()
     return true, "invariant scan printed to the server log (press F9 for the dev console)."
 end
 
+-- M11.2: bank XP onto every owned unit so they become evolvable (open the Evolve panel to evolve).
+local function actAddXP(player, amount)
+    amount = tonumber(amount)
+    if amount == nil then
+        return false, "usage: /addxp <amount>"
+    end
+    local profile = ProfileManager.GetProfile(player)
+    if profile == nil then
+        return false, "not ready."
+    end
+    local n = 0
+    for _, unit in ipairs(profile.Data.OwnedBrainrots) do
+        EvolutionConfig.AddXP(unit, amount)
+        n += 1
+    end
+    refresh(player)
+    return true, string.format("added %d XP to %d units -- open Evolve to evolve.", amount, n)
+end
+
+-- M11.3: force a world boss to spawn now (go hold its prompt to drain it).
+local function actBoss(_player)
+    local ok = BossService.ForceSpawn()
+    return ok,
+        ok and "world boss spawned -- go attack it!"
+            or "a boss is already active (or none configured)."
+end
+
+-- M11.4: force a season rollover (SIM only) so frozen-season rewards become claimable.
+local function actSeason(_player)
+    if not DevConfig.SimMode then
+        return false, "SIM-only (force rollover is off in production)."
+    end
+    SeasonService.ForceRollover()
+    return true, "forced season rollover -- frozen-season rewards claim on next join / re-join."
+end
+
+-- M11.4: seasonal-exclusive testing. list / start <key> (open window) / end / grant <key>.
+local function actExcl(player, sub, key)
+    sub = (type(sub) == "string") and sub:lower() or "list"
+    if sub == "list" then
+        return true, "exclusives: " .. table.concat(ExclusivesService.ListKeys(), "  |  ")
+    elseif sub == "start" then
+        return ExclusivesService.DevForceWindow(key)
+    elseif sub == "end" then
+        return ExclusivesService.DevClearWindow()
+    elseif sub == "grant" then
+        return ExclusivesService.DevGrant(player, key)
+    end
+    return false, "usage: /excl list | start <key> | end | grant <key>"
+end
+
 -- ===========================================================================================
 -- Chat command layer (live, allowlisted, hidden from chat via TextChatCommands)
 -- ===========================================================================================
 local HELP_LINE = "[Admin] /setcash N · /addcash N · /resetmoney · /give <id> [m] · "
-    .. "/clearbrainrots · /setrebirth N · /validate · /help"
+    .. "/clearbrainrots · /setrebirth N · /addxp N · /boss · /season · "
+    .. "/excl list|start <key>|end|grant <key> · /validate · /help"
 
 local function actHelp()
     return true, HELP_LINE
@@ -194,6 +254,18 @@ local chatHandlers = {
     end,
     ["/validate"] = function(_player, _args)
         return actValidate()
+    end,
+    ["/addxp"] = function(player, args)
+        return actAddXP(player, args[1])
+    end,
+    ["/boss"] = function(_player, _args)
+        return actBoss()
+    end,
+    ["/season"] = function(_player, _args)
+        return actSeason()
+    end,
+    ["/excl"] = function(player, args)
+        return actExcl(player, args[1], args[2])
     end,
 }
 
@@ -321,6 +393,12 @@ function DevCommands.Help()
     print([[
 [Dev] In-game CHAT commands (live, allowlisted, hidden from chat): type in the chat box:
   /help  /setcash N  /addcash N  /resetmoney  /give <id> [m]  /clearbrainrots  /setrebirth N  /validate
+  ENDGAME TEST: /addxp N (evolution)  /boss (spawn a Titan)  /season (force rollover, SIM)
+  /excl list  /excl start <key>  /excl end  /excl grant <key>   (seasonal exclusives, SIM)
+
+  TEST FLOW (endgame): equip perks in Loadout · /addxp 999999 then evolve in Evolve · /boss then hold
+  the Titan prompt · /excl start s900001_aura then buy it in Exclusives · /excl end -> can't buy it now
+  · /excl grant s900001_warden -> own a Season exclusive forever (try trading it 2-player).
 
 Studio command-bar API (SIM only), command bar set to "Server":
   D = require(game.ServerScriptService.Server.DevCommands)
@@ -328,6 +406,7 @@ Studio command-bar API (SIM only), command bar set to "Server":
 
 Other SIM hooks:
   EventService.ForceEvent("double_weekend", true) · SeasonService.ForceRollover()
+  BossService.ForceSpawn() · ExclusivesService.DevForceWindow("s900001_aura")
   MonetizationService.SimGrantGamepass(player, "DoubleCash")
 
 Brainrot ids:]])

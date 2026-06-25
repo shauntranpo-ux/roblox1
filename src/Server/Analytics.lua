@@ -55,6 +55,7 @@ Analytics.Events = { -- custom (retention/engagement) event names
     BossKill = "boss_kill", -- M11.3 a world boss defeated (value = qualifying participant count)
     BossReward = "boss_reward", -- M11.3 a participant received their boss reward
     BossFlee = "boss_flee", -- M11.3 a world boss left un-beaten (timeout)
+    ExclusiveGrant = "exclusive_grant", -- M11.4 a seasonal exclusive granted (brainrot/mutation/cosmetic)
 }
 
 Analytics.Funnel = { -- new-player onboarding funnel steps { stepNumber, stepName }

@@ -33,6 +33,11 @@ local rarityIds = {} -- [rarityKey] = { id, ... }
 local allFreeIds = {} -- every non-premium roster Id
 for _, item in ipairs(Catalog.Items) do
     local includeForCompletion = IndexConfig.IncludePremiumInCompletion or item.Premium ~= true
+    -- M11.4: seasonal exclusives are NOT required for completion (a missed season must never lock a
+    -- player out of 100%). They still appear in the Index grid as a FOMO badge.
+    if item.ExclusiveSeason ~= nil then
+        includeForCompletion = false
+    end
     if includeForCompletion then
         rarityIds[item.Rarity] = rarityIds[item.Rarity] or {}
         table.insert(rarityIds[item.Rarity], item.Id)

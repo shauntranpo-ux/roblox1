@@ -272,12 +272,14 @@ end
 local function randomUnitOfRarity(rarityKey)
     local pool = {}
     for _, item in ipairs(Catalog.Items) do
-        -- Exclude premium AND boss-only (M11.3) units so tier-up can never mint a gated reward unit.
+        -- Exclude premium, boss-only (M11.3), AND seasonal-exclusive (M11.4) units so tier-up can never
+        -- mint a gated reward unit (the factory would refuse an exclusive anyway -- this avoids the nil).
         if
             item.Rarity == rarityKey
             and item.Buyable ~= false
             and item.Premium ~= true
             and item.BossOnly ~= true
+            and item.ExclusiveSeason == nil
         then
             table.insert(pool, item)
         end

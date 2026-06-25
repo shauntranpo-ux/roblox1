@@ -31,7 +31,10 @@ local lastState = nil
 local rarityIds = {}
 local allFreeIds = {}
 for _, item in ipairs(Catalog.Items) do
-    if IndexConfig.IncludePremiumInCompletion or item.Premium ~= true then
+    -- M11.4: seasonal exclusives appear in the grid (FOMO) but are NOT required for completion.
+    local countable = (IndexConfig.IncludePremiumInCompletion or item.Premium ~= true)
+        and item.ExclusiveSeason == nil
+    if countable then
         rarityIds[item.Rarity] = rarityIds[item.Rarity] or {}
         table.insert(rarityIds[item.Rarity], item.Id)
         table.insert(allFreeIds, item.Id)
@@ -263,7 +266,11 @@ local function renderGrid(state)
                     discovered = state.Discovered[item.Id] == true,
                     title = item.DisplayName,
                     color = rarity.Color,
-                    sublabel = rarity.DisplayName,
+                    -- M11.4: an exclusive reads as a "Season N Exclusive" badge -- discovered = a flex,
+                    -- locked = the FOMO "was available in Season N" (no exploitable info to obtain it).
+                    sublabel = item.ExclusiveSeason ~= nil
+                            and ("Season " .. item.ExclusiveSeason .. " Excl.")
+                        or rarity.DisplayName,
                     iconId = item.IconId,
                 })
             end

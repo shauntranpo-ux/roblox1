@@ -38,7 +38,15 @@ end
 -- Creates a fresh owned-unit record. `def` is a Catalog roster entry; stored IncomePerSec is the
 -- species BASE (the mutation multiplier is applied only by Shared/UnitIncome). `rollMutation` rolls
 -- a server-side weighted mutation respecting the player's luck. Returns the record.
-function BrainrotFactory.create(player, def, padIndex, rollMutation)
+function BrainrotFactory.create(player, def, padIndex, rollMutation, allowExclusive)
+    -- M11.4 EXCLUSIVITY GATE (central default-deny): refuse to create a seasonal-exclusive species
+    -- unless this is an AUTHORIZED grant (an in-window / earned source that validated eligibility and
+    -- passes allowExclusive=true). EVERY other creation path (purchase / fusion / index / set / boss /
+    -- normal grants) omits allowExclusive, so an EXPIRED (or any unauthorized) exclusive can NEVER be
+    -- minted by any path. Trading an already-owned copy is a MOVE (no factory call) and is unaffected.
+    if def.ExclusiveSeason ~= nil and allowExclusive ~= true then
+        return nil
+    end
     local mutation = nil
     if rollMutation then
         mutation = MutationConfig.Roll(Benefits.GetLuckMultiplier(player))

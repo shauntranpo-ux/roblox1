@@ -27,6 +27,7 @@ local Fusion = require(UI.Fusion)
 local Loadout = require(UI.Loadout)
 local Evolution = require(UI.Evolution)
 local BossHud = require(UI.BossHud)
+local Exclusives = require(UI.Exclusives)
 local PanelManager = require(UI.PanelManager)
 local ClickFX = require(UI.ClickFX)
 
@@ -65,6 +66,7 @@ local remotes = {
     LoadoutRequest = remotesFolder:WaitForChild("LoadoutRequest"),
     EvolveRequest = remotesFolder:WaitForChild("EvolveRequest"),
     BossUpdate = remotesFolder:WaitForChild("BossUpdate"),
+    ExclusiveAction = remotesFolder:WaitForChild("ExclusiveAction"),
 }
 
 local context = { player = player, remotes = remotes }
@@ -138,6 +140,9 @@ end)
 safeMount("BossHud", function()
     BossHud.mount(context)
 end)
+safeMount("Exclusives", function()
+    Exclusives.mount(context)
+end)
 safeMount("Menu", function()
     Menu.mount(context)
     -- Menu list entries OPEN their panel through the manager (the Menu closes itself first).
@@ -149,6 +154,9 @@ safeMount("Menu", function()
     end)
     Menu.addButton("🧬 Evolve", function()
         PanelManager.open("Evolution")
+    end)
+    Menu.addButton("🎁 Exclusives", function()
+        PanelManager.open("Exclusives")
     end)
     Menu.addButton("🏆 Seasons", function()
         PanelManager.open("Seasons")
@@ -203,6 +211,7 @@ safeMount("PanelManager registry", function()
     PanelManager.register("Fusion", Fusion.toggle)
     PanelManager.register("Loadout", Loadout.toggle)
     PanelManager.register("Evolution", Evolution.toggle)
+    PanelManager.register("Exclusives", Exclusives.toggle)
 end)
 
 -- Hide the "Hold to steal" prompt on the LOCAL player's OWN brainrots (you can't steal your
