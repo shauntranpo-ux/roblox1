@@ -3,7 +3,7 @@
 -- ballistic arc to it (Roblox owns the local character, so the launch is applied client-side). Locked
 -- biomes are shown but refused. Client sends INTENT only; the server owns the unlock authority.
 
-local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
 
 local Builder = require(script.Parent.Builder)
 local Theme = require(script.Parent.Theme)
@@ -54,22 +54,34 @@ local function rowButton(text, color, fn)
     }, fn)
 end
 
--- Fling the local character to `target` (Vector3) so it ARRIVES there in `flightTime` seconds. Standard
--- projectile solve: v = horizontalGap/T for X/Z, and v_y = dy/T + 0.5*g*T (g = Workspace.Gravity).
+-- Ride the local character to `target` (Vector3) over `flightTime`s as an ANCHORED kinematic glide. Anchored
+-- = no collision, so it passes the solid platforms in the way with NO head-bonk, then releases on the landing.
 local function fling(target, flightTime)
     local character = player.Character
     local root = character and character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
     if root == nil then
         return false
     end
-    local g = Workspace.Gravity
-    local t = math.clamp(flightTime or 1.7, 0.5, 4)
-    local p0 = root.Position
-    local vy = (target.Y - p0.Y) / t + 0.5 * g * t
-    local v = Vector3.new((target.X - p0.X) / t, vy, (target.Z - p0.Z) / t)
-    -- a tiny upward nudge so the launch clears the slingshot frame, then apply the arc velocity.
-    root.CFrame = root.CFrame + Vector3.new(0, 3, 0)
-    root.AssemblyLinearVelocity = v
+    local t = math.clamp(flightTime or 1.6, 0.6, 4)
+    if humanoid then
+        humanoid.PlatformStand = true -- stop walk/fall fighting the ride
+    end
+    root.Anchored = true
+    local rotation = root.CFrame - root.CFrame.Position -- keep current facing
+    local goal = CFrame.new(target) * rotation
+    local tween = TweenService:Create(
+        root,
+        TweenInfo.new(t, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut),
+        { CFrame = goal }
+    )
+    tween:Play()
+    tween.Completed:Connect(function()
+        root.Anchored = false
+        if humanoid then
+            humanoid.PlatformStand = false
+        end
+    end)
     return true
 end
 

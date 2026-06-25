@@ -162,6 +162,75 @@ local function fixture(parent, pos, size, color, tagName, label, neon)
     return block
 end
 
+-- A real elevator CAR (floor + 3 walls + roof + corner posts + a glowing call panel) at a platform's edge.
+-- The call panel carries the "Slingshot" tag so the existing prompt/menu binds to it. `y` = platform top.
+local function buildElevatorCar(folder, y)
+    local a = math.rad(WorldConfig.Levels.ElevatorAngleDeg)
+    local r = WorldConfig.Levels.ElevatorRadius
+    local center = Vector3.new(math.cos(a) * r, y, math.sin(a) * r)
+    local cf = CFrame.lookAt(center, WorldConfig.Center + Vector3.new(0, y, 0)) -- car faces the platform center
+    part(
+        { Size = Vector3.new(14, 1, 14), CFrame = cf * CFrame.new(0, 0.5, 0), Color = P.HubStone },
+        folder
+    )
+    part({
+        Size = Vector3.new(14, 16, 1),
+        CFrame = cf * CFrame.new(0, 8, -6.5),
+        Color = P.ShieldCyan,
+    }, folder)
+    for _, sx in ipairs({ -1, 1 }) do
+        part({
+            Size = Vector3.new(1, 16, 14),
+            CFrame = cf * CFrame.new(sx * 6.5, 8, 0),
+            Color = P.HubStone,
+        }, folder)
+    end
+    part(
+        { Size = Vector3.new(15, 1, 15), CFrame = cf * CFrame.new(0, 16.5, 0), Color = P.HubStone },
+        folder
+    )
+    for _, sx in ipairs({ -1, 1 }) do
+        for _, sz in ipairs({ -1, 1 }) do
+            part({
+                Size = Vector3.new(1.5, 17, 1.5),
+                CFrame = cf * CFrame.new(sx * 7, 8.5, sz * 7),
+                Color = P.Gold,
+            }, folder)
+        end
+    end
+    local panel = fixture(
+        folder,
+        (cf * CFrame.new(0, 0, -6)).Position,
+        Vector3.new(4, 6, 1),
+        P.Gold,
+        "Slingshot",
+        "ELEVATOR"
+    )
+    panel:SetAttribute("LaunchHeight", 26)
+    part({
+        Size = Vector3.new(4, 6, 0.4),
+        CFrame = cf * CFrame.new(0, 9, -6.2),
+        Color = P.ShieldCyan,
+        Glow = true,
+    }, folder)
+    return panel
+end
+
+-- A vertical SHAFT track (thin glowing rails) running the full stack height at the elevator spot.
+local function buildElevatorShaft(folder)
+    local a = math.rad(WorldConfig.Levels.ElevatorAngleDeg)
+    local r = WorldConfig.Levels.ElevatorRadius
+    local topY = WorldConfig.Biomes[#WorldConfig.Biomes].Y
+    local pos = Vector3.new(math.cos(a) * r, topY / 2, math.sin(a) * r)
+    for _, sx in ipairs({ -1, 1 }) do
+        part({
+            Size = Vector3.new(1, topY + 20, 1),
+            Position = pos + Vector3.new(0, 0, sx * 8),
+            Color = P.HubStone,
+        }, folder)
+    end
+end
+
 -- ── HUB (central plaza at origin) ────────────────────────────────────────────────────────────
 local function buildHub(folder)
     local hub = WorldConfig.Hub
@@ -205,25 +274,8 @@ local function buildHub(folder)
         Neon = true,
     }, folder)
 
-    -- ELEVATOR pad on the bottom 'start' level (tagged "Slingshot" -> the client elevator menu lives on it).
-    local slingPos = c + WorldConfig.Slingshot.Position
-    local base =
-        fixture(folder, slingPos, Vector3.new(12, 4, 12), P.ShieldCyan, "Slingshot", "ELEVATOR")
-    for _, sx in ipairs({ -1, 1 }) do
-        part({
-            Size = Vector3.new(2, 16, 2),
-            Position = slingPos + Vector3.new(sx * 4, 12, 0),
-            Color = P.Wood,
-            Material = Enum.Material.Wood,
-        }, folder)
-    end
-    part({
-        Size = Vector3.new(12, 1.5, 1.5),
-        Position = slingPos + Vector3.new(0, 20, 0),
-        Color = P.Gold,
-        Neon = true,
-    }, folder)
-    base:SetAttribute("LaunchHeight", 24)
+    -- ELEVATOR CAR on the bottom 'start' level (tagged "Slingshot" -> the client elevator menu lives on it).
+    buildElevatorCar(folder, 0)
 
     -- shop stalls + free-reward blocks (tagged fixtures), arranged around the plaza.
     fixture(
@@ -564,19 +616,7 @@ local function buildPlatform(folder, cfg)
 
     if cfg.Tier > 1 then
         platformProps(folder, cfg) -- level 1 = the hub; upper levels get the biome flavor scatter
-        -- the ELEVATOR pad on this floating level (tagged "Slingshot" -> the client menu rides between
-        -- levels). The bottom level's elevator is the fixture built by buildHub.
-        local epos = onDisc(L.ElevatorAngleDeg, L.ElevatorRadius, 0)
-        local pad =
-            fixture(folder, epos, Vector3.new(12, 6, 12), P.ShieldCyan, "Slingshot", "ELEVATOR")
-        for _, sx in ipairs({ -1, 1 }) do
-            part({
-                Size = Vector3.new(2, 20, 2),
-                Position = epos + Vector3.new(sx * 5, 14, 0),
-                Color = P.HubStone,
-            }, folder)
-        end
-        pad:SetAttribute("LaunchHeight", 26)
+        buildElevatorCar(folder, cfg.Y)
     end
 end
 
@@ -660,6 +700,7 @@ function WorldBuilder.Init()
     buildDistrict(worldFolder) -- the bottom 'start' platform ground + plot ring (level 1, the meadow)
     buildHub(worldFolder) -- central plaza + fixtures + the bottom-level ELEVATOR on level 1
     buildPlatforms(worldFolder) -- the stacked floating biome platforms (levels 2..N) + per-level decor
+    buildElevatorShaft(worldFolder)
     buildIslands(worldFolder)
 end
 
