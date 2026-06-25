@@ -326,6 +326,13 @@ for _, item in ipairs(Catalog.Items) do
     Catalog.ById[item.Id] = item
 end
 
+-- M11.1: stamp every roster entry with its SignaturePerk from the single source (PerksConfig). Any
+-- entry without an explicit assignment falls back to the default perk (the documented reconcile).
+local PerksConfig = require(Shared:WaitForChild("PerksConfig"))
+for _, item in ipairs(Catalog.Items) do
+    item.SignaturePerk = item.SignaturePerk or PerksConfig.PerkForType(item.Id)
+end
+
 function Catalog.Get(id)
     return Catalog.ById[id]
 end

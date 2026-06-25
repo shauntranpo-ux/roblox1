@@ -60,6 +60,7 @@ Theme.Accents = {
     Menu = { Top = Color3.fromRGB(180, 110, 255), Bottom = Color3.fromRGB(120, 55, 215) },
     Fusion = { Top = Color3.fromRGB(255, 170, 90), Bottom = Color3.fromRGB(236, 96, 60) }, -- forge orange
     Deploy = { Top = Color3.fromRGB(120, 220, 190), Bottom = Color3.fromRGB(40, 150, 160) }, -- steel teal
+    Loadout = { Top = Color3.fromRGB(255, 120, 160), Bottom = Color3.fromRGB(210, 50, 90) }, -- raid red
 }
 
 -- Returns a fresh vertical UIGradient for an accent key (top -> bottom). Caller parents it.

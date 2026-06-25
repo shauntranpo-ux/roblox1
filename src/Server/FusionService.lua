@@ -45,6 +45,7 @@ local RateLimiter = require(script.Parent.RateLimiter)
 local TransitRegistry = require(script.Parent.TransitRegistry)
 local TradeLockRegistry = require(script.Parent.TradeLockRegistry)
 local DeployLockRegistry = require(script.Parent.DeployLockRegistry)
+local PerkEffects = require(script.Parent.PerkEffects)
 local Remotes = require(script.Parent.Remotes)
 
 local FusionService = {}
@@ -155,7 +156,8 @@ local function fuseStarUp(player, profile, fodder)
     end
 
     -- ----- roll the outcome (server-side) -----
-    local fail = math.random() < FusionConfig.SoftFailChance
+    -- M11.1 ECON perk (Cosmic Forge): the holder's FusionFailMult lowers the fail chance.
+    local fail = math.random() < FusionConfig.SoftFailChance * PerkEffects.FusionFailMult(player)
     if fail then
         local lose = math.clamp(FusionConfig.SoftFailLose, 1, #fodder - 1)
         local removeSet = {}
@@ -179,7 +181,9 @@ local function fuseStarUp(player, profile, fodder)
         }
     end
 
-    local crit = math.random() < FusionConfig.CritChance
+    -- M11.1 ECON perk (Cosmic Forge): the holder's FusionCritBonus raises the crit chance (capped 1).
+    local crit = math.random()
+        < math.clamp(FusionConfig.CritChance + PerkEffects.FusionCritBonus(player), 0, 1)
     local newStar = star0 + 1 + (crit and FusionConfig.CritExtraStars or 0)
     if newStar > FusionConfig.MaxStar then
         newStar = FusionConfig.MaxStar
@@ -312,7 +316,8 @@ local function fuseTierUp(player, profile, fodder)
         return { Result = "Error", Message = "No pad for the result." }
     end
 
-    local fail = math.random() < FusionConfig.SoftFailChance
+    -- M11.1 ECON perk (Cosmic Forge): the holder's FusionFailMult lowers the fail chance.
+    local fail = math.random() < FusionConfig.SoftFailChance * PerkEffects.FusionFailMult(player)
     if fail then
         local lose = math.clamp(FusionConfig.SoftFailLose, 1, #fodder - 1)
         local removeSet = {}
@@ -334,7 +339,9 @@ local function fuseTierUp(player, profile, fodder)
         }
     end
 
-    local crit = math.random() < FusionConfig.CritChance
+    -- M11.1 ECON perk (Cosmic Forge): the holder's FusionCritBonus raises the crit chance (capped 1).
+    local crit = math.random()
+        < math.clamp(FusionConfig.CritChance + PerkEffects.FusionCritBonus(player), 0, 1)
     local rollMut = math.random() < FusionConfig.MutationOnFusionChance
 
     -- ===== COMMIT: remove fodder + create the next-tier result, NO yields. =====

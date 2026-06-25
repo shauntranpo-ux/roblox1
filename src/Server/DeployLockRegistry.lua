@@ -1,9 +1,9 @@
 -- DeployLockRegistry: a tiny, decoupled set of brainrot Ids currently LOCKED because they are
--- DEPLOYED to a role slot. Decoupled (requires nothing) so SellService / FusionService / StealService
--- / TradeService can READ it to refuse acting on a deployed unit, without a require cycle back into
--- DeployService (same pattern as TransitRegistry / TradeLockRegistry).
---   * DeployService WRITES it (lock on assign, unlock on unassign / leave).
---   * Sell / Fusion / Steal / Trade READ it (a deployed unit can't be sold/fused/stolen/traded).
+-- EQUIPPED to a perk slot (M11.1). This is the SAME item-lock the M9.3 deploy system used -- REUSED,
+-- not forked. Decoupled (requires nothing) so SellService / FusionService / StealService /
+-- TradeService can READ it to refuse acting on an equipped unit, without a require cycle.
+--   * LoadoutService WRITES it (lock on equip, unlock on unequip / leave).
+--   * Sell / Fusion / Steal / Trade READ it (an equipped unit can't be sold/fused/stolen/traded).
 
 local DeployLockRegistry = {}
 

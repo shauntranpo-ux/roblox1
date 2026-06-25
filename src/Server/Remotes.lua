@@ -45,8 +45,8 @@ Remotes.SeasonsUpdate = nil -- RemoteEvent  : server -> ALL clients, "season rol
 Remotes.SellRequest = nil -- RemoteFunction : client -> server ({ Action, Id?/Mode?, Confirm? }) -> result
 -- M9.2 fusion. Client sends INTENT ONLY (the fodder unit Ids + mode); server rolls + fuses.
 Remotes.FuseRequest = nil -- RemoteFunction : client -> server ({ FodderIds, Mode? }) -> result
--- M9.3 deploy. Client sends INTENT ONLY (a unit Id + role slot, or a slot to unassign / "get").
-Remotes.DeployRequest = nil -- RemoteFunction : client -> server ({ Action, UnitId?, Slot? }) -> result
+-- M11.1 loadout. Client sends INTENT ONLY (a unit Id + perk slot, or a slot to unequip / "get").
+Remotes.LoadoutRequest = nil -- RemoteFunction : client -> server ({ Action, UnitId?, Slot? }) -> result
 
 -- Every remote name this module creates -- the SINGLE list the boot diagnostic verifies the
 -- ReplicatedStorage/Remotes surface against. Keep in sync with Init() below AND the client's
@@ -79,7 +79,7 @@ Remotes.ExpectedNames = {
     "SeasonsUpdate",
     "SellRequest",
     "FuseRequest",
-    "DeployRequest",
+    "LoadoutRequest",
 }
 
 local folder = nil
@@ -200,9 +200,9 @@ function Remotes.Init()
     fuseRequest.Name = "FuseRequest"
     fuseRequest.Parent = folder
 
-    local deployRequest = Instance.new("RemoteFunction")
-    deployRequest.Name = "DeployRequest"
-    deployRequest.Parent = folder
+    local loadoutRequest = Instance.new("RemoteFunction")
+    loadoutRequest.Name = "LoadoutRequest"
+    loadoutRequest.Parent = folder
 
     folder.Parent = ReplicatedStorage
 
@@ -233,7 +233,7 @@ function Remotes.Init()
     Remotes.SeasonsUpdate = seasonsUpdate
     Remotes.SellRequest = sellRequest
     Remotes.FuseRequest = fuseRequest
-    Remotes.DeployRequest = deployRequest
+    Remotes.LoadoutRequest = loadoutRequest
 end
 
 -- Sends a toast to a single player. kind = "success" | "error" | "info". Optional `cue` is a

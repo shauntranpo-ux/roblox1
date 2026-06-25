@@ -48,6 +48,8 @@ Analytics.Events = { -- custom (retention/engagement) event names
     Deploy = "deploy", -- M9.3 a unit deployed to a role (value = unit rarity order)
     Undeploy = "undeploy", -- M9.3 a unit unassigned from a role
     SetComplete = "set_complete", -- M9.4 a themed-set perk claimed
+    PerkEquip = "perk_equip", -- M11.1 a unit equipped to a perk slot (value = holder rarity order)
+    PerkUnequip = "perk_unequip", -- M11.1 a unit unequipped from a perk slot
 }
 
 Analytics.Funnel = { -- new-player onboarding funnel steps { stepNumber, stepName }

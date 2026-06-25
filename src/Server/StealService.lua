@@ -14,6 +14,13 @@
 -- A leaving player is fully resolved (ResolvePlayer) BEFORE their profile is released/saved,
 -- so a save can never capture a duped or half-moved unit. The double-steal race is closed by
 -- the ActiveSteals[id] guard set before any yield. Net: no path duplicates or loses a unit.
+--
+-- ── M11.1 SIGNATURE PERKS (difficulty/params/visuals ONLY) ──────────────────────────────
+-- RAID/DEF/MOVE perks read from the decoupled PerkEffects aggregate and adjust ONLY: the thief's
+-- steal cooldown, deposit reach, how many units they may carry at once, carry walkspeed, raid
+-- stealth (whether the victim is alerted), and the DEFENDER's pre-transfer block (stun/interrupt).
+-- They NEVER touch transferOwnership -- multi-carry is just N independent single-unit steals by one
+-- thief, each atomic + dupe-proof, and a thief's loss reverts ALL of them dupe-safely.
 
 local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
@@ -24,6 +31,7 @@ local StealConfig = require(ReplicatedStorage.Shared.StealConfig)
 local Catalog = require(ReplicatedStorage.Shared.Catalog)
 local Rarity = require(ReplicatedStorage.Shared.Rarity)
 local MutationConfig = require(ReplicatedStorage.Shared.MutationConfig)
+local PerksConfig = require(ReplicatedStorage.Shared.PerksConfig)
 
 local ProfileManager = require(script.Parent.ProfileManager)
 local PlotService = require(script.Parent.PlotService)
@@ -36,7 +44,7 @@ local Benefits = require(script.Parent.Benefits)
 local Analytics = require(script.Parent.Analytics)
 local TradeLockRegistry = require(script.Parent.TradeLockRegistry)
 local DeployLockRegistry = require(script.Parent.DeployLockRegistry)
-local RoleEffects = require(script.Parent.RoleEffects)
+local PerkEffects = require(script.Parent.PerkEffects)
 local EventService = require(script.Parent.EventService)
 local SeasonService = require(script.Parent.SeasonService)
 
@@ -44,9 +52,10 @@ local StealService = {}
 
 -- Authoritative in-memory registries.
 local ActiveSteals = {} -- [brainrotId] = steal record (its presence == IN_TRANSIT)
-local carryingByThief = {} -- [Player] = brainrotId (a player carries AT MOST one)
+local carriedByThief = {} -- [Player] = { [brainrotId] = true } (a thief may carry up to a perk-set max)
 local lastStealTime = {} -- [Player] = clock of last SUCCESSFUL steal (cooldown)
 local immunityUntil = {} -- [brainrotId] = clock until which it can't be re-stolen
+local moveMultByThief = {} -- [Player] = walkspeed multiplier from MOVE perks (default 1)
 
 local LOOP_INTERVAL = 0.1 -- s: deposit-distance + timeout poll rate (~10 Hz)
 local loopAccum = 0
@@ -77,45 +86,55 @@ local function defFor(brainrotType)
     return Catalog.Get(brainrotType) or Catalog.GetStarter()
 end
 
--- Applies the optional carry WalkSpeed penalty, remembering the thief's real speed to restore.
-local function applyCarryPenalty(thief, steal)
-    -- M9.3 RAIDER: ease the penalty toward NO penalty by the thief's Raider strength (0..1). This
-    -- only changes the thief's WalkSpeed; it never touches the steal/ownership state machine.
-    local strength = RoleEffects.RaiderStrength(thief)
-    local mult = StealConfig.CarryWalkSpeedMult + (1 - StealConfig.CarryWalkSpeedMult) * strength
-    if mult >= 1 then
-        return
+-- How many units a thief is currently carrying.
+local function carryCount(player)
+    local set = carriedByThief[player]
+    if set == nil then
+        return 0
     end
-    local character = thief.Character
-    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-    if humanoid ~= nil then
-        steal.OriginalWalkSpeed = humanoid.WalkSpeed
-        humanoid.WalkSpeed = humanoid.WalkSpeed * mult
+    local n = 0
+    for _ in pairs(set) do
+        n += 1
     end
+    return n
 end
 
-local function restoreWalkSpeed(steal)
-    if steal.OriginalWalkSpeed == nil then
+-- THE single authority over a thief's WalkSpeed. Computes it from scratch every time -- base
+-- walkspeed x MOVE-perk multiplier, then (while carrying) x the carry penalty eased by carry-speed
+-- perks. No store/restore (which can't compose with multi-carry); always a fresh, correct value.
+local function applyThiefWalkSpeed(player)
+    local character = player.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    if humanoid == nil then
         return
     end
-    local character = steal.Thief.Character
-    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-    if humanoid ~= nil then
-        humanoid.WalkSpeed = steal.OriginalWalkSpeed
+    local speed = PerksConfig.BaseWalkSpeed * (moveMultByThief[player] or 1)
+    if carryCount(player) > 0 then
+        local ease = PerkEffects.CarryEase(player)
+        local penalty = StealConfig.CarryWalkSpeedMult
+        penalty = penalty + (1 - penalty) * ease
+        speed = speed * penalty
     end
-    steal.OriginalWalkSpeed = nil
+    humanoid.WalkSpeed = speed
 end
 
--- Tears down all IN_TRANSIT runtime state for a steal (NOT ownership data). Always called by
--- both DEPOSIT and REVERT so every exit path restores speed, kills the carried model, clears
--- the registries, and (optionally) releases the reserved pad.
+-- LoadoutService pushes the player's MOVE-perk multiplier here on every loadout change; we re-apply
+-- the authoritative walkspeed immediately (covers equip/unequip/swap of a movement perk).
+function StealService.SetMoveMult(player, mult)
+    moveMultByThief[player] = mult
+    applyThiefWalkSpeed(player)
+end
+
+-- Tears down all IN_TRANSIT runtime state for ONE steal (NOT ownership data). Always called by
+-- both DEPOSIT and REVERT so every exit path kills the carried model, clears the registries,
+-- recomputes the thief's walkspeed, and (optionally) releases the reserved pad.
 local function clearSteal(steal, releaseReservation)
     TransitRegistry.Set(steal.BrainrotId, false)
     ActiveSteals[steal.BrainrotId] = nil
-    if carryingByThief[steal.Thief] == steal.BrainrotId then
-        carryingByThief[steal.Thief] = nil
+    local set = carriedByThief[steal.Thief]
+    if set ~= nil then
+        set[steal.BrainrotId] = nil
     end
-    restoreWalkSpeed(steal)
     if steal.CarriedModel ~= nil then
         steal.CarriedModel:Destroy()
         steal.CarriedModel = nil
@@ -123,6 +142,7 @@ local function clearSteal(steal, releaseReservation)
     if releaseReservation then
         PlotService.ReleasePad(steal.Thief, steal.ReservedPadIndex)
     end
+    applyThiefWalkSpeed(steal.Thief) -- carry count dropped -> recompute (may remove the penalty)
 end
 
 -- THE single guarded ownership mutation. Removes the unit from the victim and inserts it into
@@ -217,6 +237,30 @@ function revert(steal, respawnOnVictim)
     end
 end
 
+-- DEFENDER perk punish: knock the thief back from the victim's base + freeze them briefly. This is
+-- a PRE-TRANSFER physical effect on the thief's character only -- no steal state exists (we return
+-- before COMMIT), so nothing can be duped or stranded.
+local function applyStun(thief, victim, victimPlot)
+    local character = thief.Character
+    local hrp = character and character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    if hrp == nil or humanoid == nil then
+        return
+    end
+    local knock = PerkEffects.DefenderKnockback(victim)
+    if knock > 0 and victimPlot ~= nil then
+        local away = (hrp.Position - victimPlot.Origin.Position)
+        local dir = away.Magnitude > 0.1 and away.Unit or hrp.CFrame.LookVector * -1
+        hrp.AssemblyLinearVelocity = dir * knock + Vector3.new(0, knock * 0.4, 0)
+    end
+    humanoid.WalkSpeed = 0
+    task.delay(StealConfig.StunDuration, function()
+        if thief.Parent == Players then
+            applyThiefWalkSpeed(thief) -- restore (respects current carry/move perks)
+        end
+    end)
+end
+
 -- INITIATE (ON_PAD -> IN_TRANSIT). Fires on the SERVER when a "Hold to steal" prompt
 -- completes, so completion is inherently server-authoritative. ALL preconditions are
 -- re-checked here; if any fails, nothing changes and the thief gets a clear toast.
@@ -240,14 +284,9 @@ local function onPromptTriggered(prompt, thief)
         Remotes.NotifyPlayer(thief, "error", "That brainrot is locked in a trade.")
         return
     end
-    -- M9.3 DEPLOY: a deployed unit is locked and can't be stolen.
+    -- M11.1 EQUIP: an equipped (perk-holder) unit is locked and can't be stolen.
     if DeployLockRegistry.Has(brainrotId) then
-        Remotes.NotifyPlayer(thief, "error", "That brainrot is deployed and can't be stolen.")
-        return
-    end
-    -- CARRY-WHILE-CARRYING: never hold two.
-    if carryingByThief[thief] ~= nil then
-        Remotes.NotifyPlayer(thief, "error", "You're already carrying something.")
+        Remotes.NotifyPlayer(thief, "error", "That brainrot is equipped and can't be stolen.")
         return
     end
 
@@ -260,10 +299,19 @@ local function onPromptTriggered(prompt, thief)
         return
     end
 
+    -- CARRY CAPACITY: a thief may carry up to a perk-set max at once (default 1; Carpet Bomb 2, etc.).
+    local maxCarry = PerkEffects.CarryCount(thief)
+    if carryCount(thief) >= maxCarry then
+        Remotes.NotifyPlayer(thief, "error", "Your hands are full.")
+        return
+    end
+
     local now = os.clock()
     local last = lastStealTime[thief]
-    -- VIP edge: Benefits returns a cooldown multiplier (<1 shortens) for this thief; 1 otherwise.
-    local cooldown = StealConfig.StealCooldown * Benefits.GetStealCooldownMult(thief)
+    -- VIP edge + RAID perks: a per-thief cooldown multiplier (<1 shortens). Both combine here.
+    local cooldown = StealConfig.StealCooldown
+        * Benefits.GetStealCooldownMult(thief)
+        * PerkEffects.AttackerCooldownMult(thief)
     if last ~= nil and now - last < cooldown then
         Remotes.NotifyPlayer(thief, "error", "Steal is on cooldown.")
         return
@@ -306,22 +354,28 @@ local function onPromptTriggered(prompt, thief)
         return
     end
 
-    -- M9.3 GUARDIAN (defense): a chance to SLAP the thief away. This is a PRE-TRANSFER difficulty
-    -- gate ONLY -- on an interrupt NOTHING is moved and NO steal state is created, so the dupe-proof
-    -- ON_PAD -> IN_TRANSIT state machine below is completely untouched.
-    local guardianChance = RoleEffects.GuardianInterrupt(victim)
-    if guardianChance > 0 and math.random() < guardianChance then
+    -- M11.1 DEFENDER perks (defense): Stun (block + knockback) and/or Interrupt (block) form a
+    -- PRE-TRANSFER gate ONLY -- on a block NOTHING is moved and NO steal state is created, so the
+    -- dupe-proof ON_PAD -> IN_TRANSIT machine below is completely untouched.
+    local victimStun = PerkEffects.DefenderStun(victim)
+    local interruptChance = PerkEffects.DefenderInterrupt(victim)
+    local blocked = victimStun or (interruptChance > 0 and math.random() < interruptChance)
+    if blocked then
+        if victimStun then
+            applyStun(thief, victim, victimPlot)
+        end
         Remotes.NotifyPlayer(
             thief,
             "error",
-            "Blocked! " .. victim.Name .. "'s Guardian slapped you away."
+            "Blocked! " .. victim.Name .. "'s defense stopped you."
         )
-        Remotes.NotifyPlayer(victim, "info", "Your Guardian blocked " .. thief.Name .. "'s steal!")
+        Remotes.NotifyPlayer(victim, "info", "You blocked " .. thief.Name .. "'s steal!")
         return
     end
 
     -- ===== COMMIT: flip ON_PAD -> IN_TRANSIT. No yields through the registry writes. =====
     PlotService.ReservePad(thief, reservedIndex)
+    local stackIndex = carryCount(thief) -- 0-based: stack additional carried models above the first
     local steal = {
         Thief = thief,
         Victim = victim,
@@ -330,58 +384,73 @@ local function onPromptTriggered(prompt, thief)
         OriginalPadIndex = entry.PadIndex,
         ReservedPadIndex = reservedIndex,
         StartTime = now,
+        CarryHeight = 3 + stackIndex * 3.2, -- weld height for this carry (stacks multi-carry models)
     }
     ActiveSteals[brainrotId] = steal
-    carryingByThief[thief] = brainrotId
+    carriedByThief[thief] = carriedByThief[thief] or {}
+    carriedByThief[thief][brainrotId] = true
     TransitRegistry.Set(brainrotId, true)
 
-    -- Visuals: lift it off the victim's pad, weld a carried model to the thief, slow the thief.
+    -- Visuals: lift it off the victim's pad, weld a carried model to the thief, recompute carry speed.
     BrainrotService.RemoveModel(victim, brainrotId)
-    steal.CarriedModel = BrainrotService.MakeCarriedModel(character, entry)
-    applyCarryPenalty(thief, steal)
+    steal.CarriedModel = BrainrotService.MakeCarriedModel(character, entry, stackIndex)
+    applyThiefWalkSpeed(thief)
 
     -- Victim stops earning this unit immediately.
     PlayerStats.UpdateIncome(victim, victimProfile)
 
-    -- Feedback: rarity-colored victim toast + everyone-sees kill-feed banner. The mutation name is
-    -- prefixed (e.g. "RAINBOW Tralalero") to amplify the drama -- the mutation travels with the unit.
+    -- Feedback. M11.1 stealth: an Invisible raider does NOT alert the victim and is NOT broadcast to
+    -- the kill-feed -- UNLESS the victim has the Alert defender perk (they always see raids).
+    local thiefInvisible = PerkEffects.IsInvisible(thief)
+    local victimAlerted = PerkEffects.DefenderAlert(victim) or not thiefInvisible
+
     local def = defFor(entry.Type)
     local rarity = Rarity.Get(def.Rarity)
     local mutDef = entry.Mutation ~= nil and MutationConfig.Get(entry.Mutation) or nil
     local displayName = (
         (mutDef ~= nil and mutDef.DisplayName ~= "") and (mutDef.DisplayName .. " ") or ""
     ) .. def.DisplayName
-    Remotes.NotifyPlayer(
-        victim,
-        "error",
-        thief.Name
-            .. ' stole your <font color="'
-            .. toHex(rarity.Color)
-            .. '"><b>'
-            .. displayName
-            .. "</b></font>!",
-        "robbed"
-    )
-    Remotes.BroadcastKillFeed({
-        Thief = thief.Name,
-        Victim = victim.Name,
-        Name = displayName,
-        Rarity = def.Rarity,
-        Mutation = entry.Mutation,
-    })
+    if victimAlerted then
+        Remotes.NotifyPlayer(
+            victim,
+            "error",
+            thief.Name
+                .. ' stole your <font color="'
+                .. toHex(rarity.Color)
+                .. '"><b>'
+                .. displayName
+                .. "</b></font>!",
+            "robbed"
+        )
+    end
+    if not thiefInvisible then
+        Remotes.BroadcastKillFeed({
+            Thief = thief.Name,
+            Victim = victim.Name,
+            Name = displayName,
+            Rarity = def.Rarity,
+            Mutation = entry.Mutation,
+        })
+    end
     Analytics.customOnce(victim, Analytics.Events.FirstRobbed)
 end
 
--- Reverts a carry if the thief's character dies or is removed (covers death mid-carry and a
--- character removed without Died firing). The unit returns to the victim.
+-- Reverts ALL of a thief's carries if their character dies or is removed (covers death mid-carry
+-- and a character removed without Died firing). Each unit returns to its victim, dupe-safely.
 local function onThiefLost(player)
-    local id = carryingByThief[player]
-    if id == nil then
+    local set = carriedByThief[player]
+    if set == nil then
         return
     end
-    local steal = ActiveSteals[id]
-    if steal ~= nil then
-        revert(steal, true)
+    local ids = {}
+    for id in pairs(set) do
+        table.insert(ids, id)
+    end
+    for _, id in ipairs(ids) do
+        local steal = ActiveSteals[id]
+        if steal ~= nil then
+            revert(steal, true)
+        end
     end
 end
 
@@ -391,6 +460,8 @@ local function onCharacter(player, character)
         humanoid = character:WaitForChild("Humanoid", 5)
     end
     if humanoid ~= nil then
+        -- Re-assert the MOVE-perk walkspeed on (re)spawn so a movement perk persists across death.
+        applyThiefWalkSpeed(player)
         humanoid.Died:Connect(function()
             onThiefLost(player)
         end)
@@ -413,7 +484,7 @@ end
 -- Called by Bootstrap on PlayerRemoving, BEFORE ProfileManager releases/saves the profile, so
 -- every steal the player is involved in is settled against correct, un-duped data first.
 function StealService.ResolvePlayer(player)
-    -- As THIEF: return the carried unit to its victim.
+    -- As THIEF: return EVERY carried unit to its victim.
     onThiefLost(player)
     -- As VICTIM: cancel each steal of their units (dupe-safe -- unit stays in their data and
     -- saves with them; thief loses it). Do NOT respawn on the leaving victim's pad.
@@ -423,7 +494,8 @@ function StealService.ResolvePlayer(player)
         end
     end
     lastStealTime[player] = nil
-    carryingByThief[player] = nil
+    carriedByThief[player] = nil
+    moveMultByThief[player] = nil
 end
 
 -- Read by IncomeService/PlayerStats indirectly via TransitRegistry; exposed for completeness.
@@ -435,7 +507,7 @@ end
 -- unit is mid-carry). Used by RebirthService/TradeService to refuse a destructive op mid-steal so
 -- nothing can be duped or stranded.
 function StealService.IsBusy(player)
-    if carryingByThief[player] ~= nil then
+    if carryCount(player) > 0 then
         return true
     end
     for _, steal in pairs(ActiveSteals) do
@@ -473,15 +545,15 @@ function StealService.Init()
                 local hrp = character and character:FindFirstChild("HumanoidRootPart")
                 local pad = PlotService.GetPad(steal.Thief, steal.ReservedPadIndex)
                 if hrp ~= nil and pad ~= nil then
-                    -- M9.3 RAIDER: extend the deposit reach by the thief's Raider bonus (studs).
-                    local range = StealConfig.DepositRange
-                        + RoleEffects.RaiderDepositBonus(steal.Thief)
+                    -- M11.1 RAID: extend the deposit reach by the thief's perk reach bonus (studs).
+                    local range = StealConfig.DepositRange + PerkEffects.AttackerReach(steal.Thief)
                     if (hrp.Position - pad.Position).Magnitude <= range then
                         deposit(steal)
                     elseif StealConfig.CarryBob and steal.CarriedModel ~= nil then
                         local weld = steal.CarriedModel:FindFirstChild("CarryWeld")
                         if weld ~= nil then
-                            weld.C0 = CFrame.new(0, 3 + math.sin(now * 4) * 0.25, 0)
+                            weld.C0 = CFrame.new(0, steal.CarryHeight or 3, 0)
+                                * CFrame.new(0, math.sin(now * 4) * 0.25, 0)
                         end
                     end
                 elseif character == nil then

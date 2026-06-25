@@ -29,6 +29,9 @@ StealConfig.CarryBob = true -- subtle vertical bob on the carried model (purely 
 StealConfig.StealCooldown = 10 -- s: minimum gap between a thief's successful steals (no instant chain-stealing)
 StealConfig.PostStealImmunity = 10 -- s: a just-stolen unit can't be re-stolen for this long
 
+-- ── M11.1 perk defense ───────────────────────────────────────────────────────────────────
+StealConfig.StunDuration = 1.25 -- s: a thief stunned by a defender perk (Stampede/Kraken/Meltdown) is frozen this long
+
 -- ── Defense: protection windows ────────────────────────────────────────────────────────
 StealConfig.NewPlayerGrace = 120 -- s: protection granted when a player first spawns in this session
 StealConfig.PostRobberyProtection = 30 -- s: protection granted to a victim right after they're successfully robbed

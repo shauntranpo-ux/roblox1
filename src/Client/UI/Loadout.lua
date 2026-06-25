@@ -1,7 +1,7 @@
--- Deploy (M9.3): a FUNCTIONAL loadout interface. Shows the role slots, the unit assigned to each +
--- its server-computed buff, and lets the player assign / swap / unassign owned units. The client
--- sends INTENT ONLY (a unit Id + slot, or a slot to unassign); the server validates + applies the
--- buff. (Styling/juice is a later look-pass -- this uses the existing shared components only.)
+-- Loadout (M11.1): a FUNCTIONAL signature-perk loadout panel. Shows the N perk slots, the unit
+-- equipped in each + its perk and current scaled magnitude, and lets the player equip / swap /
+-- unequip owned units. The client sends INTENT ONLY (unit Id + slot, or a slot to unequip); the
+-- server validates ownership/lock + applies the perk. (Styling/juice is a later look-pass.)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -11,8 +11,9 @@ local Theme = require(script.Parent.Theme)
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Rarity = require(Shared:WaitForChild("Rarity"))
 local FusionConfig = require(Shared:WaitForChild("FusionConfig"))
+local PerksConfig = require(Shared:WaitForChild("PerksConfig"))
 
-local Deploy = {}
+local Loadout = {}
 
 local player = nil
 local remotes = nil
@@ -49,27 +50,31 @@ local function label(text, color, size, font)
     })
 end
 
+local function starSuffix(star)
+    return (star and star > 1) and ("  " .. FusionConfig.Stars(star)) or ""
+end
+
 local function getLoadout()
     local ok, result = pcall(function()
-        return remotes.DeployRequest:InvokeServer({ Action = "get" })
+        return remotes.LoadoutRequest:InvokeServer({ Action = "get" })
     end)
     if ok and type(result) == "table" and type(result.Loadout) == "table" then
         return result.Loadout
     end
-    return {}
+    return { Slots = {}, SlotCount = 0 }
 end
 
 local function applyResult(result)
     if type(result) == "table" then
         lastMessage = result.Message
     end
-    Deploy.refresh()
+    Loadout.refresh()
 end
 
-local function doAssign(slot, unitId)
+local function doEquip(slot, unitId)
     local ok, result = pcall(function()
-        return remotes.DeployRequest:InvokeServer({
-            Action = "assign",
+        return remotes.LoadoutRequest:InvokeServer({
+            Action = "equip",
             UnitId = unitId,
             Slot = slot,
         })
@@ -77,18 +82,18 @@ local function doAssign(slot, unitId)
     applyResult(ok and result or nil)
 end
 
-local function doUnassign(slot)
+local function doUnequip(slot)
     local ok, result = pcall(function()
-        return remotes.DeployRequest:InvokeServer({ Action = "unassign", Slot = slot })
+        return remotes.LoadoutRequest:InvokeServer({ Action = "unequip", Slot = slot })
     end)
     applyResult(ok and result or nil)
 end
 
--- The unit picker for a slot: list owned units not already deployed; tap to assign.
-local function renderPicker(slot, deployedIds)
+-- The unit picker for a slot: every owned unit not already equipped, each tagged with its perk.
+local function renderPicker(slot, equippedIds)
     clearRows()
     order = 0
-    label("Pick a unit for " .. slot, Theme.Colors.Text, 26, Theme.FontDisplay)
+    label("Pick a unit for slot " .. slot, Theme.Colors.Text, 26, Theme.FontDisplay)
     Builder.glossButton({
         Size = UDim2.new(1, 0, 0, 40),
         color = Theme.Colors.Disabled,
@@ -97,7 +102,7 @@ local function renderPicker(slot, deployedIds)
         Parent = list,
         LayoutOrder = nextOrder(),
     }, function()
-        Deploy.refresh()
+        Loadout.refresh()
     end)
 
     local ok, owned = pcall(function()
@@ -109,30 +114,41 @@ local function renderPicker(slot, deployedIds)
     end
     local any = false
     for _, unit in ipairs(owned) do
-        if not deployedIds[unit.Id] then
+        if not equippedIds[unit.Id] then
             any = true
             local rarity = Rarity.Get(unit.Rarity)
-            local stars = (unit.Star and unit.Star > 1) and ("  " .. FusionConfig.Stars(unit.Star))
-                or ""
+            local perkKey = PerksConfig.PerkForType(unit.Type)
+            local perk = PerksConfig.Get(perkKey)
+            local locked = unit.Sellable == false -- in transit / trade / equipped -> server re-checks
+            local perkName = perk ~= nil and perk.Name or perkKey
+            local mag = PerksConfig.MagnitudeLabel(perkKey, unit)
+            local text = unit.Name
+                .. starSuffix(unit.Star)
+                .. "  ["
+                .. perkName
+                .. ": "
+                .. mag
+                .. "]"
+                .. (locked and "  (busy)" or "")
             Builder.glossButton({
-                Size = UDim2.new(1, 0, 0, 44),
-                color = rarity.Color,
-                Text = unit.Name .. stars,
-                maxText = 18,
+                Size = UDim2.new(1, 0, 0, 46),
+                color = locked and Theme.Colors.Disabled or rarity.Color,
+                Text = text,
+                maxText = 16,
                 Parent = list,
                 LayoutOrder = nextOrder(),
             }, function()
-                doAssign(slot, unit.Id)
+                doEquip(slot, unit.Id)
             end)
         end
     end
     if not any then
-        label("No free units to assign.", Theme.Colors.SubText)
+        label("No free units to equip.", Theme.Colors.SubText)
     end
 end
 
--- One role slot card: name + buff (if filled) + assign/unassign.
-local function slotCard(entry, deployedIds)
+-- One perk slot card: perk name + scaled magnitude (if filled) + equip/unequip.
+local function slotCard(entry, equippedIds)
     local filled = entry.UnitId ~= nil
     local rarity = filled and Rarity.Get(entry.Rarity) or nil
     local card = Builder.create("Frame", {
@@ -142,11 +158,9 @@ local function slotCard(entry, deployedIds)
     }, { Builder.padding(10) })
     Builder.rarityCard(card, filled and rarity.Color or Theme.Colors.Disabled)
 
-    local titleText = entry.Name
+    local titleText = "Slot " .. entry.Slot
     if filled then
-        local stars = (entry.Star and entry.Star > 1) and ("  " .. FusionConfig.Stars(entry.Star))
-            or ""
-        titleText = entry.Name .. ":  " .. entry.UnitName .. stars
+        titleText = "Slot " .. entry.Slot .. ":  " .. entry.UnitName .. starSuffix(entry.Star)
     end
     local title = Builder.create("TextLabel", {
         Position = UDim2.fromOffset(2, 2),
@@ -166,10 +180,10 @@ local function slotCard(entry, deployedIds)
         Size = UDim2.new(1, -116, 0, 18),
         BackgroundTransparency = 1,
         Font = Theme.FontBody,
-        Text = entry.Desc,
-        TextColor3 = Theme.Colors.SubText,
-        TextSize = 13,
-        TextWrapped = true,
+        Text = filled and (entry.PerkName .. "  (" .. (entry.Category or "") .. ")")
+            or "(empty slot)",
+        TextColor3 = filled and Theme.Colors.Accent or Theme.Colors.SubText,
+        TextSize = 14,
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = card,
     })
@@ -178,9 +192,11 @@ local function slotCard(entry, deployedIds)
         Size = UDim2.new(1, -116, 0, 20),
         BackgroundTransparency = 1,
         Font = Theme.FontBody,
-        Text = filled and ("Buff: " .. (entry.Effect or "")) or "(empty)",
+        Text = filled and (entry.Magnitude .. "  -  " .. (entry.PerkDesc or ""))
+            or "Tap Equip to assign a unit.",
         TextColor3 = filled and Theme.Colors.Positive or Theme.Colors.SubText,
-        TextSize = 14,
+        TextSize = 13,
+        TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = card,
     })
@@ -189,22 +205,22 @@ local function slotCard(entry, deployedIds)
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.fromScale(1, 0.5),
         Size = UDim2.fromOffset(104, 64),
-        color = filled and Theme.Colors.Danger or Theme.accentColor("Deploy"),
-        Text = filled and "Unassign" or "Assign",
+        color = filled and Theme.Colors.Danger or Theme.accentColor("Loadout"),
+        Text = filled and "Unequip" or "Equip",
         maxText = 18,
         Parent = card,
     }, function()
         if filled then
-            doUnassign(entry.Slot)
+            doUnequip(entry.Slot)
         else
-            renderPicker(entry.Slot, deployedIds)
+            renderPicker(entry.Slot, equippedIds)
         end
     end)
 
     card.Parent = list
 end
 
-function Deploy.refresh()
+function Loadout.refresh()
     if gui == nil then
         return
     end
@@ -215,40 +231,40 @@ function Deploy.refresh()
         label(lastMessage, Theme.Colors.Accent, 26, Theme.FontDisplay)
     end
     label(
-        "Deploy units into role slots for buffs. They KEEP earning on their pads.",
+        "Equip a unit's SIGNATURE PERK into a slot. It KEEPS earning on its pad while equipped.",
         Theme.Colors.SubText
     )
 
     local loadout = getLoadout()
-    local deployedIds = {}
-    for _, entry in ipairs(loadout) do
+    local equippedIds = {}
+    for _, entry in ipairs(loadout.Slots) do
         if entry.UnitId ~= nil then
-            deployedIds[entry.UnitId] = true
+            equippedIds[entry.UnitId] = true
         end
     end
-    for _, entry in ipairs(loadout) do
-        slotCard(entry, deployedIds)
+    for _, entry in ipairs(loadout.Slots) do
+        slotCard(entry, equippedIds)
     end
 end
 
-function Deploy.mount(context)
+function Loadout.mount(context)
     player = context.player
     remotes = context.remotes
-    gui = Builder.screenGui("Deploy", player:WaitForChild("PlayerGui"), false)
-    list = Builder.panel(gui, "Deploy", function()
+    gui = Builder.screenGui("Loadout", player:WaitForChild("PlayerGui"), false)
+    list = Builder.panel(gui, "Loadout", function()
         gui.Enabled = false
     end)
 end
 
-function Deploy.toggle()
+function Loadout.toggle()
     if gui == nil then
         return
     end
     gui.Enabled = not gui.Enabled
     if gui.Enabled then
         lastMessage = nil
-        Deploy.refresh()
+        Loadout.refresh()
     end
 end
 
-return Deploy
+return Loadout

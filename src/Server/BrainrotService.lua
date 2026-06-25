@@ -21,6 +21,7 @@ local BrainrotFactory = require(script.Parent.BrainrotFactory)
 local BrainrotService = {}
 
 local spawnedModels = {} -- [Player] = { [brainrotId] = Instance } on-pad models
+local holdMultByPlayer = {} -- [Player] = steal-hold multiplier vs this player (DEF perks; default 1)
 
 -- Resolves a brainrot's definition from its Type (a roster Id). Unknown/stale types fall
 -- back to the starter entry so an old save can never error a lookup.
@@ -167,7 +168,8 @@ local function attachStealPrompt(targetPart, owner, brainrot, def)
     prompt.Name = "StealPrompt"
     prompt.ActionText = "Steal"
     prompt.ObjectText = def.DisplayName
-    prompt.HoldDuration = StealConfig.HoldDuration
+    -- M11.1 DEFENDER perks lengthen the hold vs THIS owner's base (per-victim, server-authoritative).
+    prompt.HoldDuration = StealConfig.HoldDuration * (holdMultByPlayer[owner] or 1)
     prompt.MaxActivationDistance = StealConfig.PromptMaxDistance
     prompt.RequiresLineOfSight = false
     prompt:SetAttribute("BrainrotId", brainrot.Id)
@@ -261,14 +263,34 @@ function BrainrotService.SetPromptsEnabled(player, enabled)
     end
 end
 
+-- M11.1 DEFENDER perks: set the steal-hold multiplier vs this player's base, applied to ALL their
+-- current StealPrompts AND remembered so units spawned later (e.g. a stolen-in unit) inherit it.
+-- LoadoutService calls this on every loadout change with the aggregated DefenderHoldMult.
+function BrainrotService.SetHoldMultiplier(player, mult)
+    holdMultByPlayer[player] = mult
+    local models = spawnedModels[player]
+    if models == nil then
+        return
+    end
+    for _, instance in pairs(models) do
+        local prompt = instance:FindFirstChildWhichIsA("ProximityPrompt", true)
+        if prompt ~= nil then
+            prompt.HoldDuration = StealConfig.HoldDuration * mult
+        end
+    end
+end
+
 -- Builds the carried model for a steal: a lightweight rarity-tinted part welded above the
 -- thief's HumanoidRootPart. Server-created so the weld replicates to every client. The weld
 -- is named "CarryWeld" so StealService can bob it. Returns the part (nil if no HRP).
-function BrainrotService.MakeCarriedModel(character, unit)
+-- `stackIndex` (0-based) stacks multiple simultaneously-carried models (M11.1 multi-carry perks)
+-- above one another so they don't overlap.
+function BrainrotService.MakeCarriedModel(character, unit, stackIndex)
     local hrp = character:FindFirstChild("HumanoidRootPart")
     if hrp == nil then
         return nil
     end
+    local height = 3 + (stackIndex or 0) * 3.2
     local def = resolveDef(unit.Type)
     local rarity = Rarity.Get(def.Rarity)
     local mutation = unit.Mutation ~= nil and MutationConfig.Get(unit.Mutation) or nil
@@ -281,7 +303,7 @@ function BrainrotService.MakeCarriedModel(character, unit)
     part.Size = Vector3.new(3, 3, 3)
     part.Material = mutation ~= nil and mutation.Material or Enum.Material.SmoothPlastic
     part.Color = mutation ~= nil and mutation.Color or rarity.Color
-    part.CFrame = hrp.CFrame * CFrame.new(0, 3, 0)
+    part.CFrame = hrp.CFrame * CFrame.new(0, height, 0)
 
     if hasArt(def) then
         part.Transparency = 1
@@ -294,7 +316,7 @@ function BrainrotService.MakeCarriedModel(character, unit)
     weld.Name = "CarryWeld"
     weld.Part0 = hrp
     weld.Part1 = part
-    weld.C0 = CFrame.new(0, 3, 0)
+    weld.C0 = CFrame.new(0, height, 0)
     weld.Parent = part
 
     part.Parent = character
@@ -337,6 +359,7 @@ function BrainrotService.ClearPlayer(player)
         end
         spawnedModels[player] = nil
     end
+    holdMultByPlayer[player] = nil
 end
 
 return BrainrotService

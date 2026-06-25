@@ -83,10 +83,14 @@ local PROFILE_TEMPLATE = {
     -- M8.5 SEASONS: idempotency ledger of seasons whose end-of-season rewards were granted, keyed
     -- by season id ([seasonId] = true). Grant + record commit together. Reconciles empty.
     ClaimedSeasonRewards = {},
-    -- M9.3 DEPLOY: the equipped loadout -- [roleSlot] = deployed unit Id. Deploying only TAGS an
-    -- owned unit (never moves/copies it); the unit stays in OwnedBrainrots + keeps earning. Reconciles
-    -- to empty on existing saves (no deployments). DeployService re-derives buffs + locks from this.
-    Deployed = {},
+    -- M11.1 SIGNATURE PERKS: the equipped loadout -- ["1".."N"] = equipped unit Id. Equipping only
+    -- TAGS an owned unit (never moves/copies it); the unit stays in OwnedBrainrots + keeps earning.
+    -- Reconciles to empty on existing saves. LoadoutService re-derives perks + locks from this on join.
+    -- (Supersedes the M9.3 `Deployed` field; old role assignments are dropped via reconciliation.)
+    Loadout = {},
+    -- M11.1 SIGNATURE PERKS: wall-clock (os.time) of the player's last leave, stamped on logout, used
+    -- by the Cold Storage perk to grant capped offline earnings on the next join. Reconciles to 0.
+    LastLeaveTime = 0,
 }
 
 local Profiles = {} -- [Player] = Profile
