@@ -63,6 +63,7 @@ Analytics.Events = { -- custom (retention/engagement) event names
     SharedSpawn = "shared_spawn", -- M10.3 a shared rare event spawned (value = rarity order)
     SharedCatch = "shared_catch", -- M10.3 a shared rare event caught (value = rarity order)
     SharedEscape = "shared_escape", -- M10.3 a shared rare event escaped (value = rarity order)
+    NetUpgrade = "net_upgrade", -- M10.4 a net upgraded (value = the new tier)
 }
 
 Analytics.Funnel = { -- new-player onboarding funnel steps { stepNumber, stepName }

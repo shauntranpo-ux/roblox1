@@ -30,6 +30,12 @@ Audio.Sfx = {
     steal = 0, -- you stole one
     robbed = 0, -- you got robbed
     milestone = 0, -- cash crossed a milestone
+    -- M10.4 WILD-CATCH JUICE. <<< SOURCE these: a satisfying capture sting + a rarer/bigger variant,
+    -- a soft "it got away" cue, and a net-upgrade chime. 0 = silent (the juice still pops, just muted).
+    catch = 0, -- a common/rare catch sting
+    catch_rare = 0, -- a bigger sting for Legendary+ catches
+    flee = 0, -- a rare escaped / a shared event got away
+    net_upgrade = 0, -- net upgraded
 }
 
 return Audio

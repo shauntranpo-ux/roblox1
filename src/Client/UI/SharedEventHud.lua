@@ -6,11 +6,14 @@
 
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Builder = require(script.Parent.Builder)
 local Theme = require(script.Parent.Theme)
 local Banner = require(script.Parent.Banner)
 local Effects = require(script.Parent.Effects)
+local Rarity = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Rarity"))
 
 local SharedEventHud = {}
 
@@ -48,6 +51,15 @@ function SharedEventHud.onUpdate(payload)
                 .. "!",
             5
         )
+        -- The WINNER (only) gets the big capture juice (the catch fired server-side, so they don't go
+        -- through the instanced catch path). Everyone else just sees the banner.
+        if payload.Winner == Players.LocalPlayer.DisplayName then
+            local color = (payload.Rarity ~= nil) and Rarity.Get(payload.Rarity).Color
+                or Theme.Colors.Gold
+            Effects.burst(UDim2.fromScale(0.5, 0.4), color, 20)
+            Effects.flash(color)
+            Effects.playSfx("catch_rare")
+        end
         active = false
         markerPos = nil
         if marker ~= nil then

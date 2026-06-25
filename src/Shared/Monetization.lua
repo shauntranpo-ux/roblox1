@@ -47,6 +47,15 @@ Monetization.Gamepasses = {
         Description = "A gold VIP tag + faster steals (reduced steal cooldown).",
         Benefit = { Type = "VIP", StealCooldownMult = 0.5 },
     },
+    -- M10.4: a FIXED, DISCLOSED, NON-RANDOM catch bump (faster + farther catches) that stacks with
+    -- your owned net tier + HUNT perks under the NetConfig caps. NOT a Paid Random Item.
+    ProNet = {
+        Order = 5,
+        Id = 0, -- <<< paste the "Pro Net" gamepass Id here
+        Name = "Pro Net",
+        Description = "A permanent catch-speed + range boost on every catch (stacks with your net).",
+        Benefit = { Type = "ProNet" },
+    },
 }
 
 -- ===========================================================================================

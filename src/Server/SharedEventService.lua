@@ -42,10 +42,10 @@ local PlotService = require(script.Parent.PlotService)
 local PlayerStats = require(script.Parent.PlayerStats)
 local Leaderstats = require(script.Parent.Leaderstats)
 local ProtectionService = require(script.Parent.ProtectionService)
-local PerkEffects = require(script.Parent.PerkEffects)
 local EvolutionService = require(script.Parent.EvolutionService)
 local Analytics = require(script.Parent.Analytics)
 local Remotes = require(script.Parent.Remotes)
+local NetService = require(script.Parent.NetService) -- M10.4 net catch range on shared catches
 
 local SharedEventService = {}
 
@@ -53,11 +53,6 @@ local activeEvent = nil
 local spawnAccum = 0
 local hudAccum = 0
 local nextInterval = nil
-
-local function huntCatchRange(player)
-    local h = PerkEffects.GetHunt(player)
-    return (h ~= nil and type(h.CatchRange) == "number") and h.CatchRange or 0
-end
 
 local function rootOf(player)
     local character = player.Character
@@ -191,10 +186,8 @@ local function onPromptTriggered(prompt, player)
     if root == nil then
         return
     end
-    if
-        (root.Position - event.Position).Magnitude
-        > SharedEventConfig.BaseRange + huntCatchRange(player)
-    then
+    local range = SharedEventConfig.BaseRange + NetService.EffectiveCatch(player).RangeAdd
+    if (root.Position - event.Position).Magnitude > range then
         Remotes.NotifyPlayer(player, "error", "Too far -- get closer to the mystery brainrot!")
         return
     end

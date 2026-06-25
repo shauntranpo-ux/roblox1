@@ -35,6 +35,8 @@ local SeasonService = require(script.Parent.SeasonService)
 local SeasonRewardService = require(script.Parent.SeasonRewardService)
 -- M11.4: seasonal exclusives (gating + grants atop the seasons/claim systems).
 local ExclusivesService = require(script.Parent.ExclusivesService)
+-- M10.4: net tool -- catch-param bonuses + upgrade cash sink (required before the catch services).
+local NetService = require(script.Parent.NetService)
 -- M10.2: biome zones + per-biome rarity routing + unlock gates (required before WildSpawnService).
 local BiomeService = require(script.Parent.BiomeService)
 -- M10.1: wild-catch spawn engine + catch mechanic (the acquisition pivot).
@@ -103,6 +105,8 @@ start("SeasonService", SeasonService.Init)
 start("SeasonRewardService", SeasonRewardService.Init)
 -- M11.4: bind the exclusives remote + the season-change announce watcher.
 start("ExclusivesService", ExclusivesService.Init)
+-- M10.4: bind the net upgrade remote.
+start("NetService", NetService.Init)
 -- M10.2: biome detection loop + unlock handler (server-authoritative zones; before spawning).
 start("BiomeService", BiomeService.Init)
 -- M10.1: wild-catch spawn loop + catch handler (server-authoritative registry).
@@ -196,6 +200,8 @@ local function onPlayerAdded(player)
     SetService.SetupPlayer(player, profile)
     -- M10.2: ensure the starter biome is unlocked (idempotent) before wild spawns route by biome.
     BiomeService.SetupPlayer(player, profile)
+    -- M10.4: reconcile the player's net tier to the base tier (existing saves default cleanly).
+    NetService.SetupPlayer(player, profile)
     -- M8.4: apply any currently-active event modifiers (idempotent) + prune stale event data.
     EventService.SetupPlayer(player, profile)
     -- M11.1: re-derive equipped perks + re-lock equipped units from the saved loadout (idempotent;

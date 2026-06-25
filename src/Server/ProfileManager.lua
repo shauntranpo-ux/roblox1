@@ -105,6 +105,9 @@ local PROFILE_TEMPLATE = {
     -- M10.2 BIOMES: the set of unlocked biome ids ([biomeId] = true). The starter biome is always open
     -- (BiomeService re-asserts it). Reconciles empty -> starter-only; unlocks deduct cash once + persist.
     UnlockedBiomes = {},
+    -- M10.4 NET: the player's owned net tier (the catching tool). Reconciles to the base tier (1) for
+    -- existing saves. Upgrades deduct earned cash once + persist; the net adjusts catch PARAMETERS only.
+    NetTier = 1,
 }
 
 local Profiles = {} -- [Player] = Profile

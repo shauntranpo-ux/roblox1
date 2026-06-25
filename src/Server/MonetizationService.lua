@@ -176,6 +176,12 @@ benefitHandlers.VIP = function(player, _passKey, benefit)
     applyVipTag(player)
 end
 
+-- M10.4: Pro Net -> a replicated flag NetService reads to fold the fixed gamepass bonus into the
+-- catch params. Idempotent (overwrite); applied on join for owners (+ SimGrantGamepass in Studio).
+benefitHandlers.ProNet = function(player, _passKey, _benefit)
+    player:SetAttribute("ProNet", true)
+end
+
 local function applyBenefit(player, passKey, benefit)
     local handler = benefitHandlers[benefit.Type]
     if handler == nil then

@@ -40,6 +40,7 @@ local ShieldWall = require(UI.ShieldWall)
 local WildCatch = require(UI.WildCatch)
 local Biomes = require(UI.Biomes)
 local SharedEventHud = require(UI.SharedEventHud)
+local NetShop = require(UI.NetShop)
 
 local player = Players.LocalPlayer
 
@@ -81,6 +82,7 @@ local remotes = {
     WildCatch = remotesFolder:WaitForChild("WildCatch"),
     BiomeAction = remotesFolder:WaitForChild("BiomeAction"),
     SharedEvent = remotesFolder:WaitForChild("SharedEvent"),
+    NetAction = remotesFolder:WaitForChild("NetAction"),
 }
 
 local context = { player = player, remotes = remotes }
@@ -176,6 +178,9 @@ end)
 safeMount("SharedEventHud", function()
     SharedEventHud.mount(context)
 end)
+safeMount("NetShop", function()
+    NetShop.mount(context)
+end)
 safeMount("Nameplates", function()
     Nameplates.mount(context)
 end)
@@ -198,6 +203,9 @@ safeMount("Menu", function()
     end)
     Menu.addButton("🧬 Evolve", function()
         PanelManager.open("Evolution")
+    end)
+    Menu.addButton("🥅 Net", function()
+        PanelManager.open("NetShop")
     end)
     Menu.addButton("🎁 Exclusives", function()
         PanelManager.open("Exclusives")
@@ -256,6 +264,7 @@ safeMount("PanelManager registry", function()
     PanelManager.register("Loadout", Loadout.toggle)
     PanelManager.register("Evolution", Evolution.toggle)
     PanelManager.register("Exclusives", Exclusives.toggle)
+    PanelManager.register("NetShop", NetShop.toggle)
 end)
 
 -- Hide the "Hold to steal" prompt on the LOCAL player's OWN brainrots (you can't steal your

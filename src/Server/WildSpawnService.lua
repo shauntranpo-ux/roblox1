@@ -42,6 +42,7 @@ local Analytics = require(script.Parent.Analytics)
 local RateLimiter = require(script.Parent.RateLimiter)
 local Remotes = require(script.Parent.Remotes)
 local BiomeService = require(script.Parent.BiomeService) -- M10.2 biome rarity routing
+local NetService = require(script.Parent.NetService) -- M10.4 net catch-param bonuses
 
 local WildSpawnService = {}
 
@@ -57,14 +58,6 @@ local nextId = 0
 local function hunt(player)
     return PerkEffects.GetHunt(player) -- table or nil
 end
-local function huntCatchRange(player)
-    local h = hunt(player)
-    return (h ~= nil and type(h.CatchRange) == "number") and h.CatchRange or 0
-end
-local function huntCatchSpeed(player)
-    local h = hunt(player)
-    return (h ~= nil and type(h.CatchSpeed) == "number") and math.clamp(h.CatchSpeed, 0, 0.9) or 0
-end
 local function huntSpawnRate(player)
     local h = hunt(player)
     return (h ~= nil and type(h.SpawnRate) == "number") and h.SpawnRate or 0
@@ -76,10 +69,6 @@ end
 local function huntReveal(player)
     local h = hunt(player)
     return h ~= nil and h.RareReveal == true
-end
-local function huntAutoCatch(player)
-    local h = hunt(player)
-    return (h ~= nil and type(h.AutoCatch) == "number") and h.AutoCatch or 0
 end
 
 local function rootOf(player)
@@ -151,6 +140,7 @@ local function spawnFor(player)
     nextId += 1
     local spawnId = "w" .. nextId
     local behavior = WildConfig.BehaviorFor(rarity)
+    local eff = NetService.EffectiveCatch(player) -- M10.4: net + HUNT combined catch params (capped)
     local spawn = {
         Id = spawnId,
         Owner = player,
@@ -162,8 +152,8 @@ local function spawnFor(player)
         WanderTarget = nil,
         SpawnTime = os.clock(),
         Caught = false,
-        Hold = behavior.Hold * (1 - huntCatchSpeed(player)),
-        Range = WildConfig.CatchBaseRange + huntCatchRange(player),
+        Hold = behavior.Hold * eff.HoldMult,
+        Range = WildConfig.CatchBaseRange + eff.RangeAdd,
         Revealed = huntReveal(player) and WildConfig.IsRarePlus(rarity),
     }
     spawns[spawnId] = spawn
@@ -233,7 +223,7 @@ local function handleCatch(player, spawnId)
     if root == nil then
         return { Result = "Miss", Message = "It got away." }
     end
-    local range = WildConfig.CatchBaseRange + huntCatchRange(player)
+    local range = WildConfig.CatchBaseRange + NetService.EffectiveCatch(player).RangeAdd
     if (root.Position - spawn.Position).Magnitude > range then
         return { Result = "Miss", Message = "Too far -- get closer!" }
     end
@@ -256,11 +246,12 @@ local function step(dt)
             local owner = spawn.Owner
             local root = rootOf(owner)
             local behavior = WildConfig.BehaviorFor(spawn.Rarity)
+            local eff = NetService.EffectiveCatch(owner) -- M10.4: net + HUNT (flee-resist + auto-catch)
             local toOwner = root ~= nil and (root.Position - spawn.Position) or nil
             local fleeing = root ~= nil
                 and behavior.FleeDistance > 0
                 and not huntNoFlee(owner)
-                and toOwner.Magnitude < behavior.FleeDistance
+                and toOwner.Magnitude < behavior.FleeDistance * (1 - eff.FleeResist)
 
             if fleeing then
                 local away = -toOwner
@@ -283,14 +274,14 @@ local function step(dt)
                     spawn.Position = spawn.Position
                         + Vector3.new(dir.X, 0, dir.Z) * behavior.Wander * dt
                 end
-                -- Dormant POACHER hook (M11.1): a passing common may auto-catch if a perk grants
-                -- AutoCatch (none does today -> 0 -> never fires; activates cleanly if one is added).
-                local auto = huntAutoCatch(owner)
+                -- AUTO-CATCH (M10.4 net tiers + M11.1 Poacher, combined + capped by NetService): a
+                -- passing common may auto-catch. 0 with no net auto-catch/perk -> never fires.
+                local auto = eff.AutoCatch
                 if
                     auto > 0
                     and spawn.Rarity == "Common"
                     and root ~= nil
-                    and toOwner.Magnitude <= (WildConfig.CatchBaseRange + huntCatchRange(owner))
+                    and toOwner.Magnitude <= (WildConfig.CatchBaseRange + eff.RangeAdd)
                     and math.random() < auto * dt
                 then
                     commitCatch(owner, spawn)

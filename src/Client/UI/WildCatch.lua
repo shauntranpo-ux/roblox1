@@ -12,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Builder = require(script.Parent.Builder)
 local Theme = require(script.Parent.Theme)
 local Notifications = require(script.Parent.Notifications)
+local Effects = require(script.Parent.Effects)
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Rarity = require(Shared:WaitForChild("Rarity"))
@@ -22,7 +23,29 @@ local remotes = nil
 local gui = nil
 local models = {} -- [id] = { part, target(Vector3), rarity, revealed, marker(TextLabel) }
 
+-- M10.4 CATCH JUICE: a rarity-scaled burst + flash + sound on a successful catch (pooled via
+-- Effects; silent/graceful if no sound asset). Captures the creature's screen anchor BEFORE the
+-- server despawns it.
+local function captureAnchor(model)
+    if model == nil or model.part == nil then
+        return UDim2.fromScale(0.5, 0.5)
+    end
+    local camera = Workspace.CurrentCamera
+    if camera == nil then
+        return UDim2.fromScale(0.5, 0.5)
+    end
+    local sp = camera:WorldToViewportPoint(model.part.Position)
+    local v = camera.ViewportSize
+    if sp.Z <= 0 or v.X == 0 then
+        return UDim2.fromScale(0.5, 0.4)
+    end
+    return UDim2.fromScale(math.clamp(sp.X / v.X, 0, 1), math.clamp(sp.Y / v.Y, 0, 1))
+end
+
 local function doCatch(id)
+    local model = models[id]
+    local rarity = (model ~= nil and model.rarity) or "Common"
+    local anchor = captureAnchor(model)
     local ok, result = pcall(function()
         return remotes.WildCatch:InvokeServer(id)
     end)
@@ -30,6 +53,10 @@ local function doCatch(id)
         return
     end
     if result.Result == "Success" then
+        local info = Rarity.Get(rarity)
+        Effects.burst(anchor, info.Color, math.min(20, 8 + info.Order * 3))
+        Effects.flash(info.Color)
+        Effects.playSfx(info.Order >= 4 and "catch_rare" or "catch")
         local mut = (result.Mutation ~= nil) and (tostring(result.Mutation) .. " ") or ""
         Notifications.show("success", "Caught a " .. mut .. tostring(result.Name) .. "!")
     elseif result.Message ~= nil then
@@ -130,6 +157,12 @@ function WildCatch.onUpdate(payload)
             model.target = payload.Pos -- (reveal state is set at spawn; markers track via RenderStepped)
         end
     elseif kind == "despawn" then
+        -- FLEE cue: a rare that escaped uncaught (not via our catch) gives a small "got away" sting.
+        local model = models[payload.Id]
+        if model ~= nil and payload.Caught ~= true and Rarity.Get(model.rarity).Order >= 4 then
+            Effects.playSfx("flee")
+            Notifications.show("error", "A rare brainrot got away...")
+        end
         removeModel(payload.Id)
     end
 end

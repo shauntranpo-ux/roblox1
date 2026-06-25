@@ -63,6 +63,9 @@ Remotes.BiomeAction = nil -- RemoteFunction : client -> server ({ Action, BiomeI
 -- M10.3 shared rare events. Server -> ALL clients: the mystery-spawn alert, position updates, and the
 -- caught/escape outcome. The catch itself fires server-side (a ProximityPrompt on the world entity).
 Remotes.SharedEvent = nil -- RemoteEvent : server -> ALL clients, { Kind="spawn"|"update"|"caught"|"escape"|"gone", ... }
+-- M10.4 nets. Client sends INTENT ONLY ({ Action="get"|"upgrade" }); the server owns the net tier +
+-- the effective catch params. (The Pro Net gamepass purchase reuses PromptGamepass.)
+Remotes.NetAction = nil -- RemoteFunction : client -> server ({ Action }) -> { Result, State?/Message }
 -- M11.4 seasonal exclusives. Client sends INTENT ONLY ({ Action="get"|"buy", Key? }); server gates by
 -- server-time season window + the idempotent claim set.
 Remotes.ExclusiveAction = nil -- RemoteFunction : client -> server ({ Action, Key? }) -> { Result, State?/Message }
@@ -106,6 +109,7 @@ Remotes.ExpectedNames = {
     "WildCatch",
     "BiomeAction",
     "SharedEvent",
+    "NetAction",
 }
 
 local folder = nil
@@ -258,6 +262,10 @@ function Remotes.Init()
     sharedEvent.Name = "SharedEvent"
     sharedEvent.Parent = folder
 
+    local netAction = Instance.new("RemoteFunction")
+    netAction.Name = "NetAction"
+    netAction.Parent = folder
+
     folder.Parent = ReplicatedStorage
 
     Remotes.PurchaseRequest = purchase
@@ -295,6 +303,7 @@ function Remotes.Init()
     Remotes.WildCatch = wildCatch
     Remotes.BiomeAction = biomeAction
     Remotes.SharedEvent = sharedEvent
+    Remotes.NetAction = netAction
 end
 
 -- Sends a toast to a single player. kind = "success" | "error" | "info". Optional `cue` is a
