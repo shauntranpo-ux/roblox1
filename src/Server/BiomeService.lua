@@ -32,6 +32,7 @@ local ProfileManager = require(script.Parent.ProfileManager)
 local RateLimiter = require(script.Parent.RateLimiter)
 local Remotes = require(script.Parent.Remotes)
 local Analytics = require(script.Parent.Analytics)
+local GameSignals = require(script.Parent.GameSignals) -- M12.1 quest observation bus
 
 local BiomeService = {}
 
@@ -182,6 +183,7 @@ local function handleUnlock(player, biomeId)
     ProfileManager.ForceSave(player)
     Remotes.NotifyPlayer(player, "success", biome.Name .. " unlocked! Walk on in.", "buy")
     Analytics.custom(player, Analytics.Events.BiomeUnlock, BiomeConfig.Order[biomeId] or 0)
+    GameSignals.fire(player, "biome_unlocked", 1) -- M12.1 quests/tutorial; pure emit, no behavior change
     return {
         Result = "Success",
         Message = biome.Name .. " unlocked!",

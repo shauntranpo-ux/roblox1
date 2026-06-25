@@ -18,6 +18,7 @@ local Analytics = require(script.Parent.Analytics)
 local EventService = require(script.Parent.EventService)
 local SeasonService = require(script.Parent.SeasonService)
 local PerkEffects = require(script.Parent.PerkEffects)
+local GameSignals = require(script.Parent.GameSignals) -- M12.1 quest observation bus
 local Remotes = require(script.Parent.Remotes)
 
 local IncomeService = {}
@@ -41,6 +42,7 @@ function IncomeService.FlushAnalytics(player)
         Analytics.economySource(player, amount, balance, Analytics.Tx.Gameplay)
         EventService.Signal(player, "EARN_CASH", amount) -- feed "earn N cash" event quests
         SeasonService.Signal(player, "EARN_CASH", amount) -- feed season points
+        GameSignals.fire(player, "earn_cash", amount) -- M12.1 quests (earn + cash_reached); pure emit
     end
     earned[player] = nil
 end

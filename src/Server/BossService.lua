@@ -48,6 +48,7 @@ local CombatPower = require(script.Parent.CombatPower) -- M11.3-combat: server-a
 local EvolutionService = require(script.Parent.EvolutionService)
 local ExclusivesService = require(script.Parent.ExclusivesService)
 local Analytics = require(script.Parent.Analytics)
+local GameSignals = require(script.Parent.GameSignals) -- M12.1 quest observation bus
 local RateLimiter = require(script.Parent.RateLimiter)
 local Remotes = require(script.Parent.Remotes)
 
@@ -290,6 +291,7 @@ local function resolveKill(boss)
     for _, win in ipairs(winners) do
         Analytics.custom(win.Player, Analytics.Events.BossKill, #winners)
         Analytics.custom(win.Player, Analytics.Events.BossDamage, math.floor(win.Dmg))
+        GameSignals.fire(win.Player, "boss_kills", 1) -- M12.1 quests; pure emit, no behavior change
         grantReward(win.Player, boss, win.Dmg, total)
     end
 

@@ -43,6 +43,7 @@ local RateLimiter = require(script.Parent.RateLimiter)
 local Remotes = require(script.Parent.Remotes)
 local BiomeService = require(script.Parent.BiomeService) -- M10.2 biome rarity routing
 local NetService = require(script.Parent.NetService) -- M10.4 net catch-param bonuses
+local GameSignals = require(script.Parent.GameSignals) -- M12.1 quest observation bus
 
 local WildSpawnService = {}
 
@@ -191,6 +192,7 @@ local function commitCatch(player, spawn)
         return false, "That creature is unknown."
     end
     local unit = BrainrotFactory.create(player, def, padIndex, BrainrotFactory.RollFor.Catch)
+    local isNewSpecies = profile.Data.Discovered[def.Id] ~= true
     table.insert(profile.Data.OwnedBrainrots, unit)
     profile.Data.Discovered[def.Id] = true
     -- ===========================================================
@@ -203,6 +205,11 @@ local function commitCatch(player, spawn)
     Leaderstats.Update(player, profile)
     ProfileManager.ForceSave(player)
     Analytics.custom(player, Analytics.Events.WildCatch, Rarity.Get(spawn.Rarity).Order)
+    -- M12.1 observation hooks (pure emit; no behavior change) -> quest progress.
+    GameSignals.fire(player, "catch_count", 1)
+    if isNewSpecies then
+        GameSignals.fire(player, "catch_new", 1)
+    end
     return true, def.DisplayName, unit.Mutation
 end
 

@@ -108,6 +108,20 @@ local PROFILE_TEMPLATE = {
     -- M10.4 NET: the player's owned net tier (the catching tool). Reconciles to the base tier (1) for
     -- existing saves. Upgrades deduct earned cash once + persist; the net adjusts catch PARAMETERS only.
     NetTier = 1,
+    -- M12.1 QUESTS + TUTORIAL (server-authoritative; progress tracked by observing gameplay signals).
+    -- Tutorial is ordered + one-shot (TutorialStep advances; claimed steps never re-run). Daily/weekly
+    -- progress + claims reset deterministically at the server-time period boundary. All reconcile empty.
+    TutorialStep = 1, -- 1-based index into QuestConfig.Tutorial (the current step)
+    TutorialProgress = {}, -- [stepId] = progress
+    ClaimedTutorial = {}, -- [stepId] = true (granted exactly once)
+    DailyPeriod = -1, -- the day id whose progress/claims are stored below (reset on change)
+    DailyProgress = {}, -- [questId] = progress
+    ClaimedDaily = {}, -- [questId] = true
+    WeeklyPeriod = -1, -- the week id whose progress/claims are stored below
+    WeeklyProgress = {}, -- [questId] = progress
+    ClaimedWeekly = {}, -- [questId] = true
+    MilestoneProgress = {}, -- [questId] = progress (long-term, persists until claimed)
+    ClaimedMilestone = {}, -- [questId] = true
 }
 
 local Profiles = {} -- [Player] = Profile

@@ -66,6 +66,10 @@ Remotes.SharedEvent = nil -- RemoteEvent : server -> ALL clients, { Kind="spawn"
 -- M10.4 nets. Client sends INTENT ONLY ({ Action="get"|"upgrade" }); the server owns the net tier +
 -- the effective catch params. (The Pro Net gamepass purchase reuses PromptGamepass.)
 Remotes.NetAction = nil -- RemoteFunction : client -> server ({ Action }) -> { Result, State?/Message }
+-- M12.1 quests. Client sends CLAIM INTENT only (scope + quest id); the server owns progress + grants.
+Remotes.GetQuests = nil -- RemoteFunction : client -> server () -> quest state (tutorial/daily/weekly/milestone)
+Remotes.ClaimQuest = nil -- RemoteFunction : client -> server (scope, questId) -> { Result, Message }
+Remotes.QuestsUpdate = nil -- RemoteEvent : server -> a client, a ping that quest state changed (refetch)
 -- M11.4 seasonal exclusives. Client sends INTENT ONLY ({ Action="get"|"buy", Key? }); server gates by
 -- server-time season window + the idempotent claim set.
 Remotes.ExclusiveAction = nil -- RemoteFunction : client -> server ({ Action, Key? }) -> { Result, State?/Message }
@@ -110,6 +114,9 @@ Remotes.ExpectedNames = {
     "BiomeAction",
     "SharedEvent",
     "NetAction",
+    "GetQuests",
+    "ClaimQuest",
+    "QuestsUpdate",
 }
 
 local folder = nil
@@ -266,6 +273,18 @@ function Remotes.Init()
     netAction.Name = "NetAction"
     netAction.Parent = folder
 
+    local getQuests = Instance.new("RemoteFunction")
+    getQuests.Name = "GetQuests"
+    getQuests.Parent = folder
+
+    local claimQuest = Instance.new("RemoteFunction")
+    claimQuest.Name = "ClaimQuest"
+    claimQuest.Parent = folder
+
+    local questsUpdate = Instance.new("RemoteEvent")
+    questsUpdate.Name = "QuestsUpdate"
+    questsUpdate.Parent = folder
+
     folder.Parent = ReplicatedStorage
 
     Remotes.PurchaseRequest = purchase
@@ -304,6 +323,9 @@ function Remotes.Init()
     Remotes.BiomeAction = biomeAction
     Remotes.SharedEvent = sharedEvent
     Remotes.NetAction = netAction
+    Remotes.GetQuests = getQuests
+    Remotes.ClaimQuest = claimQuest
+    Remotes.QuestsUpdate = questsUpdate
 end
 
 -- Sends a toast to a single player. kind = "success" | "error" | "info". Optional `cue` is a

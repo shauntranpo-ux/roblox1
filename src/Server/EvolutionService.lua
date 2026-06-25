@@ -36,6 +36,7 @@ local BrainrotService = require(script.Parent.BrainrotService)
 local PlotService = require(script.Parent.PlotService)
 local LoadoutService = require(script.Parent.LoadoutService)
 local Analytics = require(script.Parent.Analytics)
+local GameSignals = require(script.Parent.GameSignals) -- M12.1 quest observation bus
 local RateLimiter = require(script.Parent.RateLimiter)
 local Remotes = require(script.Parent.Remotes)
 
@@ -117,6 +118,7 @@ local function handleEvolve(player, unitId)
 
     local def = Catalog.Get(unit.Type)
     Analytics.custom(player, Analytics.Events.Evolve, unit.EvolutionStage)
+    GameSignals.fire(player, "evolutions", 1) -- M12.1 quests; pure emit, no behavior change
     ProfileManager.ForceSave(player)
     return {
         Result = "Success",

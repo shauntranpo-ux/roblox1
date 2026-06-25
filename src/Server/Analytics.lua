@@ -65,6 +65,8 @@ Analytics.Events = { -- custom (retention/engagement) event names
     SharedEscape = "shared_escape", -- M10.3 a shared rare event escaped (value = rarity order)
     NetUpgrade = "net_upgrade", -- M10.4 a net upgraded (value = the new tier)
     BossDamage = "boss_damage", -- M11.3-combat total damage a player dealt to a slain boss (value = damage)
+    TutorialStep = "tutorial_step", -- M12.1 a tutorial step completed (value = the new step index)
+    QuestClaim = "quest_claim", -- M12.1 a daily/weekly/milestone quest reward claimed
 }
 
 Analytics.Funnel = { -- new-player onboarding funnel steps { stepNumber, stepName }

@@ -41,6 +41,7 @@ local Leaderstats = require(script.Parent.Leaderstats)
 local ProtectionService = require(script.Parent.ProtectionService)
 local Benefits = require(script.Parent.Benefits)
 local Analytics = require(script.Parent.Analytics)
+local GameSignals = require(script.Parent.GameSignals) -- M12.1 quest observation bus
 local RateLimiter = require(script.Parent.RateLimiter)
 local TransitRegistry = require(script.Parent.TransitRegistry)
 local TradeLockRegistry = require(script.Parent.TradeLockRegistry)
@@ -231,6 +232,7 @@ local function fuseStarUp(player, profile, fodder)
     refresh(player, profile)
 
     Analytics.custom(player, Analytics.Events.Fusion, newStar)
+    GameSignals.fire(player, "fusions", 1) -- M12.1 quests; pure emit, no behavior change
     if crit then
         Analytics.custom(player, Analytics.Events.FusionCrit, newStar)
     end
@@ -376,6 +378,7 @@ local function fuseTierUp(player, profile, fodder)
     BrainrotService.SpawnBrainrot(player, plot, result)
     refresh(player, profile)
     Analytics.custom(player, Analytics.Events.Fusion, result.Star)
+    GameSignals.fire(player, "fusions", 1) -- M12.1 quests; pure emit, no behavior change
     if crit then
         Analytics.custom(player, Analytics.Events.FusionCrit, result.Star)
     end

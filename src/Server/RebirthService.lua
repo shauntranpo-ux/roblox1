@@ -33,6 +33,7 @@ local TradeService = require(script.Parent.TradeService)
 local RateLimiter = require(script.Parent.RateLimiter)
 local Remotes = require(script.Parent.Remotes)
 local Analytics = require(script.Parent.Analytics)
+local GameSignals = require(script.Parent.GameSignals) -- M12.1 quest observation bus
 local SeasonService = require(script.Parent.SeasonService)
 
 local RebirthService = {}
@@ -98,6 +99,7 @@ local function commitRebirth(player, profile)
     Analytics.custom(player, Analytics.Events.Rebirth, newCount)
     Analytics.economySink(player, cashSunk, 0, Analytics.Tx.Gameplay, "rebirth")
     SeasonService.Signal(player, "REBIRTH", 1)
+    GameSignals.fire(player, "rebirths", 1) -- M12.1 quests; pure emit, no behavior change
 end
 
 -- Request handler (RemoteFunction). TRUST BOUNDARY: the client sends NOTHING but the request; the

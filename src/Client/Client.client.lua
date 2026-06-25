@@ -41,6 +41,8 @@ local WildCatch = require(UI.WildCatch)
 local Biomes = require(UI.Biomes)
 local SharedEventHud = require(UI.SharedEventHud)
 local NetShop = require(UI.NetShop)
+local Objective = require(UI.Objective)
+local QuestLog = require(UI.QuestLog)
 
 local player = Players.LocalPlayer
 
@@ -83,6 +85,9 @@ local remotes = {
     BiomeAction = remotesFolder:WaitForChild("BiomeAction"),
     SharedEvent = remotesFolder:WaitForChild("SharedEvent"),
     NetAction = remotesFolder:WaitForChild("NetAction"),
+    GetQuests = remotesFolder:WaitForChild("GetQuests"),
+    ClaimQuest = remotesFolder:WaitForChild("ClaimQuest"),
+    QuestsUpdate = remotesFolder:WaitForChild("QuestsUpdate"),
 }
 
 local context = { player = player, remotes = remotes }
@@ -181,6 +186,12 @@ end)
 safeMount("NetShop", function()
     NetShop.mount(context)
 end)
+safeMount("Objective", function()
+    Objective.mount(context)
+end)
+safeMount("QuestLog", function()
+    QuestLog.mount(context)
+end)
 safeMount("Nameplates", function()
     Nameplates.mount(context)
 end)
@@ -206,6 +217,9 @@ safeMount("Menu", function()
     end)
     Menu.addButton("🥅 Net", function()
         PanelManager.open("NetShop")
+    end)
+    Menu.addButton("📜 Quests", function()
+        PanelManager.open("QuestLog")
     end)
     Menu.addButton("🎁 Exclusives", function()
         PanelManager.open("Exclusives")
@@ -265,6 +279,7 @@ safeMount("PanelManager registry", function()
     PanelManager.register("Evolution", Evolution.toggle)
     PanelManager.register("Exclusives", Exclusives.toggle)
     PanelManager.register("NetShop", NetShop.toggle)
+    PanelManager.register("QuestLog", QuestLog.toggle)
 end)
 
 -- Hide the "Hold to steal" prompt on the LOCAL player's OWN brainrots (you can't steal your

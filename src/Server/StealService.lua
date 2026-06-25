@@ -43,6 +43,7 @@ local Remotes = require(script.Parent.Remotes)
 local TransitRegistry = require(script.Parent.TransitRegistry)
 local Benefits = require(script.Parent.Benefits)
 local Analytics = require(script.Parent.Analytics)
+local GameSignals = require(script.Parent.GameSignals) -- M12.1 quest observation bus
 local TradeLockRegistry = require(script.Parent.TradeLockRegistry)
 local DeployLockRegistry = require(script.Parent.DeployLockRegistry)
 local PerkEffects = require(script.Parent.PerkEffects)
@@ -213,6 +214,7 @@ function deposit(steal)
     Analytics.customOnce(steal.Thief, Analytics.Events.FirstSteal)
     EventService.Signal(steal.Thief, "STEAL_BRAINROTS", 1)
     SeasonService.Signal(steal.Thief, "STEAL", 1)
+    GameSignals.fire(steal.Thief, "steals_succeeded", 1) -- M12.1 quests; pure emit, no behavior change
 end
 
 -- REVERT (IN_TRANSIT -> ON_PAD on the victim's ORIGINAL pad). A no-op on ownership: the unit

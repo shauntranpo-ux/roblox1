@@ -43,6 +43,8 @@ local BiomeService = require(script.Parent.BiomeService)
 local WildSpawnService = require(script.Parent.WildSpawnService)
 -- M10.3: shared server-wide rare-event spawns (the hype layer).
 local SharedEventService = require(script.Parent.SharedEventService)
+-- M12.1: tutorial + quests (observes gameplay signals; binds GetQuests/ClaimQuest).
+local QuestService = require(script.Parent.QuestService)
 -- M9.1: selling (the economy floor sink).
 local SellService = require(script.Parent.SellService)
 -- M9.2: fusion + stars (turn duplicates into fuel).
@@ -113,6 +115,8 @@ start("BiomeService", BiomeService.Init)
 start("WildSpawnService", WildSpawnService.Init)
 -- M10.3: shared rare-event spawn loop + first-to-catch resolution.
 start("SharedEventService", SharedEventService.Init)
+-- M12.1: subscribe quests to GameSignals + bind the quest remotes.
+start("QuestService", QuestService.Init)
 -- M9.1: the sell sink (binds SellRequest).
 start("SellService", SellService.Init)
 -- M9.2: fusion + stars (binds FuseRequest).
@@ -202,6 +206,8 @@ local function onPlayerAdded(player)
     BiomeService.SetupPlayer(player, profile)
     -- M10.4: reconcile the player's net tier to the base tier (existing saves default cleanly).
     NetService.SetupPlayer(player, profile)
+    -- M12.1: reset stale daily/weekly periods, sync reached-quests, publish the objective banner.
+    QuestService.SetupPlayer(player, profile)
     -- M8.4: apply any currently-active event modifiers (idempotent) + prune stale event data.
     EventService.SetupPlayer(player, profile)
     -- M11.1: re-derive equipped perks + re-lock equipped units from the saved loadout (idempotent;

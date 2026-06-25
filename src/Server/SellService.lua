@@ -36,6 +36,7 @@ local PlayerStats = require(script.Parent.PlayerStats)
 local Leaderstats = require(script.Parent.Leaderstats)
 local BrainrotService = require(script.Parent.BrainrotService)
 local Analytics = require(script.Parent.Analytics)
+local GameSignals = require(script.Parent.GameSignals) -- M12.1 quest observation bus
 local RateLimiter = require(script.Parent.RateLimiter)
 local TransitRegistry = require(script.Parent.TransitRegistry)
 local TradeLockRegistry = require(script.Parent.TradeLockRegistry)
@@ -125,6 +126,7 @@ local function handleOne(player, payload)
         "sell:" .. unit.Type
     )
     Analytics.custom(player, Analytics.Events.Sell, 1)
+    GameSignals.fire(player, "sell_count", 1) -- M12.1 quests; pure emit, no behavior change
     ProfileManager.ForceSave(player)
     Remotes.NotifyPlayer(
         player,
@@ -222,6 +224,7 @@ local function handleBulk(player, payload)
     refreshAfterSell(player, profile)
     Analytics.economySource(player, total, profile.Data.Cash, Analytics.Tx.Sell, "bulk:" .. mode)
     Analytics.custom(player, Analytics.Events.Sell, count)
+    GameSignals.fire(player, "sell_count", count) -- M12.1 quests; pure emit, no behavior change
     ProfileManager.ForceSave(player)
     Remotes.NotifyPlayer(
         player,
