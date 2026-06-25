@@ -62,43 +62,58 @@ WorldConfig.Assets = {
 
 WorldConfig.Seed = 20260625 -- deterministic scatter (same config -> same world)
 
--- ── HUB (a big plaza in front of the base district; covers the existing fixture spots) ──────
+-- ── RADIAL LAYOUT (bases in the MIDDLE; biomes encircle + march outward) ─────────────────────
+WorldConfig.Center = Vector3.new(0, 0, 0)
+WorldConfig.Radial = {
+    PlotRingRadius = 100, -- the central base RING (PlotService MUST use this exact value)
+    HubRadius = 150, -- half-extent of the central plaza (road spokes start here)
+    BiomeRadius0 = 360, -- radius of the FIRST (meadow) biome's center
+    BiomeRingStep = 240, -- each higher tier sits this much farther out
+    AngleStartDeg = 30, -- first biome angle (offset 30 from the plot ring so spokes pass between plots)
+    AngleStepDeg = 60, -- 360 / 6 biomes -> evenly around the circle
+}
+
+-- ── HUB (central plaza at the world origin; holds the slingshot + fixtures) ───────────────────
 WorldConfig.Hub = {
-    Center = Vector3.new(160, 0, -150),
-    Size = Vector3.new(440, 1, 260), -- x by z plaza footprint
-    LandmarkHeight = 34, -- the central monument (NOT a portal)
-    SparkleRate = 14, -- ambient hub sparkle particles (capped)
-    RoadExitZ = -280, -- where the road leaves the hub toward the meadow
+    Center = Vector3.new(0, 0, 0),
+    Size = Vector3.new(360, 1, 360), -- square central plaza footprint
+    LandmarkHeight = 34,
+    SparkleRate = 14,
 }
 
--- ── BASE DISTRICT (ground under the PlotService plots; plus PlotAnchor markers) ──────────────
--- PlotService builds Config.Plots.Count plots along +X at z=0; this just lays polished ground + the
--- contract's PlotAnchor markers under them (PlotService positions the plots itself).
+-- The slingshot launch pad sits just off the plaza center (tagged "Slingshot" by WorldBuilder).
+WorldConfig.Slingshot = {
+    Position = Vector3.new(0, 0, 40), -- relative to Hub.Center
+}
+
+-- ── BASE DISTRICT (central ground under the PlotService base RING) ────────────────────────────
 WorldConfig.District = {
-    Min = Vector3.new(-60, 0, -30),
-    Max = Vector3.new(380, 0, 70),
-    PlotAnchorZ = 0,
+    GroundSize = Vector3.new(440, 1, 440), -- one central slab covering the plaza + the base ring
 }
 
--- ── BIOME CORRIDOR (contiguous, escalating outward along -Z; meadow nearest) ────────────────
--- Each: Center (world), Size (x,y,z), the look, the gate (nil = open starter), and the spawn-area /
--- boss-arena anchor offsets (relative to Center). Style drives biome-specific props in WorldBuilder.
-local function biome(id, name, centerZ, ground, accent, material, style, open)
+-- Each biome is a self-contained AXIS-ALIGNED square zone placed at a radial position. `tier` (1=nearest)
+-- drives BOTH its angle (60 deg per tier) and its radius (farther per tier) -> they encircle + expand out.
+local function biome(id, name, tier, ground, accent, material, style, open)
+    local R = WorldConfig.Radial
+    local angle = math.rad(R.AngleStartDeg + (tier - 1) * R.AngleStepDeg)
+    local radius = R.BiomeRadius0 + (tier - 1) * R.BiomeRingStep
     return {
         Id = id,
         Name = name,
-        Center = Vector3.new(160, 0, centerZ),
+        Tier = tier,
+        Angle = angle, -- radians, from +X (used by the builder to face gates/roads/signs at center)
+        Radius = radius,
+        Center = Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius),
         Size = Vector3.new(300, 1, 300),
         GroundColor = ground,
         Accent = accent,
         GroundMaterial = material,
-        Style = style, -- "meadow"|"shores"|"swamp"|"magma"|"rift"|"void"
-        Open = open == true, -- the starter meadow has no gate barrier
+        Style = style,
+        Open = open == true,
         TreeCount = 12,
         PropCount = 16,
-        SpawnAreaOffset = Vector3.new(-70, 0, 0), -- left side = wild-spawn area
+        SpawnAreaOffset = Vector3.new(-70, 0, 0), -- left side = wild-spawn area (axis-aligned; fine)
         BossArenaOffset = Vector3.new(70, 0, 0), -- right side = boss clearing
-        GateInset = 150, -- the +Z entrance edge = Center.Z + Size.Z/2
     }
 end
 
@@ -107,7 +122,7 @@ WorldConfig.Biomes = {
     biome(
         "sunny_meadow",
         "Sunny Meadow",
-        -440,
+        1,
         P.Grass,
         rgb(120, 210, 90),
         Enum.Material.Grass,
@@ -117,7 +132,7 @@ WorldConfig.Biomes = {
     biome(
         "sundae_shores",
         "Sundae Shores",
-        -760,
+        2,
         P.Sand,
         rgb(255, 150, 190),
         Enum.Material.Sand,
@@ -127,7 +142,7 @@ WorldConfig.Biomes = {
     biome(
         "croco_swamp",
         "Croco Swamp",
-        -1080,
+        3,
         rgb(86, 120, 78),
         rgb(60, 95, 60),
         Enum.Material.Grass,
@@ -137,7 +152,7 @@ WorldConfig.Biomes = {
     biome(
         "magma_peak",
         "Magma Peak",
-        -1400,
+        4,
         rgb(54, 48, 58),
         rgb(255, 110, 20),
         Enum.Material.Slate,
@@ -147,7 +162,7 @@ WorldConfig.Biomes = {
     biome(
         "cosmic_rift",
         "Cosmic Rift",
-        -1720,
+        5,
         rgb(96, 78, 170),
         rgb(120, 230, 255),
         Enum.Material.SmoothPlastic,
@@ -157,7 +172,7 @@ WorldConfig.Biomes = {
     biome(
         "the_void",
         "The Void",
-        -2040,
+        6,
         rgb(46, 36, 86),
         rgb(90, 235, 255),
         Enum.Material.SmoothPlastic,
