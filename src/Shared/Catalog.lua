@@ -10,7 +10,14 @@
 --   Rarity        a key into Shared/Rarity (drives color + shop grouping/sorting).
 --   Price         server-authoritative cost.
 --   IncomePerSec  server-authoritative passive income.
---   Buyable       set false to hide from the shop (defaults to true when omitted).
+--   Buyable       set false to hide from the CASH shop (defaults to true when omitted).
+--   Premium       set true to mark a unit as PURCHASE-GATED (Robux gamepass/dev-product grant
+--                 only -- never cash, never random). Premium units MUST also set Buyable=false
+--                 so the cash shop + PurchaseService reject them. They place, earn, are
+--                 stealable, and count toward Discovered like any other unit.
+--   Available     OPTIONAL forward-compat availability-window flag for future limited drops
+--                 ({ From=os.time, Until=os.time }). Data only this milestone -- not enforced
+--                 as an event system (that arrives in a later milestone).
 --   ModelName     RESERVED: clone this Model from ServerStorage/Assets once real art exists
 --                 (BrainrotService falls back to a tinted placeholder while it is nil).
 --   IconId        RESERVED: shop/inventory thumbnail asset id (nil placeholder for now).
@@ -153,6 +160,20 @@ Catalog.Items = {
         Rarity = "Secret",
         Price = 1500000000,
         IncomePerSec = 110000000,
+    },
+
+    -- PREMIUM / LIMITED -- purchase-gated (Robux), NOT cash-buyable, NOT random. Acquired only
+    -- via a developer-product/gamepass grant (see Shared/Monetization). Buyable=false keeps it
+    -- out of the cash shop and makes PurchaseService reject any cash-buy attempt. Add or remove
+    -- premium units by editing data here -- the systems are fully data-driven.
+    {
+        Id = "el_secreto",
+        DisplayName = "El Secreto",
+        Rarity = "Secret",
+        Price = 0, -- not cash-buyable; price is irrelevant (kept 0)
+        IncomePerSec = 90000000,
+        Buyable = false,
+        Premium = true,
     },
 }
 

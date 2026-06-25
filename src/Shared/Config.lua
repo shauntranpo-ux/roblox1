@@ -9,7 +9,11 @@ local Config = {}
 
 Config.Plots = {
     Count = 6, -- how many bases to create in the world
-    PadsPerPlot = 4, -- brainrot stands per base (also the default unlocked-pad count)
+    PadsPerPlot = 4, -- PHYSICAL brainrot stands built per base (the hard cap on placed units)
+    -- How many pads a brand-new player starts with UNLOCKED. Kept BELOW PadsPerPlot so the M5
+    -- "Extra Pads" gamepass and pad-unlock products have real headroom to unlock (up to the
+    -- physical PadsPerPlot cap). The placement check is min(unlocked, PadsPerPlot).
+    DefaultUnlockedPads = 2,
     Spacing = 64, -- studs between plot centers
     PadSpacing = 8, -- studs between pads inside one plot
     TemplateName = "PlotTemplate", -- Model name to look for in ServerStorage/Assets

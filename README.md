@@ -2,7 +2,7 @@
 
 Multiplayer Roblox idle/theft game. Players collect meme creatures ("brainrot") that generate passive cash, unlock rarer ones, and steal each other's units.
 
-Built in milestones. Current: **M4 — steal mechanic + timer-based defense**. Players hold a "Hold to steal" prompt on another base's brainrot, carry it home, and deposit it on a free pad to take ownership — all server-authoritative, dupe-proof, and loss-proof (one guarded atomic transfer; every brainrot is owned by exactly one player at all times). A simple timer-based defense layer (new-player grace + post-robbery shield, with an M5-ready `ExtendProtection` hook) protects bases, plus cooldowns, per-unit immunity, a carry timeout, a kill-feed banner, and victim toasts. (M3: rarity roster + scaling economy. M2: mobile HUD + secure purchase. M1: income loop + ProfileStore. M0: toolchain.) Everything economic and every ownership change is server-authoritative — the client only requests; the server validates and mutates.
+Built in milestones. Current: **M5 — monetization (gamepasses + developer products) + global leaderboards**. Robux gamepasses grant permanent server-side perks (2x Cash, Extra Pads, Reinforced Lock, VIP), developer products grant deterministic consumables (cash packs, instant pads, an exclusive premium brainrot) through a single perfectly-idempotent `ProcessReceipt`, and three OrderedDataStore-backed boards (Top Cash / Top Income / Rarest Collection) render on in-world billboards. Everything is ID-driven from one config, every benefit is granted + re-verified server-side and applied idempotently, and a guarded DEV/TEST SIM mode lets you exercise it all in Studio without spending Robux. (M4: dupe-proof steal mechanic + timer defense. M3: rarity roster + scaling economy. M2: mobile HUD + secure purchase. M1: income loop + ProfileStore. M0: toolchain.) Everything economic and every ownership change is server-authoritative — the client only requests; the server validates and mutates.
 
 ## Stack
 
@@ -31,23 +31,29 @@ src/
     PurchaseService.lua      validates client buy requests (server-authoritative) + debounce
     InventoryService.lua     GetInventory RemoteFunction (server-truth owned list)
     StealService.lua         steal state machine: INITIATE/DEPOSIT/REVERT + ownership invariant
-    ProtectionService.lua    timer-based plot protection (grace/post-robbery) + dome + M5 hook
+    ProtectionService.lua    timer-based plot protection (grace/post-robbery) + dome + M5 hooks
     TransitRegistry.lua      runtime set of in-transit (carried) brainrot Ids (income skips them)
+    DevConfig.lua            server-only SIM flag (Studio purchase testing; guarded off on live)
+    Benefits.lua             per-player benefit state (income mult, VIP edge); read by Income/Steal
+    MonetizationService.lua  gamepass ownership + benefit registry + the single ProcessReceipt
+    LeaderboardService.lua   OrderedDataStore boards (throttled, fault-tolerant, mock fallback)
+    LeaderboardBillboards.lua in-world ranked displays (procedural; Assets model forward-compat)
     Lib/ProfileStore.luau    vendored third-party data lib (loleris)
   Client/                    → StarterPlayer > StarterPlayerScripts > Client
     Client.client.lua        builds UI on spawn, wires remotes, hides own steal prompts
     UI/Theme.lua             colors + fonts (single styling source)
     UI/Builder.lua           declarative instance/panel helpers
     UI/HUD.lua               top cash pill (count-up) + Shop/Inventory buttons
-    UI/Shop.lua              data-driven catalog rows + reactive Buy buttons
+    UI/Shop.lua              tabbed: cash roster + gamepass + product sections (data-driven)
     UI/Inventory.lua         owned list, fetched via RemoteFunction
     UI/Notifications.lua     transient toast stack (victim "stole your X!" alerts)
     UI/KillFeed.lua          everyone-sees steal banner (server broadcast)
   Shared/                    → ReplicatedStorage > Shared
     Config.lua               plot/world tuning (brainrot stats now live in Catalog)
     Rarity.lua               rarity ladder: tier names, colors, order (single source)
-    Catalog.lua              full data-driven brainrot ROSTER + economy curve
+    Catalog.lua              full data-driven brainrot ROSTER + economy curve (+ premium flag)
     StealConfig.lua          ALL steal/carry/defense tunables (one retune surface)
+    Monetization.lua         ALL gamepass/product IDs + benefits + leaderboard tuning (one file)
     Format.lua               compact number formatter (1.2K / 3.4M / 1B)
   StarterGui/                → StarterGui
   ServerStorage/             → ServerStorage > Assets  (plot/brainrot model templates later)
@@ -120,6 +126,47 @@ the public hook M5's gamepass will call — no monetization is built this milest
 **Retune everything in one file — `src/Shared/StealConfig.lua`:** `HoldDuration`,
 `PromptMaxDistance`, `DepositRange`, `CarryTimeout`, `CarryWalkSpeedMult`, `CarryBob`,
 `StealCooldown`, `PostStealImmunity`, `NewPlayerGrace`, `PostRobberyProtection`.
+
+### Monetization & leaderboards (M5)
+
+All Robux items are **ID-driven from one file — `src/Shared/Monetization.lua`** — so the code
+works the moment you paste the numeric Ids you create on the Creator Dashboard, and skips any
+row whose Id is still `0`.
+
+- **Gamepasses** (permanent) use a **benefit-registry** pattern: each config row maps a gamepass
+  to a `Benefit { Type, ... }`, and each `Type` has one server-side handler that hooks an existing
+  system — `IncomeMultiplier` (consumed by `IncomeService`), `ExtraPads` (the M3 pad setter),
+  `ReinforcedLock` (the M4 `ProtectionService` hook, auto-renewing), `VIP` (a nametag + reduced
+  steal cooldown). Ownership is checked once per session (`UserOwnsGamePassAsync`, pcall + backoff,
+  cached) and applied **idempotently** on join, on live purchase (`PromptGamePassPurchaseFinished`),
+  and on rejoin — never double-stacked (income multipliers are keyed per source, pads are recomputed
+  from sources). Adding a pass = a config row + (only if it's a new `Type`) one handler function.
+- **Developer products** (consumable) flow through **exactly one** `MarketplaceService.ProcessReceipt`.
+  It is **perfectly idempotent and crash-safe**: the grant and the `PurchaseId` record are written
+  to the profile in the *same* mutation with no yields between, so a purchase grants **exactly once**
+  even across retries and server restarts (dedupe persists in `PurchaseHistory`). An unloaded
+  profile / unknown product / no-free-pad returns `NotProcessedYet` (safe retry); an already-seen
+  `PurchaseId` returns `PurchaseGranted` without re-granting.
+- **Premium/limited brainrots** are roster entries flagged `Premium = true` (`Buyable = false`):
+  purchase-gated only, never cash, never random. They place, earn, are stealable, and count toward
+  Discovered like any unit.
+- **Leaderboards** (`LeaderboardService`): three global `OrderedDataStore` boards (Top Cash, Top
+  Income/sec, Rarest Collection — a rarity-weighted integer over your Discovered set). Every value
+  is floored + clamped to `[0, MaxValue]` (just under 2^53) before writing; every call is pcall'd
+  with backoff; writes are throttled (~60s + on leave). In unpublished Studio it falls back to an
+  in-memory board of the current players so the **in-world billboards** (procedural, in a central
+  hub) still populate.
+
+**DEV/TEST SIM mode** (`src/Server/DevConfig.lua`) mirrors the ProfileStore mock pattern: flip the
+single `SIM_REQUESTED` line to `true` to simulate gamepass ownership + fire product grants through
+the **real** receipt codepath in Studio, no Robux or publishing needed. It is **forced OFF on any
+live server** (ANDed with `RunService:IsStudio()`), so it can never ship enabled. Each system prints
+which mode it's in on startup.
+
+**Retune in `src/Shared/Monetization.lua`:** the gamepass/product set + their Ids, income-multiplier
+stacking cap (`Income.MaxMultiplier`), cash-pack amounts, pad amounts, leaderboard `RarityWeights`,
+`RefreshInterval`, `TopN`, and the value clamp (`MaxValue`). New-player starting pads live in
+`Config.Plots.DefaultUnlockedPads` (kept below `PadsPerPlot` so Extra Pads has headroom).
 
 ### Data saving (ProfileStore)
 

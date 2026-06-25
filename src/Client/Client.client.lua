@@ -22,6 +22,10 @@ local remotes = {
     GetInventory = remotesFolder:WaitForChild("GetInventory"),
     Notify = remotesFolder:WaitForChild("Notify"),
     KillFeed = remotesFolder:WaitForChild("KillFeed"),
+    PromptGamepass = remotesFolder:WaitForChild("PromptGamepass"),
+    PromptProduct = remotesFolder:WaitForChild("PromptProduct"),
+    GetMonetization = remotesFolder:WaitForChild("GetMonetization"),
+    MonetizationUpdate = remotesFolder:WaitForChild("MonetizationUpdate"),
 }
 
 local context = { player = player, remotes = remotes }
@@ -73,4 +77,11 @@ end)
 -- Server -> all clients: the kill-feed banner shown to everyone when a steal lands.
 remotes.KillFeed.OnClientEvent:Connect(function(payload)
     KillFeed.show(payload)
+end)
+
+-- Server -> client: a gamepass this player can buy became owned -> flip its shop button live.
+remotes.MonetizationUpdate.OnClientEvent:Connect(function(payload)
+    if typeof(payload) == "table" then
+        Shop.applyMonetizationUpdate(payload)
+    end
 end)

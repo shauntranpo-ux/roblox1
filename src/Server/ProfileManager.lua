@@ -19,12 +19,20 @@ local ProfileManager = {}
 local PROFILE_TEMPLATE = {
     Cash = 0,
     OwnedBrainrots = {}, -- array of { Id, Type, IncomePerSec, PadIndex } (Type = Catalog Id)
-    -- M3: how many pads this player may use. Defaults to the starting pad count so existing
-    -- saves are unaffected. M5's pad gamepass raises this via ProfileManager.SetUnlockedPads.
-    UnlockedPads = Config.Plots.PadsPerPlot,
+    -- M3/M5: how many pads this player may use. This is now a DERIVED cache that
+    -- MonetizationService recomputes on join from DefaultUnlockedPads + PadProducts + any
+    -- gamepass pad bonus, written via ProfileManager.SetUnlockedPads. Start at the default.
+    UnlockedPads = Config.Plots.DefaultUnlockedPads,
+    -- M5: permanently unlocked pads bought via DEVELOPER PRODUCTS (additive, receipt-deduped).
+    -- The gamepass "Extra Pads" is session-derived from ownership and is NOT stored here.
+    PadProducts = 0,
     -- M3: set of roster Ids the player has ever owned (Id -> true). Cheap foundation for a
     -- later Index/collection UI; updated on every acquire.
     Discovered = {},
+    -- M5: idempotency ledger for developer-product receipts (PurchaseId -> true). The grant
+    -- and this record are written in the SAME mutation so a purchase grants EXACTLY once, even
+    -- across retries and server restarts. Never pruned (PurchaseIds are unique forever).
+    PurchaseHistory = {},
 }
 
 local Profiles = {} -- [Player] = Profile

@@ -16,8 +16,11 @@ local PurchaseService = require(script.Parent.PurchaseService)
 local InventoryService = require(script.Parent.InventoryService)
 local ProtectionService = require(script.Parent.ProtectionService)
 local StealService = require(script.Parent.StealService)
+local MonetizationService = require(script.Parent.MonetizationService)
+local LeaderboardService = require(script.Parent.LeaderboardService)
+local LeaderboardBillboards = require(script.Parent.LeaderboardBillboards)
 
-print("[BRAINROT] M4 starting -- steal mechanic + timer-based defense")
+print("[BRAINROT] M5 starting -- monetization (gamepasses + products) + global leaderboards")
 
 -- Data layer, network surface, world, defense, income loop, then the client-facing handlers.
 ProfileManager.Init()
@@ -28,6 +31,10 @@ IncomeService.Start()
 PurchaseService.Init()
 InventoryService.Init()
 StealService.Init()
+-- M5: the Robux money path (single ProcessReceipt + gamepass ownership) and the global boards.
+MonetizationService.Init()
+LeaderboardService.Init()
+LeaderboardBillboards.Init()
 
 local handled = {} -- [Player] = true, guards against double-joins (Studio Play Solo)
 
@@ -67,6 +74,12 @@ local function onPlayerAdded(player)
     -- prompts on their units until the grace window expires).
     ProtectionService.GrantGrace(player)
 
+    -- M5: verify gamepass ownership (yields) + apply owned benefits + recompute pads, then
+    -- seed this player's leaderboard entries. Runs after the roster exists so income/pads are
+    -- correct. Benefit application is idempotent (safe on every join).
+    MonetizationService.SetupPlayer(player, profile)
+    LeaderboardService.UpdatePlayer(player)
+
     -- 4) Place the character on the base now and on every respawn.
     player.CharacterAdded:Connect(function()
         onCharacterAdded(player)
@@ -81,7 +94,12 @@ local function onPlayerRemoving(player)
     -- ORDERING IS CRITICAL: settle every steal this player is in (as thief OR victim) FIRST,
     -- while their profile is still loaded, so the save captures correct, un-duped ownership.
     StealService.ResolvePlayer(player)
+    -- Final leaderboard write while the profile is STILL loaded (captures values synchronously,
+    -- then writes off-thread) -- must precede MonetizationService.ClearPlayer, which drops the
+    -- income multiplier this read depends on, and ProfileManager.ReleaseProfile.
+    LeaderboardService.OnPlayerRemoving(player)
     ProtectionService.ClearPlayer(player)
+    MonetizationService.ClearPlayer(player)
     BrainrotService.ClearPlayer(player)
     PlotService.FreePlot(player)
     ProfileManager.ReleaseProfile(player)

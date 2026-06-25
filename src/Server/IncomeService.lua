@@ -14,6 +14,7 @@ local ProfileManager = require(script.Parent.ProfileManager)
 local Leaderstats = require(script.Parent.Leaderstats)
 local PlayerStats = require(script.Parent.PlayerStats)
 local TransitRegistry = require(script.Parent.TransitRegistry)
+local Benefits = require(script.Parent.Benefits)
 
 local IncomeService = {}
 
@@ -43,8 +44,10 @@ function IncomeService.Start()
                         ratePerSec += brainrot.IncomePerSec
                     end
                 end
+                -- Apply the player's income multiplier (e.g. the 2x Cash gamepass). The multiplier
+                -- is read live every frame, so a benefit change takes effect immediately.
                 if ratePerSec > 0 then
-                    profile.Data.Cash += ratePerSec * deltaTime
+                    profile.Data.Cash += ratePerSec * Benefits.GetIncomeMultiplier(player) * deltaTime
                 end
                 if pushNow then
                     Leaderstats.Update(player, profile)

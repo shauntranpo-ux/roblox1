@@ -31,6 +31,7 @@ local ProtectionService = require(script.Parent.ProtectionService)
 local PlayerStats = require(script.Parent.PlayerStats)
 local Remotes = require(script.Parent.Remotes)
 local TransitRegistry = require(script.Parent.TransitRegistry)
+local Benefits = require(script.Parent.Benefits)
 
 local StealService = {}
 
@@ -231,7 +232,9 @@ local function onPromptTriggered(prompt, thief)
 
     local now = os.clock()
     local last = lastStealTime[thief]
-    if last ~= nil and now - last < StealConfig.StealCooldown then
+    -- VIP edge: Benefits returns a cooldown multiplier (<1 shortens) for this thief; 1 otherwise.
+    local cooldown = StealConfig.StealCooldown * Benefits.GetStealCooldownMult(thief)
+    if last ~= nil and now - last < cooldown then
         Remotes.NotifyPlayer(thief, "error", "Steal is on cooldown.")
         return
     end

@@ -125,6 +125,13 @@ function ProtectionService.ExtendProtection(player, seconds)
     grantUntil(player, base + seconds)
 end
 
+-- PUBLIC HOOK for M5: ensure protection lasts AT LEAST `seconds` from now (never shortens it).
+-- Unlike ExtendProtection this does not accumulate, so the "Reinforced Lock" gamepass can keep
+-- a steady shield on a renew tick without the timer creeping ever upward.
+function ProtectionService.MaintainAtLeast(player, seconds)
+    grantUntil(player, os.clock() + seconds)
+end
+
 -- Clears protection + visuals for a leaving player (called from Bootstrap before release).
 function ProtectionService.ClearPlayer(player)
     local state = protection[player]
