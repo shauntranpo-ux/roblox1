@@ -160,10 +160,10 @@ Theme.Hud = {
 Theme.Lighting = {
     ClockTime = 14, -- bright early-afternoon sun
     GeographicLatitude = 12,
-    Brightness = 2.4,
-    ExposureCompensation = 0.12,
-    Ambient = Color3.fromRGB(140, 150, 165),
-    OutdoorAmbient = Color3.fromRGB(170, 180, 195),
+    Brightness = 1.7,
+    ExposureCompensation = 0.0,
+    Ambient = Color3.fromRGB(120, 130, 145),
+    OutdoorAmbient = Color3.fromRGB(150, 162, 178),
     FogEnd = 100000,
     Atmosphere = {
         Density = 0.32,
@@ -173,11 +173,11 @@ Theme.Lighting = {
         Color = Color3.fromRGB(220, 235, 255),
         Decay = Color3.fromRGB(160, 190, 230),
     },
-    Bloom = { Intensity = 0.55, Size = 24, Threshold = 1.1 },
+    Bloom = { Intensity = 0.3, Size = 24, Threshold = 1.6 },
     ColorCorrection = {
-        Saturation = 0.18,
-        Contrast = 0.06,
-        Brightness = 0.01,
+        Saturation = 0.16,
+        Contrast = 0.04,
+        Brightness = -0.02,
         TintColor = Color3.fromRGB(255, 252, 245),
     },
     SunRays = { Intensity = 0.06, Spread = 0.4 },
