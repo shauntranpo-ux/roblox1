@@ -20,9 +20,11 @@ UIStyle.Colors = {
     Scrim = Color3.fromRGB(0, 0, 0),
 }
 
-UIStyle.PanelTransparency = 0.18
-UIStyle.RowTransparency = 0.25
-UIStyle.ScrimTransparency = 0.45
+-- Higher = more see-through. Tuned so the world clearly reads through the glass (0.18 was so
+-- close to opaque it looked like a solid slab against the dark map).
+UIStyle.PanelTransparency = 0.4
+UIStyle.RowTransparency = 0.32
+UIStyle.ScrimTransparency = 0.4
 
 local function ensureCorner(instance, radius)
     local existing = instance:FindFirstChildOfClass("UICorner")
@@ -35,10 +37,9 @@ local function ensureCorner(instance, radius)
     return corner
 end
 
--- Turns a solid panel Frame into translucent glass: dark grape tint that the world shows through
--- faintly, a subtle vertical gradient, a purple stroke, rounded corners, and an assetless soft
--- drop-shadow behind it (a larger, offset, dark translucent rounded frame -- no image asset, so it
--- can never render as a broken icon). Idempotent: safe to call once per panel on registration.
+-- Turns a solid panel Frame into translucent glass: dark grape tint the world shows through, a
+-- subtle vertical gradient, a purple stroke, and rounded corners. The dimmed scrim behind it
+-- supplies the depth/pop. Idempotent: safe to call once per panel on registration.
 function UIStyle.applyGlass(frame)
     if frame == nil or frame:GetAttribute("Glassed") then
         return
@@ -60,20 +61,6 @@ function UIStyle.applyGlass(frame)
     stroke.Transparency = 0.1
     stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
     stroke.Parent = frame
-
-    -- Assetless soft shadow: a larger, offset, dark, very translucent rounded frame BEHIND the
-    -- panel. Reads as depth on the dimmed scrim without risking a broken shadow image.
-    local shadow = Instance.new("Frame")
-    shadow.Name = "GlassShadow"
-    shadow.AnchorPoint = frame.AnchorPoint
-    shadow.Position = frame.Position + UDim2.fromOffset(0, 6)
-    shadow.Size = frame.Size + UDim2.fromOffset(14, 16)
-    shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    shadow.BackgroundTransparency = 0.55
-    shadow.BorderSizePixel = 0
-    shadow.ZIndex = frame.ZIndex - 1
-    ensureCorner(shadow, 20)
-    shadow.Parent = frame.Parent
 end
 
 -- The full-screen scrim look (semi-transparent black so the world dims behind a panel).

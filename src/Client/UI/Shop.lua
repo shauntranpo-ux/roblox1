@@ -261,12 +261,12 @@ local function buildShell()
     local panel = Builder.create("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromScale(0.92, 0.82),
+        Size = UDim2.fromScale(0.82, 0.74),
         BackgroundColor3 = Theme.Colors.Background,
         BorderSizePixel = 0,
     }, {
         Builder.corner(UDim.new(0, 18)),
-        Builder.create("UISizeConstraint", { MaxSize = Vector2.new(580, 820) }),
+        Builder.create("UISizeConstraint", { MaxSize = Vector2.new(520, 720) }),
     })
 
     local header = Builder.create("Frame", {

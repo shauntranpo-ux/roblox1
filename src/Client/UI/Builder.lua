@@ -65,12 +65,12 @@ function Builder.panel(parent, title, onClose)
     local panel = Builder.create("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromScale(0.9, 0.72),
+        Size = UDim2.fromScale(0.8, 0.64),
         BackgroundColor3 = Theme.Colors.Background,
         BorderSizePixel = 0,
     }, {
         Builder.corner(UDim.new(0, 18)),
-        Builder.create("UISizeConstraint", { MaxSize = Vector2.new(560, 760) }),
+        Builder.create("UISizeConstraint", { MaxSize = Vector2.new(500, 660) }),
     })
 
     local header = Builder.create("Frame", {
