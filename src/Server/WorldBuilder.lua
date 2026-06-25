@@ -335,6 +335,42 @@ local function buildHub(folder)
     end
 end
 
+-- A base ENCLOSURE around one plot: a raised floor pad + low walls (3 sides, open front) + corner posts +
+-- a header beam. `center` = plot center on the ground, `face` = a CFrame whose -Z points at the open front.
+local function buildBaseEnclosure(folder, center, face)
+    local W, D, H = 52, 44, 14 -- interior footprint + wall height
+    local cf = CFrame.new(center) * (face - face.Position)
+    part(
+        { Size = Vector3.new(W, 1.5, D), CFrame = cf * CFrame.new(0, 0.75, 0), Color = P.HubStone },
+        folder
+    )
+    part({
+        Size = Vector3.new(W, H, 1.5),
+        CFrame = cf * CFrame.new(0, H / 2, -D / 2),
+        Color = P.ShieldCyan,
+    }, folder)
+    for _, sx in ipairs({ -1, 1 }) do
+        part({
+            Size = Vector3.new(1.5, H, D),
+            CFrame = cf * CFrame.new(sx * W / 2, H / 2, 0),
+            Color = P.ShieldCyan,
+        }, folder)
+        for _, sz in ipairs({ -1, 1 }) do
+            part({
+                Size = Vector3.new(2.5, H + 4, 2.5),
+                CFrame = cf * CFrame.new(sx * W / 2, (H + 4) / 2, sz * D / 2),
+                Color = P.Gold,
+            }, folder)
+        end
+    end
+    part({
+        Size = Vector3.new(W + 5, 3, 3),
+        CFrame = cf * CFrame.new(0, H + 3, D / 2),
+        Color = P.Gold,
+        Glow = true,
+    }, folder)
+end
+
 -- ── BASE DISTRICT (PlotAnchor markers on the base RING; ground disc is now built by buildPlatforms) ──
 local function buildDistrict(folder)
     local ringR = WorldConfig.Levels.PlotRingRadius
@@ -358,6 +394,9 @@ local function buildDistrict(folder)
         anchor.Name = "PlotAnchor" .. index
         tag(anchor, "PlotAnchor")
         anchor:SetAttribute("PlotIndex", index)
+        -- Wrap each plot in a 3-sided enclosure; open front faces the hub center.
+        local faceCF = CFrame.lookAt(Vector3.new(pos.X, 0, pos.Z), WorldConfig.Center)
+        buildBaseEnclosure(folder, pos, faceCF)
     end
 end
 
