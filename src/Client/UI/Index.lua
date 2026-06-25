@@ -1,8 +1,7 @@
--- Index: the collection book. Shows every roster entry grouped by rarity as DISCOVERED (name +
--- rarity colour + income) or LOCKED (a greyed "???" silhouette revealing only the rarity slot),
--- per-rarity + overall progress, the rarity-weighted collection score, and the completion
--- milestones with claimed/claimable/locked states + a claim button. The client only sends a
--- milestone Id to claim; the server re-validates completion + dedupes.
+-- Index: the collection book, styled to the reference (glossy pink header, a LEFT RAIL of filter
+-- pills, a GRID of cards shown DISCOVERED or LOCKED, and a BOTTOM progress bar + "collect X for +Y").
+-- Pure UI: renders from the server state (Discovered set, discovered Mutations, Claimed sets, Score)
+-- and only sends a milestone Id to claim. The Index SYSTEM/logic is untouched.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -21,7 +20,11 @@ local Index = {}
 local player = nil
 local remotes = nil
 local gui = nil
-local list = nil
+local grid = nil -- the card grid ScrollingFrame
+local bottomBar = nil -- the progress/claim strip
+local railButtons = {} -- [filterKey] = pill button
+local filter = "All"
+local lastState = nil
 
 -- Client mirror of the server completion sets (premium excluded from free completion).
 local rarityIds = {}
@@ -34,14 +37,8 @@ for _, item in ipairs(Catalog.Items) do
     end
 end
 
-local function toHex(color)
-    return string.format(
-        "#%02X%02X%02X",
-        math.floor(color.R * 255 + 0.5),
-        math.floor(color.G * 255 + 0.5),
-        math.floor(color.B * 255 + 0.5)
-    )
-end
+-- Rail filters: All + each rarity (data-backed) + Mutations (the variant strip).
+local FILTERS = { "All", "Common", "Rare", "Epic", "Legendary", "Mythic", "Secret", "Mutations" }
 
 local function countDiscovered(discovered)
     local n = 0
@@ -51,52 +48,6 @@ local function countDiscovered(discovered)
     return n
 end
 
-local function allIn(discovered, ids)
-    for _, id in ipairs(ids) do
-        if not discovered[id] then
-            return false
-        end
-    end
-    return true
-end
-
--- Mirrors IndexService.isMet for display only; the claim is server-validated regardless.
-local function isMet(discovered, milestone)
-    if milestone.Type == "Rarity" then
-        return allIn(discovered, rarityIds[milestone.Rarity] or {})
-    elseif milestone.Type == "Total" then
-        return countDiscovered(discovered) >= milestone.Count
-    elseif milestone.Type == "FullRoster" then
-        return allIn(discovered, allFreeIds)
-    end
-    return false
-end
-
-local function clearRows()
-    -- Destroy ALL content (frames, labels, buttons); UIListLayout/UIPadding are UIComponents, not
-    -- GuiObjects, so they survive. (Previously only Frames were cleared, so headers accumulated.)
-    for _, child in ipairs(list:GetChildren()) do
-        if child:IsA("GuiObject") then
-            child:Destroy()
-        end
-    end
-end
-
-local function header(text, order)
-    local label = Builder.create("TextLabel", {
-        Size = UDim2.new(1, 0, 0, 32),
-        BackgroundTransparency = 1,
-        Text = text,
-        TextColor3 = Theme.Colors.Text,
-        TextSize = 19,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        LayoutOrder = order,
-        Parent = list,
-    })
-    Builder.applyChrome(label, { stroke = 2 })
-end
-
--- Compact reward text for the "collect X for +Y" callout.
 local function rewardText(reward)
     if reward.Type == "Multiplier" then
         return string.format("+%d%% cash", math.floor(reward.Bonus * 100 + 0.5))
@@ -108,37 +59,202 @@ local function rewardText(reward)
     return "a reward"
 end
 
--- The headline progress card: overall completion bar + the next unclaimed set's perk.
-local function progressCard(state, order)
-    local found = countDiscovered(state.Discovered)
-    local total = #allFreeIds
-    local pct = total > 0 and math.clamp(found / total, 0, 1) or 0
-
+-- ===========================================================================================
+-- A single grid card (discovered or locked).
+-- ===========================================================================================
+local function gridCard(order, opts)
     local card = Builder.create("Frame", {
-        Size = UDim2.new(1, 0, 0, 88),
+        Size = UDim2.fromOffset(96, 104),
         BorderSizePixel = 0,
         LayoutOrder = order,
-    }, { Builder.padding(10) })
-    Builder.rarityCard(card, Theme.Colors.Accent)
+    }, { Builder.padding(4) })
+    Builder.rarityCard(card, opts.discovered and opts.color or Theme.Colors.Disabled)
 
-    local title = Builder.create("TextLabel", {
+    local portrait = Builder.create("ImageLabel", {
+        Position = UDim2.fromScale(0, 0),
+        Size = UDim2.new(1, 0, 0, 54),
+        BackgroundColor3 = opts.discovered and opts.color or Theme.Colors.Disabled,
+        BackgroundTransparency = opts.discovered and 0 or 0.3,
+        BorderSizePixel = 0,
+        Image = opts.iconId ~= nil and ("rbxassetid://" .. tostring(opts.iconId)) or "",
+        Parent = card,
+    }, {
+        Builder.corner(UDim.new(0, 8)),
+        Builder.create("UIStroke", {
+            Color = Theme.Colors.Outline,
+            Thickness = 2,
+            Transparency = 0.35,
+        }),
+    })
+    if not opts.discovered then
+        local lock = Builder.create("TextLabel", {
+            Size = UDim2.fromScale(1, 1),
+            BackgroundTransparency = 1,
+            Font = Theme.FontDisplay,
+            Text = "?",
+            TextColor3 = Theme.Colors.SubText,
+            TextScaled = true,
+            Parent = portrait,
+        }, { Builder.padding(12) })
+        Builder.applyChrome(lock)
+    end
+
+    local nameLabel = Builder.create("TextLabel", {
+        Position = UDim2.fromOffset(0, 56),
         Size = UDim2.new(1, 0, 0, 24),
         BackgroundTransparency = 1,
-        Text = string.format("Collection   %d / %d", found, total),
-        TextColor3 = Theme.Colors.Text,
-        TextSize = 20,
-        TextXAlignment = Enum.TextXAlignment.Left,
+        Text = opts.discovered and opts.title or "???",
+        TextColor3 = opts.discovered and Theme.Colors.Text or Theme.Colors.SubText,
+        TextSize = 14,
+        TextScaled = false,
+        TextTruncate = Enum.TextTruncate.AtEnd,
         Parent = card,
     })
-    Builder.applyChrome(title, { stroke = 2 })
+    Builder.applyChrome(nameLabel, { stroke = 2 })
+
+    Builder.create("TextLabel", {
+        Position = UDim2.fromOffset(0, 80),
+        Size = UDim2.new(1, 0, 0, 16),
+        BackgroundTransparency = 1,
+        Font = Theme.FontBody,
+        Text = opts.sublabel or "",
+        TextColor3 = opts.color,
+        TextSize = 13,
+        Parent = card,
+    })
+
+    card.Parent = grid
+end
+
+-- ===========================================================================================
+-- Render the grid for the current filter.
+-- ===========================================================================================
+local function renderGrid(state)
+    for _, child in ipairs(grid:GetChildren()) do
+        if child:IsA("GuiObject") then
+            child:Destroy()
+        end
+    end
+
+    local order = 0
+    if filter == "Mutations" then
+        for _, mutation in ipairs(MutationConfig.Mutations) do
+            if mutation.Key ~= "normal" then
+                order += 1
+                gridCard(order, {
+                    discovered = (state.Mutations or {})[mutation.Key] == true,
+                    title = mutation.DisplayName,
+                    color = mutation.Color,
+                    sublabel = "x" .. tostring(mutation.IncomeMultiplier),
+                })
+            end
+        end
+    else
+        for _, item in ipairs(Catalog.GetSorted()) do
+            local include = IndexConfig.IncludePremiumInCompletion or item.Premium ~= true
+            if include and (filter == "All" or item.Rarity == filter) then
+                local rarity = Rarity.Get(item.Rarity)
+                order += 1
+                gridCard(order, {
+                    discovered = state.Discovered[item.Id] == true,
+                    title = item.DisplayName,
+                    color = rarity.Color,
+                    sublabel = rarity.DisplayName,
+                    iconId = item.IconId,
+                })
+            end
+        end
+    end
+end
+
+-- ===========================================================================================
+-- Render the bottom bar: progress + the set perk, with a claim button when the set is complete.
+-- ===========================================================================================
+local function setMilestoneFor(rarityKey)
+    for _, milestone in ipairs(IndexConfig.Milestones) do
+        if milestone.Type == "Rarity" and milestone.Rarity == rarityKey then
+            return milestone
+        end
+    end
+    return nil
+end
+
+local function nextUnclaimed(state)
+    for _, milestone in ipairs(IndexConfig.Milestones) do
+        if not state.Claimed[milestone.Id] then
+            return milestone
+        end
+    end
+    return nil
+end
+
+local function renderBottom(state)
+    for _, child in ipairs(bottomBar:GetChildren()) do
+        if child:IsA("GuiObject") then
+            child:Destroy()
+        end
+    end
+
+    -- Decide which milestone + progress this filter shows.
+    local milestone, found, total
+    if filter == "Mutations" then
+        local got = 0
+        for _, m in ipairs(MutationConfig.Mutations) do
+            if m.Key ~= "normal" and (state.Mutations or {})[m.Key] then
+                got += 1
+            end
+        end
+        found, total = got, #MutationConfig.Mutations - 1
+    elseif filter == "All" then
+        milestone = nextUnclaimed(state)
+        found, total = countDiscovered(state.Discovered), #allFreeIds
+    else
+        milestone = setMilestoneFor(filter)
+        local ids = rarityIds[filter] or {}
+        local got = 0
+        for _, id in ipairs(ids) do
+            if state.Discovered[id] then
+                got += 1
+            end
+        end
+        found, total = got, #ids
+    end
+
+    local line = milestone ~= nil
+            and ("Collect " .. milestone.Name .. "  ->  " .. rewardText(milestone.Reward))
+        or string.format("Collected %d / %d", found, total)
+    local label = Builder.create("TextLabel", {
+        Position = UDim2.fromOffset(2, 2),
+        Size = UDim2.new(1, -120, 0, 22),
+        BackgroundTransparency = 1,
+        Font = Theme.FontBody,
+        Text = line,
+        TextColor3 = Theme.Colors.Positive,
+        TextSize = 15,
+        TextWrapped = true,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = bottomBar,
+    })
+    Builder.applyChrome(label, { font = Theme.FontBody, stroke = 2, softShadow = false })
 
     local barBg = Builder.create("Frame", {
-        Position = UDim2.fromOffset(0, 30),
-        Size = UDim2.new(1, 0, 0, 16),
+        Position = UDim2.fromOffset(2, 30),
+        Size = UDim2.new(1, -120, 0, 16),
         BackgroundColor3 = Theme.Colors.Background,
         BorderSizePixel = 0,
-        Parent = card,
+        Parent = bottomBar,
     }, { Builder.corner(UDim.new(1, 0)) })
+    local pct = total > 0 and math.clamp(found / total, 0, 1) or 0
+    Builder.create("TextLabel", {
+        Size = UDim2.fromScale(1, 1),
+        BackgroundTransparency = 1,
+        Font = Theme.FontDisplay,
+        Text = string.format("%d / %d", found, total),
+        TextColor3 = Theme.Colors.Text,
+        TextSize = 13,
+        ZIndex = 2,
+        Parent = barBg,
+    })
     Builder.create("Frame", {
         Size = UDim2.fromScale(pct, 1),
         BackgroundColor3 = Theme.Colors.Positive,
@@ -146,128 +262,17 @@ local function progressCard(state, order)
         Parent = barBg,
     }, { Builder.corner(UDim.new(1, 0)) })
 
-    local nextPerk = nil
-    for _, milestone in ipairs(IndexConfig.Milestones) do
-        if not state.Claimed[milestone.Id] then
-            nextPerk = milestone
-            break
-        end
-    end
-    Builder.create("TextLabel", {
-        Position = UDim2.fromOffset(0, 52),
-        Size = UDim2.new(1, 0, 0, 22),
-        BackgroundTransparency = 1,
-        Font = Theme.FontBody,
-        Text = nextPerk ~= nil and ("Collect " .. nextPerk.Name .. "  ->  " .. rewardText(
-            nextPerk.Reward
-        )) or "All sets complete!",
-        TextColor3 = Theme.Colors.Positive,
-        TextSize = 15,
-        TextWrapped = true,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Parent = card,
-    })
-
-    card.Parent = list
-end
-
-local function rosterRow(item, discovered, order)
-    local rarity = Rarity.Get(item.Rarity)
-    local row = Builder.create("Frame", {
-        Size = UDim2.new(1, 0, 0, 46),
-        BorderSizePixel = 0,
-        LayoutOrder = order,
-    }, { Builder.padding(8) })
-    -- Discovered = rarity-bordered card; locked = muted/disabled border (reads as a silhouette slot).
-    Builder.rarityCard(row, discovered and rarity.Color or Theme.Colors.Disabled)
-
-    Builder.create("Frame", {
-        AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.fromScale(0, 0.5),
-        Size = UDim2.fromOffset(30, 30),
-        BackgroundColor3 = discovered and rarity.Color or Theme.Colors.Disabled,
-        BorderSizePixel = 0,
-        Parent = row,
-    }, {
-        Builder.corner(UDim.new(0, 8)),
-        Builder.create("UIStroke", {
-            Color = Theme.Colors.Outline,
-            Thickness = 2,
-            Transparency = 0.3,
-        }),
-    })
-
-    local label = Builder.create("TextLabel", {
-        BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(40, 0),
-        Size = UDim2.new(1, -44, 1, 0),
-        Font = Theme.FontBody,
-        RichText = true,
-        Text = discovered
-                and string.format(
-                    '%s  <font color="%s">%s</font>  +$%s/s',
-                    item.DisplayName,
-                    toHex(rarity.Color),
-                    rarity.DisplayName,
-                    Format.full(item.IncomePerSec)
-                )
-            or (
-                '🔒 ??? <font color="'
-                .. toHex(rarity.Color)
-                .. '">'
-                .. rarity.DisplayName
-                .. "</font>"
-            ),
-        TextColor3 = discovered and Theme.Colors.Text or Theme.Colors.SubText,
-        TextSize = 15,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Parent = row,
-    })
-    Builder.applyChrome(label, { font = Theme.FontBody, stroke = 2, softShadow = false })
-    row.Parent = list
-end
-
-local function milestoneRow(milestone, state, order)
-    local claimed = state.Claimed[milestone.Id] == true
-    local met = isMet(state.Discovered, milestone)
-    local row = Builder.create("Frame", {
-        Size = UDim2.new(1, 0, 0, 50),
-        BackgroundColor3 = Theme.Colors.Row,
-        BorderSizePixel = 0,
-        LayoutOrder = order,
-    }, { Builder.corner(UDim.new(0, 10)), Builder.padding(8) })
-    Builder.create("TextLabel", {
-        BackgroundTransparency = 1,
-        Position = UDim2.fromOffset(2, 0),
-        Size = UDim2.new(1, -110, 1, 0),
-        Font = Theme.FontBold,
-        Text = milestone.Name,
-        TextColor3 = Theme.Colors.Text,
-        TextSize = 16,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Parent = row,
-    })
-    local button = Builder.create("TextButton", {
-        AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.fromScale(1, 0.5),
-        Size = UDim2.fromOffset(100, 38),
-        BorderSizePixel = 0,
-        Font = Theme.FontBold,
-        TextSize = 15,
-        Parent = row,
-    }, { Builder.corner(UDim.new(0, 8)) })
-
-    if claimed then
-        button.Text = "Claimed"
-        button.BackgroundColor3 = Theme.Colors.Disabled
-        button.TextColor3 = Theme.Colors.SubText
-        button.Active = false
-        button.AutoButtonColor = false
-    elseif met then
-        button.Text = "CLAIM"
-        button.BackgroundColor3 = Theme.Colors.Positive
-        button.TextColor3 = Theme.Colors.Text
-        button.Activated:Connect(function()
+    -- Claim button (only when the set milestone is complete + unclaimed).
+    if milestone ~= nil and not state.Claimed[milestone.Id] and found >= total and total > 0 then
+        Builder.glossButton({
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -2, 0.5, 0),
+            Size = UDim2.fromOffset(108, 44),
+            color = Theme.Colors.Positive,
+            Text = "CLAIM",
+            maxText = 20,
+            Parent = bottomBar,
+        }, function()
             local ok, result = pcall(function()
                 return remotes.ClaimIndexReward:InvokeServer(milestone.Id)
             end)
@@ -275,14 +280,19 @@ local function milestoneRow(milestone, state, order)
                 Index.refresh()
             end
         end)
-    else
-        button.Text = "Locked"
-        button.BackgroundColor3 = Theme.Colors.Disabled
-        button.TextColor3 = Theme.Colors.SubText
-        button.Active = false
-        button.AutoButtonColor = false
     end
-    row.Parent = list
+end
+
+-- ===========================================================================================
+-- Refresh + shell
+-- ===========================================================================================
+local function setFilter(key, state)
+    filter = key
+    for filterKey, button in pairs(railButtons) do
+        Builder.setPillSelected(button, "Index", filterKey == key)
+    end
+    renderGrid(state)
+    renderBottom(state)
 end
 
 function Index.refresh()
@@ -297,76 +307,109 @@ function Index.refresh()
     end
     state.Discovered = state.Discovered or {}
     state.Claimed = state.Claimed or {}
+    state.Mutations = state.Mutations or {}
+    lastState = state
+    setFilter(filter, state)
+end
 
-    clearRows()
-    local order = 0
-    local function nextOrder()
-        order += 1
-        return order
-    end
+local function buildShell()
+    local panel = Builder.create("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromScale(0.84, 0.7),
+        BackgroundColor3 = Theme.Colors.Background,
+        BackgroundTransparency = Theme.BodyTransparency,
+        BorderSizePixel = 0,
+    }, {
+        Builder.corner(Theme.Radius.Panel),
+        Builder.create("UIStroke", {
+            Color = Theme.Colors.Outline,
+            Thickness = Theme.Stroke.Width,
+            Transparency = 0.2,
+        }),
+        Builder.create("UISizeConstraint", { MaxSize = Vector2.new(560, 680) }),
+        Builder.create("UIGradient", {
+            Rotation = 90,
+            Color = ColorSequence.new(Color3.fromRGB(58, 36, 100), Theme.Colors.Background),
+        }),
+    })
+    panel:SetAttribute("Glassed", true)
 
-    progressCard(state, nextOrder())
+    Builder.glossHeader(panel, "Index", "Index", function()
+        gui.Enabled = false
+    end)
 
-    header("Milestones", nextOrder())
-    for _, milestone in ipairs(IndexConfig.Milestones) do
-        milestoneRow(milestone, state, nextOrder())
-    end
+    local top = Theme.HeaderHeight + 14
+    local bottomH = 64
 
-    -- Mutations discovery strip (compact -- NOT a full species x mutation grid).
-    local mutations = state.Mutations or {}
-    header("Mutations", nextOrder())
-    for _, m in ipairs(MutationConfig.Mutations) do
-        if m.Key ~= "normal" then
-            local has = mutations[m.Key] == true
-            Builder.create("TextLabel", {
-                Size = UDim2.new(1, 0, 0, 26),
-                BackgroundTransparency = 1,
-                Font = Theme.FontBold,
-                Text = string.format(
-                    "%s (x%d)  %s",
-                    m.DisplayName,
-                    m.IncomeMultiplier,
-                    has and "owned" or "locked"
-                ),
-                TextColor3 = has and m.Color or Theme.Colors.Disabled,
-                TextSize = 15,
-                TextXAlignment = Enum.TextXAlignment.Left,
-                LayoutOrder = nextOrder(),
-                Parent = list,
-            })
-        end
-    end
-
-    -- Each rarity tier: a header with its found/total, then that tier's roster rows beneath it.
-    for _, tier in ipairs(Rarity.Ordered) do
-        local ids = rarityIds[tier.Key]
-        if ids ~= nil then
-            local found = 0
-            for _, id in ipairs(ids) do
-                if state.Discovered[id] then
-                    found += 1
-                end
+    -- Left rail of filter pills (vertical scroll).
+    local rail = Builder.create("ScrollingFrame", {
+        Position = UDim2.fromOffset(8, top),
+        Size = UDim2.new(0, 104, 1, -(top + bottomH + 8)),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Parent = panel,
+    }, {
+        Builder.create("UIListLayout", {
+            Padding = UDim.new(0, 6),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            HorizontalAlignment = Enum.HorizontalAlignment.Center,
+        }),
+        Builder.padding(4),
+    })
+    Builder.styleScroll(rail)
+    for i, key in ipairs(FILTERS) do
+        local button = Builder.glossButton({
+            LayoutOrder = i,
+            Size = UDim2.new(1, -4, 0, 38),
+            color = Theme.Colors.Row,
+            Text = key,
+            maxText = 16,
+            Parent = rail,
+        }, function()
+            if lastState ~= nil then
+                setFilter(key, lastState)
             end
-            header(string.format("%s  (%d/%d)", tier.DisplayName, found, #ids), nextOrder())
-            for _, item in ipairs(Catalog.GetSorted()) do
-                if
-                    item.Rarity == tier.Key
-                    and (IndexConfig.IncludePremiumInCompletion or item.Premium ~= true)
-                then
-                    rosterRow(item, state.Discovered[item.Id] == true, nextOrder())
-                end
-            end
-        end
+        end)
+        railButtons[key] = button
     end
+
+    -- The card grid.
+    grid = Builder.create("ScrollingFrame", {
+        Position = UDim2.fromOffset(118, top),
+        Size = UDim2.new(1, -126, 1, -(top + bottomH + 8)),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Parent = panel,
+    }, {
+        Builder.create("UIGridLayout", {
+            CellSize = UDim2.fromOffset(96, 104),
+            CellPadding = UDim2.fromOffset(8, 8),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            HorizontalAlignment = Enum.HorizontalAlignment.Center,
+        }),
+        Builder.padding(4),
+    })
+    Builder.styleScroll(grid)
+
+    -- Bottom progress/claim strip.
+    bottomBar = Builder.create("Frame", {
+        AnchorPoint = Vector2.new(0.5, 1),
+        Position = UDim2.new(0.5, 0, 1, -8),
+        Size = UDim2.new(1, -16, 0, bottomH - 4),
+        BorderSizePixel = 0,
+        Parent = panel,
+    }, { Builder.padding(8) })
+    Builder.rarityCard(bottomBar, Theme.Colors.Accent)
+
+    panel.Parent = gui
 end
 
 function Index.mount(context)
     player = context.player
     remotes = context.remotes
     gui = Builder.screenGui("Index", player:WaitForChild("PlayerGui"), false)
-    list = Builder.panel(gui, "Index", function()
-        gui.Enabled = false
-    end)
+    buildShell()
 end
 
 function Index.toggle()
