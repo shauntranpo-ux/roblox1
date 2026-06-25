@@ -137,6 +137,13 @@ local PROFILE_TEMPLATE = {
     SpinsAvailable = 0, -- banked free spins
     LastSpinGrantTime = 0, -- os.time() anchor the next spin accrues from (0 = seed on first join)
     LastMysteryTime = 0, -- os.time() of the last mystery-block open
+    -- M13.1 REFERRALS (server-authoritative; once-per-userId-forever attribution + idempotent rewards).
+    FirstJoinAt = 0, -- os.time() of the first-ever join (0 at join = brand-new -> attributable)
+    ReferredBy = 0, -- the inviter's userId, set EXACTLY ONCE ever (0 = none); no self/returning abuse
+    ReferralWelcomeClaimed = false, -- the invitee's one-time welcome bonus
+    Qualified = false, -- this player (as an invitee) has reached the qualifying milestone
+    QualifiedReferrals = {}, -- (as an inviter) [inviteeUserId] = true -> the credited set (idempotency ledger)
+    ClaimedReferralTiers = {}, -- [tierCount] = true -> idempotent inviter tier grants
 }
 
 local Profiles = {} -- [Player] = Profile

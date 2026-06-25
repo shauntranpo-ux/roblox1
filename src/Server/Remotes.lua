@@ -77,6 +77,10 @@ Remotes.FreeRewardUpdate = nil -- RemoteEvent : server -> a client, a ping that 
 -- M12.3 inventory. Client sends a flag-toggle INTENT only (action + unit id + value); the server owns
 -- the flags. (Bulk-sell reuses SellRequest "Selection"; mass-fuse reuses FuseRequest "MassFuse".)
 Remotes.InventoryAction = nil -- RemoteFunction : client -> server (action, unitId, value) -> { Result, Locked?/Favorited?/Message }
+-- M13.1 referrals. Client sends INTENT only ({ "get" | "invitelog" }); the server owns attribution +
+-- rewards. (The actual invite is client-side SocialService:PromptGameInvite.)
+Remotes.ReferralAction = nil -- RemoteFunction : client -> server (action) -> { Result, State?/Message }
+Remotes.ReferralUpdate = nil -- RemoteEvent : server -> a client, a ping that referral state changed
 -- M11.4 seasonal exclusives. Client sends INTENT ONLY ({ Action="get"|"buy", Key? }); server gates by
 -- server-time season window + the idempotent claim set.
 Remotes.ExclusiveAction = nil -- RemoteFunction : client -> server ({ Action, Key? }) -> { Result, State?/Message }
@@ -127,6 +131,8 @@ Remotes.ExpectedNames = {
     "FreeRewardAction",
     "FreeRewardUpdate",
     "InventoryAction",
+    "ReferralAction",
+    "ReferralUpdate",
 }
 
 local folder = nil
@@ -307,6 +313,14 @@ function Remotes.Init()
     inventoryAction.Name = "InventoryAction"
     inventoryAction.Parent = folder
 
+    local referralAction = Instance.new("RemoteFunction")
+    referralAction.Name = "ReferralAction"
+    referralAction.Parent = folder
+
+    local referralUpdate = Instance.new("RemoteEvent")
+    referralUpdate.Name = "ReferralUpdate"
+    referralUpdate.Parent = folder
+
     folder.Parent = ReplicatedStorage
 
     Remotes.PurchaseRequest = purchase
@@ -351,6 +365,8 @@ function Remotes.Init()
     Remotes.FreeRewardAction = freeRewardAction
     Remotes.FreeRewardUpdate = freeRewardUpdate
     Remotes.InventoryAction = inventoryAction
+    Remotes.ReferralAction = referralAction
+    Remotes.ReferralUpdate = referralUpdate
 end
 
 -- Sends a toast to a single player. kind = "success" | "error" | "info". Optional `cue` is a

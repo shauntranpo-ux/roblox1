@@ -73,6 +73,10 @@ Analytics.Events = { -- custom (retention/engagement) event names
     MysteryOpen = "mystery_open", -- M12.2 the base mystery block opened
     FlagToggle = "flag_toggle", -- M12.3 a favorite/lock toggled (value = 1 set / 0 cleared)
     MassFuse = "mass_fuse", -- M12.3 a mass-fuse (value = groups fused)
+    InviteSent = "invite_sent", -- M13.1 an invite prompt completed
+    ReferralAttributed = "referral_attributed", -- M13.1 a new player attributed to an inviter (value = inviterId)
+    ReferralQualified = "referral_qualified", -- M13.1 a referral reached the milestone (value = inviter's new count)
+    ReferralTier = "referral_tier", -- M13.1 an inviter reached a reward tier (value = tier count)
 }
 
 Analytics.Funnel = { -- new-player onboarding funnel steps { stepNumber, stepName }

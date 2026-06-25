@@ -49,6 +49,8 @@ local SharedEventService = require(script.Parent.SharedEventService)
 local QuestService = require(script.Parent.QuestService)
 -- M12.2: free rewards (daily chest / gift / spin / mystery block; server-time-gated).
 local FreeRewardService = require(script.Parent.FreeRewardService)
+-- M13.1: referral / invite system (server-authoritative attribution + milestone-gated rewards).
+local ReferralService = require(script.Parent.ReferralService)
 -- M9.1: selling (the economy floor sink).
 local SellService = require(script.Parent.SellService)
 -- M9.2: fusion + stars (turn duplicates into fuel).
@@ -125,6 +127,8 @@ start("SharedEventService", SharedEventService.Init)
 start("QuestService", QuestService.Init)
 -- M12.2: bind the free-reward remotes + the mystery-block prompts.
 start("FreeRewardService", FreeRewardService.Init)
+-- M13.1: init the referral mailbox + bind the milestone check loop + the referral remote.
+start("ReferralService", ReferralService.Init)
 -- M9.1: the sell sink (binds SellRequest).
 start("SellService", SellService.Init)
 -- M9.2: fusion + stars (binds FuseRequest).
@@ -218,6 +222,10 @@ local function onPlayerAdded(player)
     QuestService.SetupPlayer(player, profile)
     -- M12.2: seed starter spins on first contact + accrue banked spins from server time.
     FreeRewardService.SetupPlayer(player, profile)
+    -- M13.1: attribute the referrer (new accounts only, once ever) + welcome bonus + apply the capped
+    -- invite boost from the credited set + drain the inviter mailbox (off-thread). Runs after PlayerStats
+    -- + Benefits exist so the boost feeds income correctly on join.
+    ReferralService.SetupPlayer(player, profile)
     -- M8.4: apply any currently-active event modifiers (idempotent) + prune stale event data.
     EventService.SetupPlayer(player, profile)
     -- M11.1: re-derive equipped perks + re-lock equipped units from the saved loadout (idempotent;
@@ -261,6 +269,8 @@ local function onPlayerRemoving(player)
     WildSpawnService.ClearPlayer(player)
     -- M10.2: drop the player's cached current-biome (state persists in the profile).
     BiomeService.ClearPlayer(player)
+    -- M13.1: drop the player's session join-time (referral state persists in the profile/mailbox).
+    ReferralService.ClearPlayer(player)
     -- Final leaderboard write while the profile is STILL loaded (captures values synchronously,
     -- then writes off-thread) -- must precede MonetizationService.ClearPlayer, which drops the
     -- income multiplier this read depends on, and ProfileManager.ReleaseProfile.

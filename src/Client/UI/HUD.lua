@@ -26,6 +26,7 @@ local xpSet = nil
 local levelLabel = nil
 local luckLabel = nil
 local powerLabel = nil
+local inviteLabel = nil
 local railDiamonds = {} -- { entry, diamondFrame, contentLabel } for live lock updates
 local displayedCash = 0
 local targetCash = 0
@@ -270,6 +271,41 @@ function HUD.mount(context, actions)
     }, { Builder.create("UITextSizeConstraint", { MaxTextSize = 26 }) })
     Builder.styleText(powerLabel, { keepColor = true })
 
+    -- ===== BOTTOM-RIGHT INVITE BOOST (M13.1: "+X% Invite Friends") =====
+    local invitePill = Builder.pill({
+        AnchorPoint = Vector2.new(1, 1),
+        Position = UDim2.fromScale(0.988, 0.70),
+        Size = UDim2.fromScale(0.16, 0.07),
+        radius = UDim.new(0, 14),
+        Parent = gui,
+    })
+    Builder.create(
+        "UISizeConstraint",
+        { MinSize = Vector2.new(96, 40), MaxSize = Vector2.new(190, 70), Parent = invitePill }
+    )
+    Builder.create("TextLabel", {
+        AnchorPoint = Vector2.new(0, 0.5),
+        Position = UDim2.fromScale(0.04, 0.5),
+        Size = UDim2.fromScale(0.34, 0.8),
+        BackgroundTransparency = 1,
+        Text = "📨",
+        TextColor3 = Theme.Colors.Gold,
+        TextScaled = true,
+        Parent = invitePill,
+    })
+    inviteLabel = Builder.create("TextLabel", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.fromScale(0.96, 0.5),
+        Size = UDim2.fromScale(0.6, 0.8),
+        BackgroundTransparency = 1,
+        Text = "+0%",
+        TextColor3 = Theme.Colors.White,
+        TextScaled = true,
+        TextXAlignment = Enum.TextXAlignment.Right,
+        Parent = invitePill,
+    }, { Builder.create("UITextSizeConstraint", { MaxTextSize = 26 }) })
+    Builder.styleText(inviteLabel, { keepColor = true })
+
     -- ===== BOTTOM-CENTER NAV BAR (panel access -- kept; restyled as the hotbar) =====
     local bar = Builder.create("Frame", {
         AnchorPoint = Vector2.new(0.5, 1),
@@ -353,6 +389,9 @@ function HUD.mount(context, actions)
     local function refreshPower()
         powerLabel.Text = Format.short(math.max(0, attr("Power", 0)))
     end
+    local function refreshInvite()
+        inviteLabel.Text = "+" .. math.floor(math.max(0, attr("InviteBoost", 0))) .. "%"
+    end
 
     targetCash = attr("Cash", 0)
     displayedCash = targetCash
@@ -361,6 +400,7 @@ function HUD.mount(context, actions)
     refreshShield()
     refreshLuck()
     refreshPower()
+    refreshInvite()
 
     player:GetAttributeChangedSignal("Cash"):Connect(function()
         targetCash = attr("Cash", 0)
@@ -371,6 +411,7 @@ function HUD.mount(context, actions)
     player:GetAttributeChangedSignal("ShieldMax"):Connect(refreshShield)
     player:GetAttributeChangedSignal("Luck"):Connect(refreshLuck)
     player:GetAttributeChangedSignal("Power"):Connect(refreshPower)
+    player:GetAttributeChangedSignal("InviteBoost"):Connect(refreshInvite)
 
     -- Smooth cash count-up toward the true value; snaps within a dollar so it never drifts.
     RunService.RenderStepped:Connect(function(deltaTime)
