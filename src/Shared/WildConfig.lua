@@ -53,7 +53,7 @@ WildConfig.Behavior = {
 
 -- M10.1 retires the random direct-roster-buy (wild-catch is primary). The guaranteed STARTER still
 -- grants once so a new player is never stuck. The cash-sink rebalance toward zones/nets is M10.2/M10.4.
-WildConfig.DirectBuyDisabled = true
+WildConfig.DirectBuyDisabled = false
 
 -- ── REGION/ZONE HOOK (M10.2 foundation only; no biome geometry/gates here) ───────────────────
 -- One region today. RegionFor(player) returns a region descriptor; AllowedRarities = nil means "all".
