@@ -77,7 +77,12 @@ local function addInfoLabel(part, def, unit)
     label.TextColor3 = mutation ~= nil and mutation.Color or rarity.Color
     label.TextStrokeTransparency = 0.4
     label.TextScaled = true
-    label.Font = Enum.Font.GothamBold
+    label.Font = Enum.Font.FredokaOne -- VM-THEME: bubble font on world labels
+    local nameStroke = Instance.new("UIStroke") -- + a black rim
+    nameStroke.Color = Color3.fromRGB(24, 12, 44)
+    nameStroke.Thickness = 2
+    nameStroke.Transparency = 0.1
+    nameStroke.Parent = label
     local prefix = (mutation ~= nil and mutation.DisplayName ~= "")
             and (mutation.DisplayName .. " ")
         or ""

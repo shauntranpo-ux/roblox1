@@ -74,7 +74,7 @@ local function ensureVisuals(player)
     label.TextColor3 = Color3.fromRGB(170, 210, 255)
     label.TextStrokeTransparency = 0.3
     label.TextScaled = true
-    label.Font = Enum.Font.GothamBold
+    label.Font = Enum.Font.FredokaOne -- VM-THEME world label font
     label.Text = "Protected"
     label.Parent = billboard
 
@@ -92,6 +92,7 @@ local function expire(player)
         state.Dome:Destroy()
     end
     protection[player] = nil
+    player:SetAttribute("ShieldSeconds", 0) -- VM-THEME display-only: shield empty
     ProtectionService.RefreshPrompts(player)
 end
 
@@ -155,8 +156,13 @@ function ProtectionService.Init()
         for player, state in pairs(protection) do
             if player.Parent ~= Players or now >= state.Until then
                 expire(player)
-            elseif state.Label ~= nil then
-                state.Label.Text = "Protected " .. tostring(math.ceil(state.Until - now)) .. "s"
+            else
+                -- VM-THEME display-only: publish shield seconds + max so the HUD HP/shield bar binds.
+                player:SetAttribute("ShieldSeconds", math.ceil(state.Until - now))
+                player:SetAttribute("ShieldMax", StealConfig.NewPlayerGrace)
+                if state.Label ~= nil then
+                    state.Label.Text = "Protected " .. tostring(math.ceil(state.Until - now)) .. "s"
+                end
             end
         end
     end)

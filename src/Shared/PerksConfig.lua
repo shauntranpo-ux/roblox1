@@ -60,7 +60,7 @@ PerksConfig.StarPerLevel = 0.25 -- +25% perk effect per star above 1 (star 3 -> 
 PerksConfig.MutScaleFactor = 0.05 -- mutation contribution: 1 + this*(mutMult-1) (rainbow ~+45%, etc.)
 PerksConfig.CooldownFloor = 0.1 -- a thief's steal cooldown can never drop below 10% of base
 PerksConfig.InterruptCap = 0.85 -- a defender can never block more than 85% of steal attempts
-PerksConfig.BaseWalkSpeed = 16 -- the natural character walkspeed perks scale from (Roblox default)
+PerksConfig.BaseWalkSpeed = 24 -- faster, punchier pace (was 16). MOVE perks + carry penalty scale from this
 PerksConfig.OfflineMaxSeconds = 8 * 3600 -- cap offline accrual at 8 hours of away time
 PerksConfig.DefaultPerk = "drumline" -- reconcile: any roster entry without an assignment gets this
 

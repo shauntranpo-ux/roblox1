@@ -77,7 +77,7 @@ local function makeBossModel(def)
     local name = Instance.new("TextLabel")
     name.Size = UDim2.fromScale(1, 0.5)
     name.BackgroundTransparency = 1
-    name.Font = Enum.Font.GothamBold
+    name.Font = Enum.Font.FredokaOne -- VM-THEME world label font
     name.Text = "TITAN " .. def.DisplayName
     name.TextColor3 = Color3.fromRGB(255, 230, 120)
     name.TextStrokeTransparency = 0.3

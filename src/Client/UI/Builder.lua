@@ -263,6 +263,184 @@ function Builder.rarityCard(frame, rarityColor)
     return frame
 end
 
+-- ===========================================================================================
+-- VM-THEME: the canonical text recipe + diamond / pill / stat-bar builders (all read Theme)
+-- ===========================================================================================
+
+-- THE single text-style helper: FredokaOne + white fill + black UIStroke rim + soft drop shadow.
+-- Reuse this on EVERY label (HUD, panels, world billboards). opts: { font, color, stroke, shadow,
+-- keepColor }. keepColor=true leaves the label's own TextColor3 (e.g. gold cash) but still adds the
+-- black rim + shadow.
+function Builder.styleText(label, opts)
+    opts = opts or {}
+    local s = Theme.TextStyle
+    label.Font = opts.font or s.Font
+    if opts.keepColor ~= true then
+        label.TextColor3 = opts.color or s.Fill
+    end
+    label.TextStrokeColor3 = s.StrokeColor
+    label.TextStrokeTransparency = opts.shadow == false and 1 or s.ShadowTransparency
+    if label:FindFirstChildOfClass("UIStroke") == nil then
+        Builder.create("UIStroke", {
+            Color = s.StrokeColor,
+            Thickness = opts.stroke or s.StrokeThickness,
+            Transparency = s.StrokeTransparency,
+            ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
+            Parent = label,
+        })
+    end
+    return label
+end
+
+-- A DIAMOND button (a rotated glossy square with upright centered content). Returns
+-- (container, diamondFrame, contentLabel, button) so callers can recolor / relabel / lock it.
+function Builder.diamond(props, onClick)
+    props = props or {}
+    local size = props.size or 56
+    local container = Builder.create("Frame", {
+        Size = UDim2.fromOffset(size, size),
+        Position = props.Position,
+        AnchorPoint = props.AnchorPoint,
+        LayoutOrder = props.LayoutOrder,
+        BackgroundTransparency = 1,
+        Parent = props.Parent,
+    })
+    local diamond = Builder.create("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromScale(0.72, 0.72),
+        Rotation = 45, -- the diamond look
+        BackgroundColor3 = props.color or Theme.Colors.DarkPill,
+        BackgroundTransparency = props.transparency or 0.1,
+        BorderSizePixel = 0,
+        ZIndex = 1,
+        Parent = container,
+    }, {
+        Builder.corner(UDim.new(0, 8)),
+        Builder.create("UIStroke", {
+            Color = Theme.Colors.White,
+            Thickness = 2.5,
+            Transparency = 0.1,
+        }),
+        Builder.create("Frame", {
+            Size = UDim2.fromScale(1, 0.5),
+            BackgroundColor3 = Theme.Colors.GlossTop,
+            BackgroundTransparency = 0.82,
+            BorderSizePixel = 0,
+        }, { Builder.corner(UDim.new(0, 8)) }),
+    })
+    local content = Builder.create("TextLabel", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromScale(0.7, 0.7),
+        BackgroundTransparency = 1,
+        Text = props.Text or "",
+        TextColor3 = props.textColor or Theme.Colors.White,
+        TextScaled = true,
+        ZIndex = 3,
+        Parent = container,
+    }, { Builder.create("UITextSizeConstraint", { MaxTextSize = props.maxText or 28 }) })
+    Builder.styleText(content, { keepColor = true })
+    local button = Builder.create("TextButton", {
+        Size = UDim2.fromScale(1, 1),
+        BackgroundTransparency = 1,
+        Text = "",
+        AutoButtonColor = false,
+        ZIndex = 5,
+        Parent = container,
+    })
+    if onClick ~= nil then
+        button.Activated:Connect(onClick)
+    end
+    return container, diamond, content, button
+end
+
+-- A rounded dark-translucent PILL frame (HUD chips / slots). Returns the frame.
+function Builder.pill(props)
+    props = props or {}
+    return Builder.create("Frame", {
+        Size = props.Size,
+        Position = props.Position,
+        AnchorPoint = props.AnchorPoint,
+        LayoutOrder = props.LayoutOrder,
+        BackgroundColor3 = props.color or Theme.Colors.DarkPill,
+        BackgroundTransparency = props.transparency or 0.25,
+        BorderSizePixel = 0,
+        Parent = props.Parent,
+    }, {
+        Builder.corner(props.radius or Theme.Radius.Pill),
+        Builder.create("UIStroke", {
+            Color = props.stroke or Theme.Colors.White,
+            Thickness = 2,
+            Transparency = 0.2,
+        }),
+    })
+end
+
+-- A glossy gradient STAT BAR (HP green / XP cyan) with a centered label. Returns (frame, set) where
+-- set(cur, max, text) clamps to [0,max], tweens the fill, and sets the centered text.
+function Builder.statBar(props)
+    props = props or {}
+    local fillTop = props.fillTop or Theme.Colors.HpFill
+    local fillBottom = props.fillBottom or Theme.Colors.HpFillDark
+    local bg = Builder.create("Frame", {
+        Size = props.Size or UDim2.fromOffset(160, 22),
+        Position = props.Position,
+        AnchorPoint = props.AnchorPoint,
+        LayoutOrder = props.LayoutOrder,
+        BackgroundColor3 = Theme.Colors.DarkPill,
+        BackgroundTransparency = 0.2,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        Parent = props.Parent,
+    }, {
+        Builder.corner(UDim.new(1, 0)),
+        Builder.create("UIStroke", {
+            Color = Theme.Colors.White,
+            Thickness = 2,
+            Transparency = 0.2,
+        }),
+    })
+    local fill = Builder.create("Frame", {
+        Size = UDim2.fromScale(0, 1),
+        BackgroundColor3 = fillTop,
+        BorderSizePixel = 0,
+        ZIndex = 2,
+        Parent = bg,
+    }, {
+        Builder.corner(UDim.new(1, 0)),
+        Builder.create("UIGradient", {
+            Rotation = 90,
+            Color = ColorSequence.new(fillTop, fillBottom),
+        }),
+        Builder.create("Frame", {
+            Size = UDim2.fromScale(1, 0.45),
+            BackgroundColor3 = Theme.Colors.GlossTop,
+            BackgroundTransparency = 0.7,
+            BorderSizePixel = 0,
+        }, { Builder.corner(UDim.new(1, 0)) }),
+    })
+    local label = Builder.create("TextLabel", {
+        Size = UDim2.fromScale(1, 1),
+        BackgroundTransparency = 1,
+        Text = "",
+        TextColor3 = Theme.Colors.White,
+        TextScaled = true,
+        ZIndex = 3,
+        Parent = bg,
+    }, { Builder.padding(2), Builder.create("UITextSizeConstraint", { MaxTextSize = 16 }) })
+    Builder.styleText(label, { keepColor = true })
+
+    local function set(cur, max, text)
+        cur = math.max(0, tonumber(cur) or 0)
+        max = math.max(1, tonumber(max) or 1)
+        local pct = math.clamp(cur / max, 0, 1)
+        TweenService:Create(fill, Theme.Hud.BarTween, { Size = UDim2.fromScale(pct, 1) }):Play()
+        label.Text = text or (math.floor(cur) .. " / " .. math.floor(max))
+    end
+    return bg, set
+end
+
 -- Consistent scroll styling (subtle accent bar, smooth, auto canvas).
 function Builder.styleScroll(scroll)
     scroll.ScrollBarThickness = 5

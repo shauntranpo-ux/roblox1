@@ -48,6 +48,9 @@ local function refreshRate(player, profile)
         "IncomePerSec",
         math.floor(base * Benefits.GetIncomeMultiplier(player) * prestige)
     )
+    -- VM-THEME (display-only): publish the luck multiplier so the HUD's luck counter can bind to it.
+    -- Purely a replicated readout -- changes no gameplay (luck is computed in Benefits as before).
+    player:SetAttribute("Luck", Benefits.GetLuckMultiplier(player))
 end
 
 -- Initializes both attributes for a player whose profile just loaded.

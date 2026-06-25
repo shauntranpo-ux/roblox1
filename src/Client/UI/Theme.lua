@@ -31,6 +31,23 @@ Theme.Colors = {
     Disabled = Color3.fromRGB(86, 72, 120),
     Outline = Color3.fromRGB(24, 12, 44), -- the heavy dark text/border outline color
     GlossTop = Color3.fromRGB(255, 255, 255), -- white sheen overlay top for the glossy look
+
+    -- ── VM-THEME reference palette (the bright voxel look; tune these to the screenshots) ──
+    -- Used by the HUD + world dressing. Panels keep the grape-glass keys above so existing screens
+    -- inherit unchanged; these add the kid-friendly saturated accents from the references.
+    Sky = Color3.fromRGB(120, 200, 255), -- bright sky blue
+    Grass = Color3.fromRGB(96, 200, 84), -- lush grass green
+    Sand = Color3.fromRGB(232, 204, 148), -- warm sand / tan
+    PathRed = Color3.fromRGB(228, 72, 72), -- RED path-trim accent
+    Gold = Color3.fromRGB(255, 206, 64), -- cash gold
+    HpFill = Color3.fromRGB(96, 226, 96), -- HP bar green (top of gradient)
+    HpFillDark = Color3.fromRGB(40, 168, 70), -- HP bar green (bottom of gradient)
+    XpFill = Color3.fromRGB(86, 200, 255), -- XP bar cyan/blue (top)
+    XpFillDark = Color3.fromRGB(40, 130, 232), -- XP bar cyan/blue (bottom)
+    Clover = Color3.fromRGB(96, 220, 96), -- luck clover green
+    DarkPill = Color3.fromRGB(18, 16, 26), -- near-black translucent for HUD pills/slots
+    White = Color3.fromRGB(255, 255, 255),
+    Yellow = Color3.fromRGB(255, 222, 56), -- banner keyword highlight (<hl>) color
 }
 
 -- ── Shape tokens ───────────────────────────────────────────────────────────────────────────
@@ -95,6 +112,94 @@ Theme.Juice = {
     RippleColor = Color3.fromRGB(255, 248, 205), -- bright warm white (the ring + flash core)
     RippleStartTransparency = 0.3, -- lower = stronger
     ButtonSquish = 0.9, -- press scale before the back-ease pop to 1.0
+}
+
+-- ── VM-THEME text style (FredokaOne + white fill + black stroke + soft shadow) ──────────────
+-- The single canonical text recipe. Builder.styleText applies these; tune the look here.
+Theme.TextStyle = {
+    Font = Theme.FontDisplay, -- FredokaOne (built-in). Swap point: upload a Luckiest-Guy FontFace + set here.
+    Fill = Theme.Colors.White,
+    StrokeColor = Theme.Colors.Outline,
+    StrokeThickness = 2.5, -- scaled black rim
+    StrokeTransparency = 0.1,
+    ShadowTransparency = 0.4, -- the soft built-in TextStrokeTransparency drop shadow
+}
+
+-- ── VM-THEME asset slots (DEV SUPPLIES THESE IDS; everything falls back cleanly when 0/empty) ──
+Theme.Assets = {
+    -- Sky: 6 face ids for a custom skybox. Leave all "" to use the bright-blue default Sky placeholder.
+    SkyboxFaces = { Bk = "", Dn = "", Ft = "", Lf = "", Rt = "", Up = "" },
+    HoneycombTexture = 0, -- decal/texture asset id for the hex shield wall (0 = skip the texture)
+    -- UI sounds route through Effects.playSfx / Shared.Audio.Sfx (paste ids there). Listed for clarity.
+}
+
+-- ── VM-THEME HUD config ─────────────────────────────────────────────────────────────────────
+-- The left diamond rail's level-gated entries (edit freely). Level source = the player's RebirthCount
+-- (the real progression stat). Unlocked entries are tappable (stub action); locked show a padlock + Lv.
+Theme.DiamondRail = {
+    { Label = "Upgrades", UnlockLevel = 5 },
+    { Label = "Pets", UnlockLevel = 10 },
+    { Label = "Zones", UnlockLevel = 15 },
+    { Label = "Prestige", UnlockLevel = 20 },
+}
+-- Display max for the protection/shield bar (seconds) + the XP bar fallback max, when no real value.
+Theme.Hud = {
+    ShieldDisplayMax = 120, -- bar shows shield-seconds out of this (matches NewPlayerGrace feel)
+    XpFallbackMax = 100, -- the XP bar's max when no real player-XP stat is published (hook below)
+    BarTween = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+}
+
+-- ── VM-THEME lighting / atmosphere / post-FX (the bright midday voxel mood) ──────────────────
+Theme.Lighting = {
+    ClockTime = 14, -- bright early-afternoon sun
+    GeographicLatitude = 12,
+    Brightness = 2.4,
+    ExposureCompensation = 0.12,
+    Ambient = Color3.fromRGB(140, 150, 165),
+    OutdoorAmbient = Color3.fromRGB(170, 180, 195),
+    FogEnd = 100000,
+    Atmosphere = {
+        Density = 0.32,
+        Offset = 0.1,
+        Haze = 1.6,
+        Glare = 0.2,
+        Color = Color3.fromRGB(220, 235, 255),
+        Decay = Color3.fromRGB(160, 190, 230),
+    },
+    Bloom = { Intensity = 0.55, Size = 24, Threshold = 1.1 },
+    ColorCorrection = {
+        Saturation = 0.18,
+        Contrast = 0.06,
+        Brightness = 0.01,
+        TintColor = Color3.fromRGB(255, 252, 245),
+    },
+    SunRays = { Intensity = 0.06, Spread = 0.4 },
+    SkyDefault = Color3.fromRGB(120, 200, 255), -- placeholder bright-blue sky tint when no skybox ids
+}
+
+-- Floating ambient sparkle particle look (pooled/capped by Atmosphere; tune density here).
+Theme.Sparkle = {
+    Rate = 6, -- particles/sec (kept low; capped)
+    Lifetime = NumberRange.new(3, 6),
+    Speed = NumberRange.new(0.5, 1.5),
+    Size = 0.5,
+    Color = Color3.fromRGB(255, 252, 210),
+    Texture = "rbxasset://textures/particles/sparkles_main.dds", -- built-in; no asset id needed
+}
+
+-- CollectionService tags -> the voxel material/color the WorldStyler applies to tagged geometry the
+-- DEV builds in Studio. Adding a tag entry here makes that tag auto-adopt the look (no geometry made).
+Theme.WorldTags = {
+    Grass = { Color = Theme.Colors.Grass, Material = Enum.Material.Grass },
+    Sand = { Color = Theme.Colors.Sand, Material = Enum.Material.Sand },
+    Path = { Color = Theme.Colors.PathRed, Material = Enum.Material.SmoothPlastic },
+    Water = {
+        Color = Color3.fromRGB(90, 180, 255),
+        Material = Enum.Material.Glass,
+        Transparency = 0.3,
+    },
+    Wood = { Color = Color3.fromRGB(150, 100, 60), Material = Enum.Material.Wood },
+    Stone = { Color = Color3.fromRGB(150, 150, 158), Material = Enum.Material.Slate },
 }
 
 return Theme
