@@ -1,13 +1,19 @@
-# Rojo
-*.rbxlx
+# Rojo build outputs
 *.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+sourcemap.json
 
-# Wally
+# Wally packages — all three realms
 Packages/
+DevPackages/
+ServerPackages/
 
-# Rokit
+# Rokit toolchain binaries
 .rokit/
 
-# OS
+# OS / editor junk
 .DS_Store
 Thumbs.db
+.vscode/settings.json
