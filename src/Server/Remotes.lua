@@ -93,6 +93,9 @@ Remotes.ExclusiveAction = nil -- RemoteFunction : client -> server ({ Action, Ke
 Remotes.AdminAction = nil -- RemoteFunction : admin client -> server ({ Command, ... }) -> { Result, State?/Message }
 Remotes.ReportPlayer = nil -- RemoteFunction : any client -> server ({ TargetUserId, Reason }) -> { Result, Message }
 Remotes.AdminBroadcast = nil -- RemoteEvent : server -> ALL clients, a filtered server-wide announcement { Text, From }
+-- M13.6 group hook. Client sends INTENT only ({ Action="get"|"claim" }); the server checks membership
+-- + owns the idempotent reward grant. (Settings persist reuses GetSettings/SaveSettings -- no new remote.)
+Remotes.GroupAction = nil -- RemoteFunction : client -> server ({ Action }) -> { Result, State?/Message }
 
 -- Every remote name this module creates -- the SINGLE list the boot diagnostic verifies the
 -- ReplicatedStorage/Remotes surface against. Keep in sync with Init() below AND the client's
@@ -147,6 +150,7 @@ Remotes.ExpectedNames = {
     "AdminAction",
     "ReportPlayer",
     "AdminBroadcast",
+    "GroupAction",
 }
 
 local folder = nil
@@ -355,6 +359,10 @@ function Remotes.Init()
     adminBroadcast.Name = "AdminBroadcast"
     adminBroadcast.Parent = folder
 
+    local groupAction = Instance.new("RemoteFunction")
+    groupAction.Name = "GroupAction"
+    groupAction.Parent = folder
+
     folder.Parent = ReplicatedStorage
 
     Remotes.PurchaseRequest = purchase
@@ -406,6 +414,7 @@ function Remotes.Init()
     Remotes.AdminAction = adminAction
     Remotes.ReportPlayer = reportPlayer
     Remotes.AdminBroadcast = adminBroadcast
+    Remotes.GroupAction = groupAction
 end
 
 -- Sends a toast to a single player. kind = "success" | "error" | "info". Optional `cue` is a

@@ -15,6 +15,14 @@ local Rarity = require(Shared:WaitForChild("Rarity"))
 local KillFeed = {}
 
 local container = nil
+local showBanners = true -- M13.6: HUD pref (Settings.ShowKillFeed); applied live
+
+-- Live-applied from the Settings panel. ShowKillFeed=false suppresses the steal banners (HUD pref).
+function KillFeed.applySettings(s)
+    if type(s) == "table" then
+        showBanners = s.ShowKillFeed ~= false
+    end
+end
 
 -- Color3 -> "#RRGGBB" for RichText spans.
 local function toHex(color)
@@ -50,7 +58,7 @@ end
 
 -- payload = { Thief, Victim, Name, Rarity }. Shows one banner; auto-dismisses after ~5s.
 function KillFeed.show(payload)
-    if container == nil or typeof(payload) ~= "table" then
+    if container == nil or not showBanners or typeof(payload) ~= "table" then
         return
     end
 

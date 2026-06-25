@@ -90,6 +90,10 @@ Analytics.Events = { -- custom (retention/engagement) event names
     TradeVoid = "trade_void", -- M13.5 an edit voided a standing confirmation (anti-switcheroo)
     TradeCountdownCancel = "trade_countdown_cancel", -- M13.5 the post-confirm countdown was aborted
     GiftConfirm = "gift_confirm", -- M13.5 a sender confirmed a one-way gift
+    GroupReward = "group_reward", -- M13.6 the one-time group-member reward was granted
+    SettingsChange = "settings_change", -- M13.6 a player saved a settings change
+    NotifyOptIn = "notify_opt_in", -- M13.6 a player opted IN to re-engagement notifications (value=1)
+    NotifyTrigger = "notify_trigger", -- M13.6 a notify-worthy event fired for an opted-in player
 }
 
 Analytics.Funnel = { -- new-player onboarding funnel steps { stepNumber, stepName }

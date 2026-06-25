@@ -8,12 +8,21 @@
 local Remotes = require(script.Parent.Remotes)
 local ProfileManager = require(script.Parent.ProfileManager)
 local RateLimiter = require(script.Parent.RateLimiter)
+local Analytics = require(script.Parent.Analytics)
 
 local SettingsService = {}
 
--- The only keys ever stored. BOOL mutes (music defaults OFF -- no audio shipped) + M12.4 VOLUME
--- numbers (0..1). Anything else from the client is dropped; these are presentational prefs only.
-local BOOL_DEFAULTS = { Music = false, SFX = true, Shake = true }
+-- The only keys ever stored. BOOL mutes/toggles + M12.4 VOLUME numbers (0..1). Anything else from the
+-- client is DROPPED. These are presentational PREFERENCES only -- they grant ZERO gameplay advantage,
+-- so there is no economy/ownership surface here. (M13.6 added the graphics/HUD/notify toggles.)
+local BOOL_DEFAULTS = {
+    Music = false,
+    SFX = true,
+    Shake = true,
+    ReduceEffects = false, -- graphics: skip particle/flash juice
+    ShowKillFeed = true, -- HUD: show steal banners
+    NotifyOptIn = false, -- re-engagement notifications opt-in (a preference; delivery is backend)
+}
 local NUM_DEFAULTS = { MusicVolume = 0.5, SfxVolume = 0.7, AmbienceVolume = 0.5 }
 
 -- Coerces arbitrary client input into exactly the known keys (validated bools + clamped 0..1 numbers).
@@ -40,13 +49,20 @@ end
 
 local function onSave(player, data)
     if not RateLimiter.check(player, "settings", 0.3) then
-        return
+        return -- rate-limited: spoofed/spammed persist intents are bounded
     end
     local profile = ProfileManager.GetProfile(player)
     if profile == nil then
         return
     end
-    profile.Data.Settings = sanitize(data) -- only validated booleans are ever persisted
+    local prev = type(profile.Data.Settings) == "table" and profile.Data.Settings or {}
+    local sanitized = sanitize(data) -- only validated keys are ever persisted; everything else dropped
+    profile.Data.Settings = sanitized
+    -- Analytics only (pcall-wrapped inside Analytics) -- NEVER affects gameplay. Settings grant nothing.
+    Analytics.custom(player, Analytics.Events.SettingsChange, 1)
+    if sanitized.NotifyOptIn and not prev.NotifyOptIn then
+        Analytics.custom(player, Analytics.Events.NotifyOptIn, 1) -- false -> true opt-in
+    end
 end
 
 function SettingsService.Init()

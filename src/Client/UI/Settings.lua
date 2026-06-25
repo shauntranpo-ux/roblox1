@@ -6,10 +6,12 @@ local UserInputService = game:GetService("UserInputService")
 
 local Builder = require(script.Parent.Builder)
 local Theme = require(script.Parent.Theme)
+local Notifications = require(script.Parent.Notifications)
 
 local Settings = {}
 
--- M12.4: bool MUTES + 0..1 VOLUME numbers (the audio buses scale off these live).
+-- M12.4 audio (bool MUTES + 0..1 VOLUME numbers) + M13.6 graphics/HUD/notify toggles. All are
+-- presentational PREFERENCES -- they grant nothing; the server validates + persists the same keys.
 local DEFAULTS = {
     Music = false,
     SFX = true,
@@ -17,6 +19,9 @@ local DEFAULTS = {
     MusicVolume = 0.5,
     SfxVolume = 0.7,
     AmbienceVolume = 0.5,
+    ReduceEffects = false,
+    ShowKillFeed = true,
+    NotifyOptIn = false,
 }
 
 local player = nil
@@ -25,6 +30,7 @@ local gui = nil
 local current = {}
 local onChanged = nil
 local buttons = {} -- [key] = TextButton
+local groupContainer = nil -- M13.6: the "Community" group-reward section (rebuilt on re-check)
 
 local function sanitize(data)
     local out = {}
@@ -188,6 +194,121 @@ local function buildSlider(parent, key, label, order)
     row.Parent = parent
 end
 
+-- ===========================================================================================
+-- M13.6: small section helpers + the Community (group reward) section.
+-- ===========================================================================================
+local function sectionLabel(parent, text, order)
+    Builder.create("TextLabel", {
+        Size = UDim2.new(1, 0, 0, 32),
+        BackgroundTransparency = 1,
+        Font = Theme.FontBold,
+        Text = text,
+        TextColor3 = Theme.Colors.Accent,
+        TextSize = 20,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        LayoutOrder = order,
+        Parent = parent,
+    })
+end
+
+local function noteLabel(parent, text, order, color)
+    Builder.create("TextLabel", {
+        Size = UDim2.fromScale(1, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        Font = Theme.FontBody,
+        Text = text,
+        TextColor3 = color or Theme.Colors.SubText,
+        TextSize = 15,
+        TextWrapped = true,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        LayoutOrder = order,
+        Parent = parent,
+    })
+end
+
+local function actionButton(parent, text, color, order, fn)
+    local b = Builder.create("TextButton", {
+        Size = UDim2.new(1, 0, 0, 46),
+        BackgroundColor3 = color,
+        BorderSizePixel = 0,
+        Font = Theme.FontBold,
+        Text = text,
+        TextColor3 = Theme.Colors.Text,
+        TextSize = 18,
+        LayoutOrder = order,
+        Parent = parent,
+    }, { Builder.corner(UDim.new(0, 10)) })
+    b.Activated:Connect(fn)
+    return b
+end
+
+-- Re-pulls group state from the server (membership check is server-side) and rebuilds the section.
+local function refreshGroup()
+    if groupContainer == nil then
+        return
+    end
+    for _, child in ipairs(groupContainer:GetChildren()) do
+        if child:IsA("GuiObject") then
+            child:Destroy()
+        end
+    end
+    local ok, result = pcall(function()
+        return remotes.GroupAction:InvokeServer({ Action = "get" })
+    end)
+    local state = (ok and type(result) == "table") and result.State or nil
+    if state == nil or not state.Configured then
+        return -- group hook not configured -> hide the section entirely
+    end
+
+    sectionLabel(groupContainer, "🏷 Community", 1)
+    noteLabel(
+        groupContainer,
+        state.GroupName .. " — reward: " .. tostring(state.RewardSummary),
+        2
+    )
+
+    -- "claim" re-checks membership server-side; both the claim and re-check buttons use it.
+    local function doClaim()
+        local okClaim, res = pcall(function()
+            return remotes.GroupAction:InvokeServer({ Action = "claim" })
+        end)
+        if okClaim and type(res) == "table" then
+            Notifications.show(res.Result == "Success" and "success" or "info", res.Message or "")
+        end
+        refreshGroup()
+    end
+
+    if state.IsMember then
+        if state.RewardType == "perk" then
+            noteLabel(groupContainer, "✓ Member perk active!", 3, Theme.Colors.Positive)
+        elseif state.Claimed then
+            noteLabel(
+                groupContainer,
+                "✓ Reward claimed -- thanks for being a member!",
+                3,
+                Theme.Colors.Positive
+            )
+        else
+            actionButton(
+                groupContainer,
+                "🎁 Claim Group Reward",
+                Theme.Colors.Positive,
+                4,
+                doClaim
+            )
+        end
+    else
+        noteLabel(
+            groupContainer,
+            tostring(state.PromptText) .. "\nFind us: " .. tostring(state.GroupUrl),
+            3,
+            Theme.Colors.Gold
+        )
+        actionButton(groupContainer, "🔄 I Joined -- Re-check", Theme.Colors.Accent, 4, doClaim)
+    end
+end
+
 function Settings.mount(context, opts)
     player = context.player
     remotes = context.remotes
@@ -204,14 +325,47 @@ function Settings.mount(context, opts)
         gui.Enabled = false
     end)
 
+    -- Audio (M12.4, absorbed here -- one settings panel, not two).
     buildToggle(list, "Music", "Music", 1)
     buildToggle(list, "SFX", "Sound Effects", 2)
     buildToggle(list, "Shake", "Screen Shake", 3)
     buildSlider(list, "MusicVolume", "Music Volume", 4)
     buildSlider(list, "SfxVolume", "SFX Volume", 5)
     buildSlider(list, "AmbienceVolume", "Ambience Volume", 6)
+    -- M13.6: graphics / HUD / notification toggles (each persists + applies live, grants nothing).
+    buildToggle(list, "ReduceEffects", "Reduce Effects (low-end)", 7)
+    buildToggle(list, "ShowKillFeed", "Steal Banners", 8)
+    buildToggle(list, "NotifyOptIn", "Notify Me to Return", 9)
+    noteLabel(
+        list,
+        "Get a ping when your daily chest is ready or an event starts. Opt out anytime.",
+        10
+    )
 
-    -- Apply the loaded prefs immediately (music/shake state).
+    -- M13.6: the Community (group reward) section -- rebuilds itself when you tap claim / re-check.
+    groupContainer = Builder.create("Frame", {
+        Size = UDim2.fromScale(1, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        LayoutOrder = 11,
+        Parent = list,
+    }, {
+        Builder.create("UIListLayout", {
+            Padding = UDim.new(0, 8),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+        }),
+    })
+    -- Populated when the panel is first opened (off-thread) so a group network call never stalls boot.
+
+    -- Credits / links.
+    sectionLabel(list, "💛 Credits", 20)
+    noteLabel(
+        list,
+        "Thanks for playing! Settings save to your account, change only your own client, and grant nothing.",
+        21
+    )
+
+    -- Apply the loaded prefs immediately (music/shake/graphics/HUD state).
     if onChanged ~= nil then
         onChanged(current)
     end
@@ -222,6 +376,9 @@ function Settings.toggle()
         return
     end
     gui.Enabled = not gui.Enabled
+    if gui.Enabled then
+        task.spawn(refreshGroup) -- refresh the group/membership state on open (off-thread)
+    end
 end
 
 return Settings

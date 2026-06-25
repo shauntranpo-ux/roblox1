@@ -59,7 +59,7 @@ end
 
 -- ===== Screen flash =====
 function Effects.flash(color)
-    if flash == nil then
+    if flash == nil or settings.ReduceEffects then -- M13.6: low-end graphics pref skips the flash
         return
     end
     flash.BackgroundColor3 = color
@@ -94,7 +94,7 @@ end
 -- Emits a small burst of `count` particles from a screen-space anchor (UDim2 scale), tinted
 -- `color`. Reuses the fixed pool, so it can never spawn unbounded instances.
 function Effects.burst(anchor, color, count)
-    if overlay == nil then
+    if overlay == nil or settings.ReduceEffects then -- M13.6: low-end graphics pref skips particles
         return
     end
     count = math.min(count or 8, POOL_SIZE)

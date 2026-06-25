@@ -36,7 +36,9 @@ local PROFILE_TEMPLATE = {
     -- M6: one-time onboarding flag. Reconciles onto existing saves as false, so returning
     -- players never re-see the tutorial; brand-new players run it once (skippable).
     TutorialDone = false,
-    -- M6: persisted client preferences (booleans only; SettingsService validates the shape).
+    -- M6 + M13.6: persisted client preferences (presentational only; SettingsService validates the
+    -- shape + rate-limits). They grant NOTHING. Missing keys are filled by sanitize() on every read, so
+    -- old saves load cleanly even though Reconcile only adds top-level fields (not sub-table keys).
     Settings = {
         Music = false,
         SFX = true,
@@ -44,6 +46,9 @@ local PROFILE_TEMPLATE = {
         MusicVolume = 0.5,
         SfxVolume = 0.7,
         AmbienceVolume = 0.5,
+        ReduceEffects = false, -- M13.6 graphics: skip particle/flash juice on low-end devices
+        ShowKillFeed = true, -- M13.6 HUD: show the steal kill-feed banners
+        NotifyOptIn = false, -- M13.6 re-engagement: opted IN to "notify me to come back" pings
     },
     -- M7: set of NORMALIZED (trimmed+UPPER) code strings this player has redeemed (code -> true).
     -- A code's grant and its entry here are written in the SAME mutation, so a code grants
@@ -147,6 +152,11 @@ local PROFILE_TEMPLATE = {
     -- M13.3 SOCIAL: per-server-day gift cap (anti-abuse). Reset at the day boundary; reconciles cleanly.
     GiftDay = -1, -- the server-day id the gift count below belongs to
     GiftCount = 0, -- gifts sent this day (capped by SocialConfig.Gift.DailyCap)
+    -- M13.6 GROUP: the one-time group-member reward claim flag (idempotency ledger). Set in the SAME
+    -- mutation as the grant, so the reward is granted EXACTLY once across rejoins/servers; leaving the
+    -- group never clears it (the one-time reward is kept; a passive perk is re-checked live each join).
+    -- Reconciles onto existing saves as false.
+    GroupRewardClaimed = false,
 }
 
 local Profiles = {} -- [Player] = Profile

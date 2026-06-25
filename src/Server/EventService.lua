@@ -35,6 +35,7 @@ local Leaderstats = require(script.Parent.Leaderstats)
 local RateLimiter = require(script.Parent.RateLimiter)
 local Remotes = require(script.Parent.Remotes)
 local Analytics = require(script.Parent.Analytics)
+local NotificationService = require(script.Parent.NotificationService)
 
 local EventService = {}
 
@@ -121,6 +122,9 @@ local function onEventStart(event)
     end
     graceUntil[event.Key] = nil
     pushUpdatePing()
+    -- M13.6: re-engagement signal -- ping opted-in players that an event went live (capped; analytics
+    -- only; a no-op for anyone not opted in). Never affects gameplay.
+    NotificationService.onEventStart()
 end
 
 local function onEventEnd(event)

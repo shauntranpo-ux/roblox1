@@ -103,9 +103,17 @@ local remotes = {
     AdminAction = remotesFolder:WaitForChild("AdminAction"),
     ReportPlayer = remotesFolder:WaitForChild("ReportPlayer"),
     AdminBroadcast = remotesFolder:WaitForChild("AdminBroadcast"),
+    GroupAction = remotesFolder:WaitForChild("GroupAction"),
 }
 
 local context = { player = player, remotes = remotes }
+
+-- M13.6: settings apply live to MULTIPLE client systems -- fan the saved prefs out to each consumer
+-- (audio/shake via Effects, and the kill-feed HUD toggle). One callback, no duplication.
+local function applyClientSettings(s)
+    Effects.applySettings(s)
+    KillFeed.applySettings(s)
+end
 
 -- Mount each UI module independently so a failure in one (e.g. a juice module) can NEVER
 -- cascade and leave the player with no HUD. Each error is logged, the rest still build.
@@ -144,7 +152,7 @@ safeMount("Inventory", function()
     Inventory.mount(context)
 end)
 safeMount("Settings", function()
-    Settings.mount(context, { onChanged = Effects.applySettings })
+    Settings.mount(context, { onChanged = applyClientSettings })
 end)
 safeMount("Tutorial", function()
     Tutorial.mount(context)

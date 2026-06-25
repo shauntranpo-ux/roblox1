@@ -73,6 +73,10 @@ local InvariantValidator = require(script.Parent.InvariantValidator)
 -- filtered-name publisher. DevCommands (below) now delegates its authority to the same AdminConfig.
 local BanStore = require(script.Parent.BanStore)
 local AdminService = require(script.Parent.AdminService)
+-- M13.6: the Roblox group hook (idempotent member reward / capped live perk) + the re-engagement
+-- notification trigger layer (opt-in is a persisted setting; delivery is backend).
+local GroupRewardService = require(script.Parent.GroupRewardService)
+local NotificationService = require(script.Parent.NotificationService)
 -- Admin/troubleshooting: in-chat commands (allowlisted) + Studio command-bar API.
 local DevCommands = require(script.Parent.DevCommands)
 
@@ -154,6 +158,8 @@ start("BossService", BossService.Init)
 start("SetService", SetService.Init)
 -- M13.4: bind the admin panel + report remotes + the server-side chat-mute gate.
 start("AdminService", AdminService.Init)
+-- M13.6: bind the group-reward remote (membership check + idempotent claim).
+start("GroupRewardService", GroupRewardService.Init)
 -- Admin: register the allowlisted in-chat commands (hidden from chat).
 start("DevCommands", DevCommands.Init)
 
@@ -252,6 +258,9 @@ local function onPlayerAdded(player)
     -- M13.4: publish this player's filtered SafeName (every name display reads it) + their OWN admin
     -- tier attribute (so the client knows whether to surface the admin panel; the allowlist stays server-only).
     AdminService.SetupPlayer(player)
+    -- M13.6: check group membership (server-side) -> apply the capped live perk + auto-grant the
+    -- one-time member reward if eligible + unclaimed (idempotent). Yields on IsInGroup; safe here.
+    GroupRewardService.SetupPlayer(player, profile)
     -- M8.4: apply any currently-active event modifiers (idempotent) + prune stale event data.
     EventService.SetupPlayer(player, profile)
     -- M11.1: re-derive equipped perks + re-lock equipped units from the saved loadout (idempotent;
@@ -320,6 +329,9 @@ local function onPlayerRemoving(player)
     RateLimiter.clear(player)
     -- M13.4: drop the player's session mute + report counter (a BAN is what persists, in the store).
     AdminService.ClearPlayer(player)
+    -- M13.6: drop the player's notification frequency-cap bookkeeping (the group perk is in Benefits,
+    -- already wiped by MonetizationService.ClearPlayer above).
+    NotificationService.ClearPlayer(player)
     ProfileManager.ReleaseProfile(player)
 end
 
