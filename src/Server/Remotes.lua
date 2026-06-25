@@ -36,6 +36,9 @@ Remotes.GetEvents = nil -- RemoteFunction : client -> server -> active events + 
 Remotes.ClaimEventReward = nil -- RemoteFunction : client -> server (eventKey, objId) -> { Result, Message }
 Remotes.EventShopBuy = nil -- RemoteFunction : client -> server (eventKey, entryId) -> { Result, Message }
 Remotes.EventsUpdate = nil -- RemoteEvent  : server -> ALL clients, "events changed" ping (re-pull)
+-- M8.5 seasons. Client renders replicated season state only; server owns time/score/rewards.
+Remotes.GetSeasons = nil -- RemoteFunction : client -> server -> season id, countdown, top-N, my rank/score, tiers
+Remotes.SeasonsUpdate = nil -- RemoteEvent  : server -> ALL clients, "season rolled over" ping
 
 local folder = nil
 
@@ -135,6 +138,14 @@ function Remotes.Init()
     eventsUpdate.Name = "EventsUpdate"
     eventsUpdate.Parent = folder
 
+    local getSeasons = Instance.new("RemoteFunction")
+    getSeasons.Name = "GetSeasons"
+    getSeasons.Parent = folder
+
+    local seasonsUpdate = Instance.new("RemoteEvent")
+    seasonsUpdate.Name = "SeasonsUpdate"
+    seasonsUpdate.Parent = folder
+
     folder.Parent = ReplicatedStorage
 
     Remotes.PurchaseRequest = purchase
@@ -159,6 +170,8 @@ function Remotes.Init()
     Remotes.ClaimEventReward = claimEventReward
     Remotes.EventShopBuy = eventShopBuy
     Remotes.EventsUpdate = eventsUpdate
+    Remotes.GetSeasons = getSeasons
+    Remotes.SeasonsUpdate = seasonsUpdate
 end
 
 -- Sends a toast to a single player. kind = "success" | "error" | "info". Optional `cue` is a

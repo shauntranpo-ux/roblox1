@@ -72,6 +72,13 @@ local PROFILE_TEMPLATE = {
     -- M8.4 EVENTS: per-event-currency balances [currencyId] = number (earned via quests; never
     -- client-set; never negative). Persists across the event end. Reconciles empty.
     EventCurrency = {},
+    -- M8.5 SEASONS: the player's CURRENT-season score (Id = season id; reset to 0 when the season
+    -- id changes). Old-season score is written to the per-season OrderedDataStore. Reconciles to a
+    -- fresh record.
+    SeasonScore = { Id = -1, Points = 0 },
+    -- M8.5 SEASONS: idempotency ledger of seasons whose end-of-season rewards were granted, keyed
+    -- by season id ([seasonId] = true). Grant + record commit together. Reconciles empty.
+    ClaimedSeasonRewards = {},
 }
 
 local Profiles = {} -- [Player] = Profile

@@ -31,8 +31,10 @@ local RebirthService = require(script.Parent.RebirthService)
 local IndexService = require(script.Parent.IndexService)
 local TradeService = require(script.Parent.TradeService)
 local EventService = require(script.Parent.EventService)
+local SeasonService = require(script.Parent.SeasonService)
+local SeasonRewardService = require(script.Parent.SeasonRewardService)
 
-print("[BRAINROT] M8.4 starting -- limited-time events engine (orchestrator)")
+print("[BRAINROT] M8.5 starting -- leaderboard seasons (the final milestone)")
 
 -- Data layer, network surface, world, defense, income loop, then the client-facing handlers.
 ProfileManager.Init()
@@ -59,6 +61,9 @@ IndexService.Init()
 TradeService.Init()
 -- M8.4: the limited-time events scheduler/transition engine.
 EventService.Init()
+-- M8.5: competitive seasons + pull-based end-of-season reward claims.
+SeasonService.Init()
+SeasonRewardService.Init()
 
 local handled = {} -- [Player] = true, guards against double-joins (Studio Play Solo)
 
@@ -122,6 +127,10 @@ local function onPlayerAdded(player)
     IndexService.SetupPlayer(player, profile)
     -- M8.4: apply any currently-active event modifiers (idempotent) + prune stale event data.
     EventService.SetupPlayer(player, profile)
+    -- M8.5: ensure the season-score record is for the current season, then (off-thread, since it
+    -- reads DataStores) grant any unclaimed end-of-season rewards from frozen seasons.
+    SeasonService.SetupPlayer(player, profile)
+    task.spawn(SeasonRewardService.CheckPlayer, player)
     if profile.Data.LastSeenVersion ~= GameInfo.Version then
         profile.Data.LastSeenVersion = GameInfo.Version
         Remotes.FireWhatsNew(player)
@@ -148,6 +157,9 @@ local function onPlayerRemoving(player)
     -- then writes off-thread) -- must precede MonetizationService.ClearPlayer, which drops the
     -- income multiplier this read depends on, and ProfileManager.ReleaseProfile.
     LeaderboardService.OnPlayerRemoving(player)
+    -- M8.5: final season-score write while the profile is still loaded.
+    SeasonService.OnPlayerRemoving(player)
+    SeasonRewardService.ClearPlayer(player)
     -- M7: flush this player's aggregated income as a final economy-source event while the
     -- profile is still loaded, then drop their analytics session guards.
     IncomeService.FlushAnalytics(player)
@@ -181,6 +193,7 @@ game:BindToClose(function()
         pcall(StealService.ResolvePlayer, player)
     end
     pcall(LeaderboardService.FlushAll)
+    pcall(SeasonService.FlushAll)
     for _, player in ipairs(Players:GetPlayers()) do
         pcall(ProfileManager.ReleaseProfile, player)
     end

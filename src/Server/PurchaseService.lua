@@ -18,6 +18,7 @@ local ProtectionService = require(script.Parent.ProtectionService)
 local PlayerStats = require(script.Parent.PlayerStats)
 local Leaderstats = require(script.Parent.Leaderstats)
 local EventService = require(script.Parent.EventService)
+local SeasonService = require(script.Parent.SeasonService)
 
 local PurchaseService = {}
 
@@ -107,8 +108,9 @@ local function onPurchase(player, itemId)
         Analytics.customOnce(player, Analytics.Events.TierUp, Rarity.Get(item.Rarity).Order)
     end
 
-    -- M8.4: feed event-quest progress (active events only; the service checks the boundary).
+    -- M8.4/8.5: feed event-quest progress + season points (each checks its own active window).
     EventService.Signal(player, "BUY_BRAINROTS", 1)
+    SeasonService.Signal(player, "BUY", 1)
     if brainrot.Mutation ~= nil then
         EventService.Signal(player, "ROLL_MUTATION", 1)
     end

@@ -39,6 +39,7 @@ Analytics.Events = { -- custom (retention/engagement) event names
     MutationRoll = "mutation_roll", -- M8.3 a mutation rolled at acquisition (value = income multiplier)
     EventQuestClaim = "event_quest_claim", -- M8.4 an event quest reward claimed
     EventShopBuy = "event_shop_buy", -- M8.4 an event-shop purchase
+    SeasonReward = "season_reward", -- M8.5 end-of-season reward granted (value = total cash)
 }
 
 Analytics.Funnel = { -- new-player onboarding funnel steps { stepNumber, stepName }

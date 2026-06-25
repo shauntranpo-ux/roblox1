@@ -15,6 +15,7 @@ local Format = require(ReplicatedStorage.Shared.Format)
 local Monetization = require(ReplicatedStorage.Shared.Monetization)
 
 local LeaderboardService = require(script.Parent.LeaderboardService)
+local SeasonService = require(script.Parent.SeasonService)
 
 local LeaderboardBillboards = {}
 
@@ -199,20 +200,33 @@ function LeaderboardBillboards.Init()
     local boards = LeaderboardService.GetBoardList()
     for index, board in ipairs(boards) do
         local basePosition = FIRST_STAND + Vector3.new((index - 1) * STAND_SPACING, 0, 0)
+        local boardKey = board.Key
         local update
         if template ~= nil then
             update = buildTemplateStand(template, board, basePosition)
         else
             update = buildGeneratedStand(board, basePosition)
         end
-        table.insert(stands, { Key = board.Key, Update = update })
+        table.insert(stands, {
+            Update = update,
+            Source = function()
+                return LeaderboardService.GetBoard(boardKey)
+            end,
+        })
     end
 
-    -- Light redraw loop: reads the service's cached top-N (no DataStore calls here).
+    -- M8.5: a 4th stand for the CURRENT SEASON board (reads SeasonService's cached top-N).
+    local seasonPos = FIRST_STAND + Vector3.new(#boards * STAND_SPACING, 0, 0)
+    local seasonBoard = { Key = "Season", Title = "Top Season" }
+    local seasonUpdate = template ~= nil and buildTemplateStand(template, seasonBoard, seasonPos)
+        or buildGeneratedStand(seasonBoard, seasonPos)
+    table.insert(stands, { Update = seasonUpdate, Source = SeasonService.GetTop })
+
+    -- Light redraw loop: reads each stand's cached top-N (no DataStore calls here).
     task.spawn(function()
         while true do
             for _, stand in ipairs(stands) do
-                stand.Update(LeaderboardService.GetBoard(stand.Key))
+                stand.Update(stand.Source())
             end
             task.wait(REFRESH)
         end
