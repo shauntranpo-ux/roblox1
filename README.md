@@ -2,7 +2,7 @@
 
 Multiplayer Roblox idle/theft game. Players collect meme creatures ("brainrot") that generate passive cash, unlock rarer ones, and steal each other's units.
 
-Built in milestones. Current: **M1 — bare playable economy loop** (server-authoritative). A player spawns at a base, owns one placeholder brainrot that earns cash every second, sees their cash in the player list, and the data saves via ProfileStore.
+Built in milestones. Current: **M2 — HUD + secure purchase plumbing**. A code-generated, mobile-first HUD shows live Cash + Cash/sec; a data-driven Shop sells placeholder brainrots; buying fires a client→server request that the server validates (price, affordability, free pad) before deducting cash, spawning the unit, and saving. Everything economic is server-authoritative — the client only requests. (M1: passive income loop + ProfileStore saving. M0: toolchain.)
 
 ## Stack
 
@@ -22,19 +22,48 @@ src/
   Server/                    → ServerScriptService > Server
     Bootstrap.server.lua     wires services + owns join ordering
     ProfileManager.lua       ProfileStore wrapper (load/save, mock fallback, accessors)
-    PlotService.lua          builds bases + per-session plot assignment
-    BrainrotService.lua      grants/restores/spawns brainrots on pads
-    IncomeService.lua        Heartbeat server-authoritative income loop
+    Remotes.lua              creates the ReplicatedStorage/Remotes folder (single source)
+    PlotService.lua          builds bases + per-session plot assignment + free-pad lookup
+    BrainrotService.lua      grants/restores/spawns brainrots (SpawnBrainrot reused by buys)
+    IncomeService.lua        Heartbeat income loop + throttled display push
     Leaderstats.lua          leaderstats.Cash readout in the player list
+    PlayerStats.lua          Cash + IncomePerSec player Attributes for the HUD
+    PurchaseService.lua      validates client buy requests (server-authoritative) + debounce
+    InventoryService.lua     GetInventory RemoteFunction (server-truth owned list)
     Lib/ProfileStore.luau    vendored third-party data lib (loleris)
   Client/                    → StarterPlayer > StarterPlayerScripts > Client
+    Client.client.lua        builds UI on spawn, wires remotes
+    UI/Theme.lua             colors + fonts (single styling source)
+    UI/Builder.lua           declarative instance/panel helpers
+    UI/HUD.lua               top cash pill (count-up) + Shop/Inventory buttons
+    UI/Shop.lua              data-driven catalog rows + reactive Buy buttons
+    UI/Inventory.lua         owned list, fetched via RemoteFunction
+    UI/Notifications.lua     transient toast stack
   Shared/                    → ReplicatedStorage > Shared
-    Config.lua               data-driven brainrot roster + plot tuning
+    Config.lua               starter brainrot stats + plot tuning
+    Catalog.lua              data-driven shop catalog (M3 expands this only)
+    Format.lua               compact number formatter (1.2K / 3.4M / 1B)
   StarterGui/                → StarterGui
   ServerStorage/             → ServerStorage > Assets  (plot/brainrot model templates later)
 
 Packages/                    → ReplicatedStorage > Packages  (Wally, git-ignored)
 ```
+
+### UI (all generated in code)
+
+Every GUI instance is built programmatically from the client `UI/` modules — there are no
+Studio-authored GUIs. The layout is mobile-first (UDim2 Scale, large tap targets,
+`ScreenInsets = CoreUISafeInsets`). The HUD reads the server-set `Cash` / `IncomePerSec`
+player Attributes and listens via `GetAttributeChangedSignal`; the M1 leaderstats IntValue is
+kept for the player list.
+
+### Secure purchase flow
+
+The client Buy button sends only an item **id**. `PurchaseService` looks up the real
+price/income from the server-side `Catalog`, checks affordability and a free pad, then (with no
+yields between check and deduct, plus a per-player debounce) deducts cash, appends the brainrot,
+reuses `BrainrotService.SpawnBrainrot`, refreshes attributes/leaderstats, and lets ProfileStore
+save. Failures mutate nothing and send a toast back via the `Notify` remote.
 
 ### Data saving (ProfileStore)
 

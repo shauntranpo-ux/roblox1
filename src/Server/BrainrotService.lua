@@ -1,15 +1,26 @@
 -- BrainrotService: grants the starter brainrot to new players, restores owned
--- brainrots onto their saved pads, and spawns the placeholder visuals. Throwaway
--- art for M1 -- a single anchored Part with a name/income BillboardGui.
+-- brainrots onto their saved pads, and spawns the placeholder visuals. Throwaway art
+-- for now -- a single anchored Part with a name/income BillboardGui. A real model from
+-- ServerStorage/Assets will replace makeBrainrotPart() in a later milestone.
 
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Catalog = require(ReplicatedStorage.Shared.Catalog)
 
 local BrainrotService = {}
 
 local spawnedParts = {} -- [Player] = array of Instances to clean up on leave
+
+-- Resolves a brainrot's display definition from its Type. Buyable units come from the
+-- shop Catalog; the free starter comes from Config; an unknown type falls back to the
+-- starter so a stale save never errors.
+local function resolveDef(brainrotType)
+    return Catalog.Get(brainrotType)
+        or Config.Brainrots[brainrotType]
+        or Config.Brainrots[Config.StarterType]
+end
 
 -- Builds the placeholder visual for one brainrot on a pad.
 local function makeBrainrotPart(def, brainrot, pad)
@@ -37,36 +48,47 @@ local function makeBrainrotPart(def, brainrot, pad)
     label.TextStrokeTransparency = 0.4
     label.TextScaled = true
     label.Font = Enum.Font.GothamBold
-    label.Text = def.Name .. "\n+$" .. tostring(def.IncomePerSec) .. "/s"
+    label.Text = def.Name .. "\n+$" .. tostring(brainrot.IncomePerSec) .. "/s"
     label.Parent = billboard
 
     return part
 end
 
--- Grants the brand-new player exactly one starter brainrot at pad 1 (saved), or
--- leaves an existing roster untouched. Then spawns every owned brainrot on its pad.
+-- Spawns a single brainrot onto its pad and tracks it for cleanup. Shared by both the
+-- join-time restore and M2 purchases, so placement lives in exactly one place.
+function BrainrotService.SpawnBrainrot(player, plot, brainrot)
+    local pad = plot.Pads[brainrot.PadIndex]
+    if pad == nil then
+        return
+    end
+
+    local part = makeBrainrotPart(resolveDef(brainrot.Type), brainrot, pad)
+    part.Parent = plot.Model
+
+    if spawnedParts[player] == nil then
+        spawnedParts[player] = {}
+    end
+    table.insert(spawnedParts[player], part)
+end
+
+-- Grants the brand-new player exactly one starter brainrot at pad 1, or leaves an
+-- existing roster untouched. Then spawns every owned brainrot on its pad.
 function BrainrotService.SetupPlayer(player, profile, plot)
     spawnedParts[player] = {}
 
     if #profile.Data.OwnedBrainrots == 0 then
-        local def = Config.Brainrots[Config.StarterType]
+        local starter = Config.Brainrots[Config.StarterType]
         table.insert(profile.Data.OwnedBrainrots, {
             Id = HttpService:GenerateGUID(false),
             Type = Config.StarterType,
-            IncomePerSec = def.IncomePerSec,
+            IncomePerSec = starter.IncomePerSec,
             PadIndex = 1,
         })
         -- ProfileStore auto-saves periodically and on session end; no manual save needed.
     end
 
     for _, brainrot in ipairs(profile.Data.OwnedBrainrots) do
-        local def = Config.Brainrots[brainrot.Type] or Config.Brainrots[Config.StarterType]
-        local pad = plot.Pads[brainrot.PadIndex]
-        if pad ~= nil then
-            local part = makeBrainrotPart(def, brainrot, pad)
-            part.Parent = plot.Model
-            table.insert(spawnedParts[player], part)
-        end
+        BrainrotService.SpawnBrainrot(player, plot, brainrot)
     end
 end
 

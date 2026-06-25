@@ -156,6 +156,16 @@ function PlotService.GetPlot(player)
     return assigned[player]
 end
 
+-- Returns the player's pad instances keyed by PadIndex (used to find a free pad on
+-- purchase). Empty table if the player has no plot.
+function PlotService.GetPads(player)
+    local plot = assigned[player]
+    if plot == nil then
+        return {}
+    end
+    return plot.Pads
+end
+
 -- Teleports the player's character onto their assigned base.
 function PlotService.MovePlayerToPlot(player)
     local plot = assigned[player]

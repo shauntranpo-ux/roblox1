@@ -1,21 +1,29 @@
--- Bootstrap: wires the M1 server-authoritative economy loop. Each service is a plain
--- module with an Init/Start function -- no heavy framework. This script owns the join
--- ordering so the profile is loaded before anything reads it.
+-- Bootstrap: wires the server-authoritative economy + M2 shop plumbing. Each service
+-- is a plain module with an Init/Start function -- no framework. This script owns the
+-- join ordering so the profile loads before anything reads it, and creates the Remotes
+-- folder before clients connect.
 
 local Players = game:GetService("Players")
 
 local ProfileManager = require(script.Parent.ProfileManager)
+local Remotes = require(script.Parent.Remotes)
 local PlotService = require(script.Parent.PlotService)
 local BrainrotService = require(script.Parent.BrainrotService)
 local IncomeService = require(script.Parent.IncomeService)
 local Leaderstats = require(script.Parent.Leaderstats)
+local PlayerStats = require(script.Parent.PlayerStats)
+local PurchaseService = require(script.Parent.PurchaseService)
+local InventoryService = require(script.Parent.InventoryService)
 
-print("[BRAINROT] M1 starting -- server-authoritative economy loop")
+print("[BRAINROT] M2 starting -- HUD + secure purchase plumbing")
 
--- Start the data layer, build the world, and begin the income loop.
+-- Data layer, network surface, world, income loop, then the client-facing handlers.
 ProfileManager.Init()
+Remotes.Init()
 PlotService.Init()
 IncomeService.Start()
+PurchaseService.Init()
+InventoryService.Init()
 
 local handled = {} -- [Player] = true, guards against double-joins (Studio Play Solo)
 
@@ -44,9 +52,12 @@ local function onPlayerAdded(player)
         return
     end
 
-    -- 3) Cash readout + brainrot visuals (grants the starter for brand-new players).
+    -- 3) Cash readout + brainrot visuals (grants the starter for brand-new players),
+    --    then publish the replicated HUD attributes (after the starter is granted so
+    --    the initial IncomePerSec is correct).
     Leaderstats.Setup(player, profile)
     BrainrotService.SetupPlayer(player, profile, plot)
+    PlayerStats.Setup(player, profile)
 
     -- 4) Place the character on the base now and on every respawn.
     player.CharacterAdded:Connect(function()

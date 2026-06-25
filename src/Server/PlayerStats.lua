@@ -1,0 +1,41 @@
+-- PlayerStats: publishes the two live numbers the custom HUD needs as player
+-- Attributes ("Cash" and "IncomePerSec"), which replicate automatically. The client
+-- reads them and listens via GetAttributeChangedSignal. Precise fractional Cash stays
+-- in the profile; the replicated Cash attribute is the floored display value.
+--
+-- This is separate from the M1 leaderstats IntValue, which is intentionally kept for
+-- the Roblox player list.
+
+local PlayerStats = {}
+
+local MAX_INT_VALUE = 2147483647
+
+local function totalIncome(profile)
+    local sum = 0
+    for _, brainrot in ipairs(profile.Data.OwnedBrainrots) do
+        sum += brainrot.IncomePerSec
+    end
+    return sum
+end
+
+local function flooredCash(profile)
+    return math.clamp(math.floor(profile.Data.Cash), 0, MAX_INT_VALUE)
+end
+
+-- Initializes both attributes for a player whose profile just loaded.
+function PlayerStats.Setup(player, profile)
+    player:SetAttribute("Cash", flooredCash(profile))
+    player:SetAttribute("IncomePerSec", totalIncome(profile))
+end
+
+-- Pushes the current (floored) cash to the client. Called by the income loop (throttled).
+function PlayerStats.PushCash(player, profile)
+    player:SetAttribute("Cash", flooredCash(profile))
+end
+
+-- Recomputes total income after the roster changes (e.g. a purchase).
+function PlayerStats.UpdateIncome(player, profile)
+    player:SetAttribute("IncomePerSec", totalIncome(profile))
+end
+
+return PlayerStats
