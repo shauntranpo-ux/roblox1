@@ -15,7 +15,7 @@ local PlayerStats = require(script.Parent.PlayerStats)
 local PurchaseService = require(script.Parent.PurchaseService)
 local InventoryService = require(script.Parent.InventoryService)
 
-print("[BRAINROT] M2 starting -- HUD + secure purchase plumbing")
+print("[BRAINROT] M3 starting -- rarity roster + scaling economy")
 
 -- Data layer, network surface, world, income loop, then the client-facing handlers.
 ProfileManager.Init()

@@ -6,7 +6,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Builder = require(script.Parent.Builder)
 local Theme = require(script.Parent.Theme)
-local Format = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Format"))
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Format = require(Shared:WaitForChild("Format"))
+local Rarity = require(Shared:WaitForChild("Rarity"))
 
 local Inventory = {}
 
@@ -26,17 +29,21 @@ local function clearRows()
 end
 
 local function addRow(entry, order)
+    local rarity = Rarity.Get(entry.Rarity)
+
     local row = Builder.create("Frame", {
-        Size = UDim2.new(1, 0, 0, 58),
+        Size = UDim2.new(1, 0, 0, 62),
         BackgroundColor3 = Theme.Colors.Row,
         BorderSizePixel = 0,
         LayoutOrder = order,
     }, { Builder.corner(UDim.new(0, 12)), Builder.padding(10) })
 
+    -- Name (line 1) + rarity (line 2, rarity-colored) on the left; income on the right.
     Builder.create("TextLabel", {
         Name = "ItemName",
         BackgroundTransparency = 1,
-        Size = UDim2.fromScale(0.62, 1),
+        Position = UDim2.fromOffset(2, 4),
+        Size = UDim2.new(1, -132, 0, 26),
         Font = Theme.FontBold,
         Text = entry.Name,
         TextColor3 = Theme.Colors.Text,
@@ -47,11 +54,24 @@ local function addRow(entry, order)
     })
 
     Builder.create("TextLabel", {
+        Name = "Rarity",
+        BackgroundTransparency = 1,
+        Position = UDim2.fromOffset(2, 30),
+        Size = UDim2.new(1, -132, 0, 18),
+        Font = Theme.FontBold,
+        Text = rarity.DisplayName,
+        TextColor3 = rarity.Color,
+        TextSize = 14,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = row,
+    })
+
+    Builder.create("TextLabel", {
         Name = "Income",
         BackgroundTransparency = 1,
-        AnchorPoint = Vector2.new(1, 0),
-        Position = UDim2.fromScale(1, 0),
-        Size = UDim2.fromScale(0.38, 1),
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -2, 0.5, 0),
+        Size = UDim2.fromOffset(122, 40),
         Font = Theme.Font,
         Text = "+$" .. Format.short(entry.IncomePerSec) .. "/s",
         TextColor3 = Theme.Colors.Positive,

@@ -3,7 +3,6 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Config = require(ReplicatedStorage.Shared.Config)
 local Catalog = require(ReplicatedStorage.Shared.Catalog)
 
 local Remotes = require(script.Parent.Remotes)
@@ -11,13 +10,10 @@ local ProfileManager = require(script.Parent.ProfileManager)
 
 local InventoryService = {}
 
--- Resolves a display name for a stored brainrot type (Catalog for buyables, Config for
--- the free starter, starter as a final fallback for any stale save).
-local function displayName(brainrotType)
-    local def = Catalog.Get(brainrotType)
-        or Config.Brainrots[brainrotType]
-        or Config.Brainrots[Config.StarterType]
-    return def.Name
+-- Resolves a stored brainrot type (a roster Id) to its roster entry, falling back to the
+-- starter so any stale save still renders.
+local function resolveDef(brainrotType)
+    return Catalog.Get(brainrotType) or Catalog.GetStarter()
 end
 
 local function getInventory(player)
@@ -28,8 +24,10 @@ local function getInventory(player)
 
     local owned = {}
     for _, brainrot in ipairs(profile.Data.OwnedBrainrots) do
+        local def = resolveDef(brainrot.Type)
         table.insert(owned, {
-            Name = displayName(brainrot.Type),
+            Name = def.DisplayName,
+            Rarity = def.Rarity, -- rarity key; the client colors it via Shared/Rarity
             IncomePerSec = brainrot.IncomePerSec,
             Type = brainrot.Type,
         })

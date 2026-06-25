@@ -2,7 +2,7 @@
 
 Multiplayer Roblox idle/theft game. Players collect meme creatures ("brainrot") that generate passive cash, unlock rarer ones, and steal each other's units.
 
-Built in milestones. Current: **M2 — HUD + secure purchase plumbing**. A code-generated, mobile-first HUD shows live Cash + Cash/sec; a data-driven Shop sells placeholder brainrots; buying fires a client→server request that the server validates (price, affordability, free pad) before deducting cash, spawning the unit, and saving. Everything economic is server-authoritative — the client only requests. (M1: passive income loop + ProfileStore saving. M0: toolchain.)
+Built in milestones. Current: **M3 — rarity roster + scaling economy**. A full, data-driven brainrot roster spans six rarity tiers (Common → Secret) on a sharply scaling price/income curve; the Shop renders it grouped by rarity with color-coded tiers and reactive Buy buttons; purchased units spawn rarity-tinted on a pad; per-player unlocked-pad capacity and a "discovered" set are saved (foundations for M5 pads and a later Index). (M2: code-generated mobile HUD + secure server-authoritative purchase flow. M1: passive income loop + ProfileStore saving. M0: toolchain.) Everything economic is server-authoritative — the client only sends an item id; the server reads every stat from its own roster.
 
 ## Stack
 
@@ -40,8 +40,9 @@ src/
     UI/Inventory.lua         owned list, fetched via RemoteFunction
     UI/Notifications.lua     transient toast stack
   Shared/                    → ReplicatedStorage > Shared
-    Config.lua               starter brainrot stats + plot tuning
-    Catalog.lua              data-driven shop catalog (M3 expands this only)
+    Config.lua               plot/world tuning (brainrot stats now live in Catalog)
+    Rarity.lua               rarity ladder: tier names, colors, order (single source)
+    Catalog.lua              full data-driven brainrot ROSTER + economy curve
     Format.lua               compact number formatter (1.2K / 3.4M / 1B)
   StarterGui/                → StarterGui
   ServerStorage/             → ServerStorage > Assets  (plot/brainrot model templates later)
@@ -64,6 +65,27 @@ price/income from the server-side `Catalog`, checks affordability and a free pad
 yields between check and deduct, plus a per-player debounce) deducts cash, appends the brainrot,
 reuses `BrainrotService.SpawnBrainrot`, refreshes attributes/leaderstats, and lets ProfileStore
 save. Failures mutate nothing and send a toast back via the `Notify` remote.
+
+### Rarity, roster & economy (M3)
+
+Everything you'd retune lives in **two Shared data files** — no service or UI logic changes:
+
+- **`src/Shared/Rarity.lua`** — the rarity ladder. Edit `Rarity.Tiers` to rename tiers, recolor
+  them, change their order, or add a tier. The shop, the inventory, and the in-world unit
+  tints all read their colors from here.
+- **`src/Shared/Catalog.lua`** — the full brainrot roster. Edit `Catalog.Items` to add/remove
+  brainrots or retune any `Price` / `IncomePerSec`. Each entry keys an `Id` (stable — saved in
+  `OwnedBrainrots.Type`, never rename), `DisplayName`, `Rarity`, plus reserved `ModelName` /
+  `IconId` / `SoundId` for later art. The **economy curve** (≈5× price per tier, income rising
+  a touch faster so the income/price ratio improves with rarity) is documented at the top of the
+  file. The free starter is *derived* (`Catalog.StarterId` = cheapest entry of the lowest tier),
+  so retuning can't desync it.
+
+Rarity-tinted placeholder units automatically swap to real art the moment a `Model` named after
+an entry's `ModelName` is dropped into `ServerStorage/Assets` (same forward-compat pattern as
+plots). Per-player **unlocked-pad count** is saved (`ProfileManager.SetUnlockedPads` is the hook
+M5's pad gamepass will call) and a **Discovered** set records every roster Id ever owned — both
+reconcile onto existing M1/M2 saves with no migration.
 
 ### Data saving (ProfileStore)
 

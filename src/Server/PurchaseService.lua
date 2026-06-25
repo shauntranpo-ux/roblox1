@@ -21,14 +21,18 @@ local PurchaseService = {}
 local PURCHASE_COOLDOWN = 0.5 -- seconds; blocks spam / double-spend races
 local lastPurchase = {} -- [Player] = os.clock()
 
--- Finds the lowest free PadIndex on the player's plot that actually has a pad part.
+-- Finds the lowest free PadIndex on the player's plot that actually has a pad part AND is
+-- within the player's unlocked-pad count. The cap is min(UnlockedPads, physical pads), so
+-- the M3 pad-capacity foundation is enforced here (M5 raises UnlockedPads to unlock more).
 local function findFreePad(player, profile)
     local pads = PlotService.GetPads(player)
     local used = {}
     for _, brainrot in ipairs(profile.Data.OwnedBrainrots) do
         used[brainrot.PadIndex] = true
     end
-    for index = 1, Config.Plots.PadsPerPlot do
+    local unlocked = profile.Data.UnlockedPads or Config.Plots.PadsPerPlot
+    local cap = math.min(unlocked, Config.Plots.PadsPerPlot)
+    for index = 1, cap do
         if pads[index] ~= nil and not used[index] then
             return index
         end
@@ -88,6 +92,9 @@ local function onPurchase(player, itemId)
     }
     table.insert(profile.Data.OwnedBrainrots, brainrot)
 
+    -- Record the acquire for the later Index (set of roster Ids ever owned).
+    profile.Data.Discovered[item.Id] = true
+
     -- Reuse M1's placement so spawn logic lives in exactly one place.
     BrainrotService.SpawnBrainrot(player, plot, brainrot)
 
@@ -97,7 +104,7 @@ local function onPurchase(player, itemId)
     PlayerStats.UpdateIncome(player, profile)
     Leaderstats.Update(player, profile)
 
-    Remotes.NotifyPlayer(player, "success", "Bought " .. item.Name .. "!")
+    Remotes.NotifyPlayer(player, "success", "Bought " .. item.DisplayName .. "!")
 end
 
 function PurchaseService.Init()

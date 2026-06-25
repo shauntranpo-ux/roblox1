@@ -5,17 +5,26 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local DataStoreService = game:GetService("DataStoreService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ProfileStore = require(script.Parent.Lib.ProfileStore)
+local Config = require(ReplicatedStorage.Shared.Config)
 
 local ProfileManager = {}
 
--- Only Cash and OwnedBrainrots persist. Plot assignment is session state and is
--- intentionally NOT saved. Cash is a number and may hold fractions internally;
--- only the leaderstats display is floored.
+-- Persisted fields. Plot assignment is session state and intentionally NOT saved. Cash is
+-- a number and may hold fractions internally; only the display is floored.
+-- Profile:Reconcile() (called on load) adds any new field to existing M1/M2 saves, so
+-- UnlockedPads and Discovered appear on old profiles with these defaults -- no migration.
 local PROFILE_TEMPLATE = {
     Cash = 0,
-    OwnedBrainrots = {}, -- array of { Id, Type, IncomePerSec, PadIndex }
+    OwnedBrainrots = {}, -- array of { Id, Type, IncomePerSec, PadIndex } (Type = Catalog Id)
+    -- M3: how many pads this player may use. Defaults to the starting pad count so existing
+    -- saves are unaffected. M5's pad gamepass raises this via ProfileManager.SetUnlockedPads.
+    UnlockedPads = Config.Plots.PadsPerPlot,
+    -- M3: set of roster Ids the player has ever owned (Id -> true). Cheap foundation for a
+    -- later Index/collection UI; updated on every acquire.
+    Discovered = {},
 }
 
 local Profiles = {} -- [Player] = Profile
@@ -114,6 +123,29 @@ function ProfileManager.SetCash(player, amount)
     if profile ~= nil then
         profile.Data.Cash = amount
     end
+end
+
+-- Returns the player's unlocked-pad count (saved). Falls back to the default when the
+-- profile isn't loaded yet.
+function ProfileManager.GetUnlockedPads(player)
+    local profile = Profiles[player]
+    if profile ~= nil then
+        return profile.Data.UnlockedPads
+    end
+    return Config.Plots.PadsPerPlot
+end
+
+-- Sets the player's unlocked-pad count. THIS is the clean hook M5's pad gamepass will call.
+-- Stores the raw value (>=1); the actual placement cap is min(this, physical pads) in the
+-- free-pad check, so raising it beyond the current pad layout is harmless until more pads
+-- physically exist. Returns the stored value, or nil if the profile isn't loaded.
+function ProfileManager.SetUnlockedPads(player, count)
+    local profile = Profiles[player]
+    if profile == nil then
+        return nil
+    end
+    profile.Data.UnlockedPads = math.max(1, math.floor(count))
+    return profile.Data.UnlockedPads
 end
 
 function ProfileManager.IsUsingMock()
