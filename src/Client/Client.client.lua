@@ -48,6 +48,7 @@ local FreeRewards = require(UI.FreeRewards)
 local Referral = require(UI.Referral)
 local Social = require(UI.Social)
 local Admin = require(UI.Admin)
+local Slingshot = require(UI.Slingshot)
 
 local player = Players.LocalPlayer
 
@@ -104,6 +105,7 @@ local remotes = {
     ReportPlayer = remotesFolder:WaitForChild("ReportPlayer"),
     AdminBroadcast = remotesFolder:WaitForChild("AdminBroadcast"),
     GroupAction = remotesFolder:WaitForChild("GroupAction"),
+    SlingshotAction = remotesFolder:WaitForChild("SlingshotAction"),
 }
 
 local context = { player = player, remotes = remotes }
@@ -233,6 +235,9 @@ end)
 safeMount("Admin", function()
     Admin.mount(context)
 end)
+safeMount("Slingshot", function()
+    Slingshot.mount(context)
+end)
 safeMount("Nameplates", function()
     Nameplates.mount(context)
 end)
@@ -273,6 +278,9 @@ safeMount("Menu", function()
     end)
     Menu.addButton("🚩 Report", function()
         PanelManager.open("Report")
+    end)
+    Menu.addButton("🎯 Slingshot", function()
+        PanelManager.open("Slingshot")
     end)
     -- M13.4: the Admin entry appears ONLY if the SERVER stamped an AdminTier on us (the allowlist is
     -- server-side; the button means nothing -- every action is re-authorized server-side). Handles the
@@ -353,7 +361,36 @@ safeMount("PanelManager registry", function()
     PanelManager.register("Social", Social.toggle)
     PanelManager.register("Report", Admin.toggleReport)
     PanelManager.register("Admin", Admin.toggleAdmin)
+    PanelManager.register("Slingshot", Slingshot.toggle)
 end)
+
+-- The hub Slingshot fixture opens the launch menu (in addition to the Menu button).
+do
+    local CollectionService = game:GetService("CollectionService")
+    local ProximityPromptService = game:GetService("ProximityPromptService")
+    local function dressSlingshot(inst)
+        if not inst:IsA("BasePart") or inst:FindFirstChild("SlingshotPrompt") then
+            return
+        end
+        local prompt = Instance.new("ProximityPrompt")
+        prompt.Name = "SlingshotPrompt"
+        prompt.ActionText = "Launch"
+        prompt.ObjectText = "Slingshot"
+        prompt.HoldDuration = 0.2
+        prompt.MaxActivationDistance = 16
+        prompt.RequiresLineOfSight = false
+        prompt.Parent = inst
+    end
+    for _, inst in ipairs(CollectionService:GetTagged("Slingshot")) do
+        dressSlingshot(inst)
+    end
+    CollectionService:GetInstanceAddedSignal("Slingshot"):Connect(dressSlingshot)
+    ProximityPromptService.PromptTriggered:Connect(function(prompt)
+        if prompt.Name == "SlingshotPrompt" then
+            PanelManager.open("Slingshot")
+        end
+    end)
+end
 
 -- Hide the "Hold to steal" prompt on the LOCAL player's OWN brainrots (you can't steal your
 -- own -- the server rejects it regardless). Cosmetic only: we keep re-asserting Enabled=false

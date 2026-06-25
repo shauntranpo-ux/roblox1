@@ -87,6 +87,7 @@ Theme.Accents = {
     Social = { Top = Color3.fromRGB(150, 200, 255), Bottom = Color3.fromRGB(70, 130, 230) }, -- friend blue
     Admin = { Top = Color3.fromRGB(255, 96, 110), Bottom = Color3.fromRGB(180, 36, 56) }, -- moderation red
     Report = { Top = Color3.fromRGB(255, 170, 90), Bottom = Color3.fromRGB(220, 110, 40) }, -- report amber
+    Slingshot = { Top = Color3.fromRGB(120, 230, 200), Bottom = Color3.fromRGB(40, 170, 150) }, -- launch teal
 }
 
 -- Returns a fresh vertical UIGradient for an accent key (top -> bottom). Caller parents it.
