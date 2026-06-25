@@ -91,6 +91,11 @@ local function handleOne(player, payload)
     if isLocked(payload.Id) then
         return { Result = "Locked", Message = "That unit is busy (in a trade or being stolen)." }
     end
+    -- M12.3: a LOCKED unit is the player's safety net -- never sold (even singly) until unlocked.
+    -- (FAVORITED stays single-sellable; it's only excluded from BULK.)
+    if unit.Locked then
+        return { Result = "Locked", Message = "That unit is locked. Unlock it first." }
+    end
     local def = Catalog.Get(unit.Type)
     if def == nil then
         return { Result = "Error", Message = "Unknown unit." }
@@ -151,7 +156,7 @@ local function handleBulk(player, payload)
     end
 
     local mode = payload.Mode
-    local maxOrder, keep
+    local maxOrder, keep, selection
     if mode == "RarityAtMost" then
         local tier = Rarity.Tiers[payload.Rarity]
         if tier == nil then
@@ -160,6 +165,23 @@ local function handleBulk(player, payload)
         maxOrder = tier.Order
     elseif mode == "Duplicates" then
         keep = math.clamp(math.floor(tonumber(payload.Keep) or 1), 0, 50)
+    elseif mode == "Selection" then
+        -- M12.3: an explicit client selection. Re-resolved + re-validated server-side (a client can't
+        -- sneak in unowned/locked ids). Capped so an oversized id list can't OOM/grief.
+        if type(payload.Ids) ~= "table" then
+            return { Result = "Error", Message = "Invalid selection." }
+        end
+        selection = {}
+        local n = 0
+        for _, id in ipairs(payload.Ids) do
+            if type(id) == "string" and #id <= 100 then
+                selection[id] = true
+                n += 1
+                if n >= SellConfig.MaxBulk then
+                    break
+                end
+            end
+        end
     else
         return { Result = "Error", Message = "Invalid sell filter." }
     end
@@ -174,11 +196,16 @@ local function handleBulk(player, payload)
         end
         local def = Catalog.Get(unit.Type)
         if def ~= nil then
+            -- M12.3: BULK excludes premium, in-flight (steal/trade/deploy), LOCKED, and FAVORITED units.
             local sellable = not (def.Premium and not SellConfig.AllowSellPremium)
                 and not isLocked(unit.Id)
+                and not unit.Locked
+                and not unit.Favorited
             local doSell = false
             if mode == "RarityAtMost" then
                 doSell = sellable and (Rarity.Get(def.Rarity).Order <= maxOrder)
+            elseif mode == "Selection" then
+                doSell = sellable and selection[unit.Id] == true
             else -- Duplicates: keep `keep` per Type; unsellable copies still occupy a kept slot.
                 local kept = keptPerType[unit.Type] or 0
                 if not sellable or kept < keep then

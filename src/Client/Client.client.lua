@@ -52,6 +52,7 @@ local remotesFolder = ReplicatedStorage:WaitForChild("Remotes")
 local remotes = {
     PurchaseRequest = remotesFolder:WaitForChild("PurchaseRequest"),
     GetInventory = remotesFolder:WaitForChild("GetInventory"),
+    InventoryAction = remotesFolder:WaitForChild("InventoryAction"),
     Notify = remotesFolder:WaitForChild("Notify"),
     KillFeed = remotesFolder:WaitForChild("KillFeed"),
     PromptGamepass = remotesFolder:WaitForChild("PromptGamepass"),

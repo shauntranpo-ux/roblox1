@@ -74,6 +74,9 @@ Remotes.QuestsUpdate = nil -- RemoteEvent : server -> a client, a ping that ques
 -- cooldown/streak/spin state + rolls RNG server-side.
 Remotes.FreeRewardAction = nil -- RemoteFunction : client -> server (action) -> { Result, State?/Message }
 Remotes.FreeRewardUpdate = nil -- RemoteEvent : server -> a client, a ping that free-reward state changed
+-- M12.3 inventory. Client sends a flag-toggle INTENT only (action + unit id + value); the server owns
+-- the flags. (Bulk-sell reuses SellRequest "Selection"; mass-fuse reuses FuseRequest "MassFuse".)
+Remotes.InventoryAction = nil -- RemoteFunction : client -> server (action, unitId, value) -> { Result, Locked?/Favorited?/Message }
 -- M11.4 seasonal exclusives. Client sends INTENT ONLY ({ Action="get"|"buy", Key? }); server gates by
 -- server-time season window + the idempotent claim set.
 Remotes.ExclusiveAction = nil -- RemoteFunction : client -> server ({ Action, Key? }) -> { Result, State?/Message }
@@ -123,6 +126,7 @@ Remotes.ExpectedNames = {
     "QuestsUpdate",
     "FreeRewardAction",
     "FreeRewardUpdate",
+    "InventoryAction",
 }
 
 local folder = nil
@@ -299,6 +303,10 @@ function Remotes.Init()
     freeRewardUpdate.Name = "FreeRewardUpdate"
     freeRewardUpdate.Parent = folder
 
+    local inventoryAction = Instance.new("RemoteFunction")
+    inventoryAction.Name = "InventoryAction"
+    inventoryAction.Parent = folder
+
     folder.Parent = ReplicatedStorage
 
     Remotes.PurchaseRequest = purchase
@@ -342,6 +350,7 @@ function Remotes.Init()
     Remotes.QuestsUpdate = questsUpdate
     Remotes.FreeRewardAction = freeRewardAction
     Remotes.FreeRewardUpdate = freeRewardUpdate
+    Remotes.InventoryAction = inventoryAction
 end
 
 -- Sends a toast to a single player. kind = "success" | "error" | "info". Optional `cue` is a

@@ -71,6 +71,8 @@ Analytics.Events = { -- custom (retention/engagement) event names
     GiftClaim = "gift_claim", -- M12.2 a timed free gift claimed
     Spin = "spin", -- M12.2 a wheel spin (value = the landed segment index)
     MysteryOpen = "mystery_open", -- M12.2 the base mystery block opened
+    FlagToggle = "flag_toggle", -- M12.3 a favorite/lock toggled (value = 1 set / 0 cleared)
+    MassFuse = "mass_fuse", -- M12.3 a mass-fuse (value = groups fused)
 }
 
 Analytics.Funnel = { -- new-player onboarding funnel steps { stepNumber, stepName }

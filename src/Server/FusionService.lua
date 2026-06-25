@@ -112,6 +112,9 @@ local function collectFodder(profile, ids)
         if isLocked(id) then
             return nil, "A unit is busy (in a trade or being stolen)."
         end
+        if unit.Locked then -- M12.3: locked units are hard-protected from being used as fodder
+            return nil, "A unit is locked. Unlock it to fuse it."
+        end
         table.insert(units, unit)
     end
     return units
@@ -120,7 +123,9 @@ end
 -- ===========================================================================================
 -- Same-species star-up: N copies of the SAME Type at the SAME Star -> one at Star+1 (+crit).
 -- ===========================================================================================
-local function fuseStarUp(player, profile, fodder)
+-- `silent` (M12.3 mass-fuse): skip the per-group display refresh / save / toast so a BATCH does them
+-- ONCE at the end. The fusion math, dupe-safe commit, model spawn, and quest signal are unchanged.
+local function fuseStarUp(player, profile, fodder, silent)
     if #fodder ~= FusionConfig.SameSpeciesCount then
         return {
             Result = "Error",
@@ -171,10 +176,12 @@ local function fuseStarUp(player, profile, fodder)
         for id in pairs(removeSet) do
             BrainrotService.RemoveModel(player, id)
         end
-        refresh(player, profile)
         Analytics.custom(player, Analytics.Events.FusionFail, lose)
-        ProfileManager.ForceSave(player)
-        Remotes.NotifyPlayer(player, "error", "Fusion FAILED! Lost " .. lose .. " fodder.")
+        if not silent then
+            refresh(player, profile)
+            ProfileManager.ForceSave(player)
+            Remotes.NotifyPlayer(player, "error", "Fusion FAILED! Lost " .. lose .. " fodder.")
+        end
         return {
             Result = "Fail",
             Lost = lose,
@@ -229,7 +236,6 @@ local function fuseStarUp(player, profile, fodder)
         BrainrotService.RemoveModel(player, id)
     end
     BrainrotService.SpawnBrainrot(player, plot, result)
-    refresh(player, profile)
 
     Analytics.custom(player, Analytics.Events.Fusion, newStar)
     GameSignals.fire(player, "fusions", 1) -- M12.1 quests; pure emit, no behavior change
@@ -239,14 +245,17 @@ local function fuseStarUp(player, profile, fodder)
     if resultMut ~= nil then
         Analytics.custom(player, Analytics.Events.MutationRoll, mutationValue(resultMut))
     end
-    ProfileManager.ForceSave(player)
 
     local stars = FusionConfig.Stars(newStar)
-    Remotes.NotifyPlayer(
-        player,
-        "success",
-        "Fused into " .. stars .. " " .. def.DisplayName .. "!" .. (crit and " CRIT!" or "")
-    )
+    if not silent then
+        refresh(player, profile)
+        ProfileManager.ForceSave(player)
+        Remotes.NotifyPlayer(
+            player,
+            "success",
+            "Fused into " .. stars .. " " .. def.DisplayName .. "!" .. (crit and " CRIT!" or "")
+        )
+    end
     return {
         Result = "Success",
         Star = newStar,
@@ -397,10 +406,90 @@ local function fuseTierUp(player, profile, fodder)
     }
 end
 
+-- M12.3 MASS-FUSE: auto-resolve every eligible same-Type/same-Star group (EXCLUDING locked / favorited
+-- / in-flight / max-star) and fuse each via the EXISTING atomic per-group path (no new fusion math).
+-- Each group is independently atomic + dupe-safe; a soft-fail in one group never half-processes another.
+-- Capped per call for perf; one display refresh + save + summary toast at the end.
+local MAX_MASS_BATCHES = 100
+
+function FusionService.MassFuse(player, profile, confirm)
+    local groups = {}
+    for _, unit in ipairs(profile.Data.OwnedBrainrots) do
+        local star = unit.Star or 1
+        if
+            star < FusionConfig.MaxStar
+            and not unit.Locked
+            and not unit.Favorited
+            and not isLocked(unit.Id)
+        then
+            local key = unit.Type .. "|" .. star
+            local g = groups[key]
+            if g == nil then
+                g = {}
+                groups[key] = g
+            end
+            table.insert(g, unit)
+        end
+    end
+    local batches = {}
+    for _, units in pairs(groups) do
+        local i = 1
+        while i + FusionConfig.SameSpeciesCount - 1 <= #units and #batches < MAX_MASS_BATCHES do
+            local batch = {}
+            for j = 0, FusionConfig.SameSpeciesCount - 1 do
+                table.insert(batch, units[i + j])
+            end
+            table.insert(batches, batch)
+            i += FusionConfig.SameSpeciesCount
+        end
+    end
+    if #batches == 0 then
+        return { Result = "Empty", Count = 0, Message = "No eligible duplicates to mass-fuse." }
+    end
+    if not confirm then
+        return {
+            Result = "Confirm",
+            Count = #batches,
+            Message = "Mass-fuse " .. #batches .. " group(s)?",
+        }
+    end
+    local success, fail = 0, 0
+    for _, batch in ipairs(batches) do
+        local res = fuseStarUp(player, profile, batch, true) -- silent: batch save/refresh once below
+        if res.Result == "Success" then
+            success += 1
+        elseif res.Result == "Fail" then
+            fail += 1
+        end
+    end
+    refresh(player, profile)
+    ProfileManager.ForceSave(player)
+    Analytics.custom(player, Analytics.Events.MassFuse, success)
+    Remotes.NotifyPlayer(
+        player,
+        "success",
+        "Mass-fused "
+            .. success
+            .. " group(s)"
+            .. (fail > 0 and (" (" .. fail .. " failed)") or "")
+            .. "!"
+    )
+    return {
+        Result = "Success",
+        Fused = success,
+        Failed = fail,
+        Count = #batches,
+        Message = "Mass-fused " .. success .. " group(s).",
+    }
+end
+
 local function handleFuse(player, payload)
     local profile = ProfileManager.GetProfile(player)
     if profile == nil then
         return { Result = "Error", Message = "Not ready yet." }
+    end
+    if payload.Mode == "MassFuse" then
+        return FusionService.MassFuse(player, profile, payload.Confirm == true)
     end
     local fodder, err = collectFodder(profile, payload.FodderIds)
     if fodder == nil then
