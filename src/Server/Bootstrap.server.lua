@@ -37,6 +37,8 @@ local SeasonRewardService = require(script.Parent.SeasonRewardService)
 local SellService = require(script.Parent.SellService)
 -- M9.2: fusion + stars (turn duplicates into fuel).
 local FusionService = require(script.Parent.FusionService)
+-- M9.3: deploy/roles (units become an arsenal).
+local DeployService = require(script.Parent.DeployService)
 -- VM0: boot/join health check + the dev-only sacred-invariant validator.
 local Diagnostics = require(script.Parent.Diagnostics)
 local InvariantValidator = require(script.Parent.InvariantValidator)
@@ -89,6 +91,8 @@ start("SeasonRewardService", SeasonRewardService.Init)
 start("SellService", SellService.Init)
 -- M9.2: fusion + stars (binds FuseRequest).
 start("FusionService", FusionService.Init)
+-- M9.3: deploy/roles (binds DeployRequest).
+start("DeployService", DeployService.Init)
 -- Admin: register the allowlisted in-chat commands (hidden from chat).
 start("DevCommands", DevCommands.Init)
 
@@ -162,6 +166,9 @@ local function onPlayerAdded(player)
     IndexService.SetupPlayer(player, profile)
     -- M8.4: apply any currently-active event modifiers (idempotent) + prune stale event data.
     EventService.SetupPlayer(player, profile)
+    -- M9.3: re-derive deployed role buffs + re-lock deployed units from saved data (idempotent;
+    -- runs after units + Benefits exist so income reflects role sources on join).
+    DeployService.SetupPlayer(player, profile)
     -- M8.5: ensure the season-score record is for the current season, then (off-thread, since it
     -- reads DataStores) grant any unclaimed end-of-season rewards from frozen seasons.
     SeasonService.SetupPlayer(player, profile)
@@ -188,6 +195,9 @@ local function onPlayerRemoving(player)
     -- M8.2: cancel any in-flight trade (no-op, unlock items) BEFORE the profile is released, so a
     -- leave mid-trade can never persist a half-swap.
     TradeService.ResolvePlayer(player)
+    -- M9.3: release deploy locks + role steal-effects while the profile is still loaded (the saved
+    -- Deployed tags persist; buffs re-derive on rejoin). Benefits role sources are wiped below.
+    DeployService.ClearPlayer(player)
     -- Final leaderboard write while the profile is STILL loaded (captures values synchronously,
     -- then writes off-thread) -- must precede MonetizationService.ClearPlayer, which drops the
     -- income multiplier this read depends on, and ProfileManager.ReleaseProfile.

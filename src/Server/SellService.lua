@@ -39,14 +39,17 @@ local Analytics = require(script.Parent.Analytics)
 local RateLimiter = require(script.Parent.RateLimiter)
 local TransitRegistry = require(script.Parent.TransitRegistry)
 local TradeLockRegistry = require(script.Parent.TradeLockRegistry)
+local DeployLockRegistry = require(script.Parent.DeployLockRegistry)
 local Remotes = require(script.Parent.Remotes)
 
 local SellService = {}
 
--- A unit is unsellable while it is mid-steal (in transit) or offered in a trade. M9.2 (fusion) /
--- M9.3 (deploy) will make units unsellable by adding their id to a lock set -- extend HERE.
+-- A unit is unsellable while it is mid-steal (in transit), offered in a trade, or DEPLOYED to a role
+-- (M9.3). All three are the shared item-lock registries; future locks add to this same check.
 local function isLocked(unitId)
-    return TransitRegistry.Has(unitId) or TradeLockRegistry.Has(unitId)
+    return TransitRegistry.Has(unitId)
+        or TradeLockRegistry.Has(unitId)
+        or DeployLockRegistry.Has(unitId)
 end
 
 local function findEntry(profile, unitId)

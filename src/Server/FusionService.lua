@@ -44,13 +44,16 @@ local Analytics = require(script.Parent.Analytics)
 local RateLimiter = require(script.Parent.RateLimiter)
 local TransitRegistry = require(script.Parent.TransitRegistry)
 local TradeLockRegistry = require(script.Parent.TradeLockRegistry)
+local DeployLockRegistry = require(script.Parent.DeployLockRegistry)
 local Remotes = require(script.Parent.Remotes)
 
 local FusionService = {}
 
--- A unit can't be fodder while in-transit (steal) or in a trade offer. M9.3 deploy adds here.
+-- A unit can't be fodder while in-transit (steal), in a trade offer, or DEPLOYED to a role (M9.3).
 local function isLocked(unitId)
-    return TransitRegistry.Has(unitId) or TradeLockRegistry.Has(unitId)
+    return TransitRegistry.Has(unitId)
+        or TradeLockRegistry.Has(unitId)
+        or DeployLockRegistry.Has(unitId)
 end
 
 local function findEntry(profile, unitId)

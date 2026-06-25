@@ -45,6 +45,8 @@ Analytics.Events = { -- custom (retention/engagement) event names
     Fusion = "fusion", -- M9.2 a successful fusion (value = result star level)
     FusionCrit = "fusion_crit", -- M9.2 a fusion crit (extra stars)
     FusionFail = "fusion_fail", -- M9.2 a soft-fail (value = fodder lost)
+    Deploy = "deploy", -- M9.3 a unit deployed to a role (value = unit rarity order)
+    Undeploy = "undeploy", -- M9.3 a unit unassigned from a role
 }
 
 Analytics.Funnel = { -- new-player onboarding funnel steps { stepNumber, stepName }

@@ -44,6 +44,7 @@ local PlayerStats = require(script.Parent.PlayerStats)
 local Leaderstats = require(script.Parent.Leaderstats)
 local TransitRegistry = require(script.Parent.TransitRegistry)
 local TradeLockRegistry = require(script.Parent.TradeLockRegistry)
+local DeployLockRegistry = require(script.Parent.DeployLockRegistry)
 local StealService = require(script.Parent.StealService)
 local RateLimiter = require(script.Parent.RateLimiter)
 local Remotes = require(script.Parent.Remotes)
@@ -463,8 +464,12 @@ local function handleAddItem(player, brainrotId)
     if unit == nil then
         return
     end
-    if TransitRegistry.Has(brainrotId) or TradeLockRegistry.Has(brainrotId) then
-        Remotes.NotifyPlayer(player, "error", "That unit is busy.")
+    if
+        TransitRegistry.Has(brainrotId)
+        or TradeLockRegistry.Has(brainrotId)
+        or DeployLockRegistry.Has(brainrotId)
+    then
+        Remotes.NotifyPlayer(player, "error", "That unit is busy (deployed or in another action).")
         return
     end
     if not TradeConfig.IsTradeable(Catalog.Get(unit.Type)) then

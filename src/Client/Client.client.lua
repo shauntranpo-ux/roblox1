@@ -24,6 +24,7 @@ local Trade = require(UI.Trade)
 local Events = require(UI.Events)
 local Seasons = require(UI.Seasons)
 local Fusion = require(UI.Fusion)
+local Deploy = require(UI.Deploy)
 local PanelManager = require(UI.PanelManager)
 local ClickFX = require(UI.ClickFX)
 
@@ -58,6 +59,7 @@ local remotes = {
     SeasonsUpdate = remotesFolder:WaitForChild("SeasonsUpdate"),
     SellRequest = remotesFolder:WaitForChild("SellRequest"),
     FuseRequest = remotesFolder:WaitForChild("FuseRequest"),
+    DeployRequest = remotesFolder:WaitForChild("DeployRequest"),
 }
 
 local context = { player = player, remotes = remotes }
@@ -122,11 +124,17 @@ end)
 safeMount("Fusion", function()
     Fusion.mount(context)
 end)
+safeMount("Deploy", function()
+    Deploy.mount(context)
+end)
 safeMount("Menu", function()
     Menu.mount(context)
     -- Menu list entries OPEN their panel through the manager (the Menu closes itself first).
     Menu.addButton("🔨 Fusion", function()
         PanelManager.open("Fusion")
+    end)
+    Menu.addButton("🛡 Deploy", function()
+        PanelManager.open("Deploy")
     end)
     Menu.addButton("🏆 Seasons", function()
         PanelManager.open("Seasons")
@@ -179,6 +187,7 @@ safeMount("PanelManager registry", function()
     PanelManager.register("Codes", Codes.toggle)
     PanelManager.register("Settings", Settings.toggle)
     PanelManager.register("Fusion", Fusion.toggle)
+    PanelManager.register("Deploy", Deploy.toggle)
 end)
 
 -- Hide the "Hold to steal" prompt on the LOCAL player's OWN brainrots (you can't steal your

@@ -79,6 +79,10 @@ local PROFILE_TEMPLATE = {
     -- M8.5 SEASONS: idempotency ledger of seasons whose end-of-season rewards were granted, keyed
     -- by season id ([seasonId] = true). Grant + record commit together. Reconciles empty.
     ClaimedSeasonRewards = {},
+    -- M9.3 DEPLOY: the equipped loadout -- [roleSlot] = deployed unit Id. Deploying only TAGS an
+    -- owned unit (never moves/copies it); the unit stays in OwnedBrainrots + keeps earning. Reconciles
+    -- to empty on existing saves (no deployments). DeployService re-derives buffs + locks from this.
+    Deployed = {},
 }
 
 local Profiles = {} -- [Player] = Profile

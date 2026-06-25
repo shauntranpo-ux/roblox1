@@ -35,6 +35,8 @@ local TransitRegistry = require(script.Parent.TransitRegistry)
 local Benefits = require(script.Parent.Benefits)
 local Analytics = require(script.Parent.Analytics)
 local TradeLockRegistry = require(script.Parent.TradeLockRegistry)
+local DeployLockRegistry = require(script.Parent.DeployLockRegistry)
+local RoleEffects = require(script.Parent.RoleEffects)
 local EventService = require(script.Parent.EventService)
 local SeasonService = require(script.Parent.SeasonService)
 
@@ -77,14 +79,18 @@ end
 
 -- Applies the optional carry WalkSpeed penalty, remembering the thief's real speed to restore.
 local function applyCarryPenalty(thief, steal)
-    if StealConfig.CarryWalkSpeedMult == 1 then
+    -- M9.3 RAIDER: ease the penalty toward NO penalty by the thief's Raider strength (0..1). This
+    -- only changes the thief's WalkSpeed; it never touches the steal/ownership state machine.
+    local strength = RoleEffects.RaiderStrength(thief)
+    local mult = StealConfig.CarryWalkSpeedMult + (1 - StealConfig.CarryWalkSpeedMult) * strength
+    if mult >= 1 then
         return
     end
     local character = thief.Character
     local humanoid = character and character:FindFirstChildOfClass("Humanoid")
     if humanoid ~= nil then
         steal.OriginalWalkSpeed = humanoid.WalkSpeed
-        humanoid.WalkSpeed = humanoid.WalkSpeed * StealConfig.CarryWalkSpeedMult
+        humanoid.WalkSpeed = humanoid.WalkSpeed * mult
     end
 end
 
@@ -234,6 +240,11 @@ local function onPromptTriggered(prompt, thief)
         Remotes.NotifyPlayer(thief, "error", "That brainrot is locked in a trade.")
         return
     end
+    -- M9.3 DEPLOY: a deployed unit is locked and can't be stolen.
+    if DeployLockRegistry.Has(brainrotId) then
+        Remotes.NotifyPlayer(thief, "error", "That brainrot is deployed and can't be stolen.")
+        return
+    end
     -- CARRY-WHILE-CARRYING: never hold two.
     if carryingByThief[thief] ~= nil then
         Remotes.NotifyPlayer(thief, "error", "You're already carrying something.")
@@ -292,6 +303,20 @@ local function onPromptTriggered(prompt, thief)
     local character = thief.Character
     if character == nil or character:FindFirstChild("HumanoidRootPart") == nil then
         Remotes.NotifyPlayer(thief, "error", "Can't carry right now.")
+        return
+    end
+
+    -- M9.3 GUARDIAN (defense): a chance to SLAP the thief away. This is a PRE-TRANSFER difficulty
+    -- gate ONLY -- on an interrupt NOTHING is moved and NO steal state is created, so the dupe-proof
+    -- ON_PAD -> IN_TRANSIT state machine below is completely untouched.
+    local guardianChance = RoleEffects.GuardianInterrupt(victim)
+    if guardianChance > 0 and math.random() < guardianChance then
+        Remotes.NotifyPlayer(
+            thief,
+            "error",
+            "Blocked! " .. victim.Name .. "'s Guardian slapped you away."
+        )
+        Remotes.NotifyPlayer(victim, "info", "Your Guardian blocked " .. thief.Name .. "'s steal!")
         return
     end
 
@@ -448,7 +473,10 @@ function StealService.Init()
                 local hrp = character and character:FindFirstChild("HumanoidRootPart")
                 local pad = PlotService.GetPad(steal.Thief, steal.ReservedPadIndex)
                 if hrp ~= nil and pad ~= nil then
-                    if (hrp.Position - pad.Position).Magnitude <= StealConfig.DepositRange then
+                    -- M9.3 RAIDER: extend the deposit reach by the thief's Raider bonus (studs).
+                    local range = StealConfig.DepositRange
+                        + RoleEffects.RaiderDepositBonus(steal.Thief)
+                    if (hrp.Position - pad.Position).Magnitude <= range then
                         deposit(steal)
                     elseif StealConfig.CarryBob and steal.CarriedModel ~= nil then
                         local weld = steal.CarriedModel:FindFirstChild("CarryWeld")
