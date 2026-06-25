@@ -21,6 +21,7 @@ local UnitIncome = require(ReplicatedStorage.Shared.UnitIncome)
 
 local ProfileManager = require(script.Parent.ProfileManager)
 local Benefits = require(script.Parent.Benefits)
+local TextFilter = require(script.Parent.TextFilter)
 
 local LeaderboardService = {}
 
@@ -117,15 +118,23 @@ local function resolveName(userId)
     if cached ~= nil then
         return cached
     end
+    -- In-server: reuse the already-filtered SafeName (M13.4); falls back to the pre-moderated name.
     local player = Players:GetPlayerByUserId(userId)
     if player ~= nil then
-        nameCache[userId] = player.Name
-        return player.Name
+        local safe = player:GetAttribute("SafeName") or player.Name
+        nameCache[userId] = safe
+        return safe
     end
+    -- Offline: look the name up, then filter it once. Names are pre-moderated by Roblox, so on a
+    -- filter-API blip we keep the raw name rather than hiding the leaderboard row.
     local ok, name = pcall(function()
         return Players:GetNameFromUserIdAsync(userId)
     end)
     local resolved = (ok and name) or ("User" .. tostring(userId))
+    local filtered, safe = TextFilter.FilterForBroadcast(resolved, userId)
+    if filtered then
+        resolved = safe
+    end
     nameCache[userId] = resolved
     return resolved
 end

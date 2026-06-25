@@ -5,16 +5,15 @@
 --   2. STUDIO COMMAND BAR (SIM only) -- require(...).SetCash("Name", 1000) etc.
 --
 -- ============================  SECURITY  ====================================================
--- Chat commands are gated by a SERVER-SIDE allowlist (isAdmin): the place OWNER is always allowed
--- (game.CreatorId for a user-owned place), plus any UserIds you add to ADMIN_IDS, plus anyone in a
--- Studio test. A non-admin who types a command is silently ignored -- the action never runs. The
--- caller's identity comes from the TextSource.UserId, which Roblox sets server-side and a client
--- cannot spoof. Money changes route through the SAME guarded cash accessor as the rest of the game,
--- so they can't break the cash invariants. There is no client RemoteEvent surface here.
+-- Authority is the SINGLE consolidated allowlist in AdminConfig (Studio + place creator + the tiered
+-- ID lists) -- isAdmin() just delegates there, and the MODERATION commands forward to AdminService,
+-- which re-checks the exact per-command tier SERVER-SIDE. A non-admin who types a command is silently
+-- ignored -- the action never runs. The caller's identity comes from TextSource.UserId, which Roblox
+-- sets server-side and a client cannot spoof. Money/items route through the SAME guarded accessor +
+-- factory the admin panel uses (one impl), so they can't break the economy invariants.
 -- ===========================================================================================
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local TextChatService = game:GetService("TextChatService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -22,13 +21,11 @@ local Catalog = require(ReplicatedStorage.Shared.Catalog)
 local EvolutionConfig = require(ReplicatedStorage.Shared.EvolutionConfig)
 
 local DevConfig = require(script.Parent.DevConfig)
+local AdminConfig = require(script.Parent.AdminConfig)
+local AdminService = require(script.Parent.AdminService)
 local ProfileManager = require(script.Parent.ProfileManager)
-local PlotService = require(script.Parent.PlotService)
-local BrainrotService = require(script.Parent.BrainrotService)
-local BrainrotFactory = require(script.Parent.BrainrotFactory)
 local PlayerStats = require(script.Parent.PlayerStats)
 local Leaderstats = require(script.Parent.Leaderstats)
-local ProtectionService = require(script.Parent.ProtectionService)
 local RebirthService = require(script.Parent.RebirthService)
 local InvariantValidator = require(script.Parent.InvariantValidator)
 local BossService = require(script.Parent.BossService)
@@ -39,24 +36,13 @@ local Remotes = require(script.Parent.Remotes)
 local DevCommands = {}
 
 -- ===========================================================================================
--- Admin allowlist (who may run CHAT commands on a live server). ADD EXTRA ADMIN UserIds HERE.
+-- Authority is the SINGLE, CONSOLIDATED allowlist in AdminConfig (Studio + place creator + the tiered
+-- ID lists). There is no separate admin list here -- to grant admins, edit AdminConfig. The self-
+-- targeted dev/test commands below need any tier; the moderation commands forward to AdminService,
+-- which re-checks the exact per-command tier server-side.
 -- ===========================================================================================
-local ADMIN_IDS = {
-    -- [123456789] = true,  -- example: paste a Roblox UserId to grant another admin
-}
-
 local function isAdmin(userId)
-    if RunService:IsStudio() then
-        return true -- private test environment
-    end
-    if ADMIN_IDS[userId] then
-        return true
-    end
-    -- The place owner (for a user-owned experience) is always an admin.
-    if game.CreatorType == Enum.CreatorType.User and userId == game.CreatorId then
-        return true
-    end
-    return false
+    return AdminConfig.IsAdmin(userId)
 end
 
 -- ===========================================================================================
@@ -75,6 +61,8 @@ end
 -- ===========================================================================================
 -- Raw actions: act on a Player, return (ok, message). NO gating here -- callers gate.
 -- ===========================================================================================
+-- These self-targeted economy commands reuse the SAME canonical helpers the admin system uses
+-- (AdminService.GrantCash / GiveItem / ClearUnits) -> one cash impl, one give impl, no parallel code.
 local function actSetCash(player, amount)
     amount = tonumber(amount)
     if amount == nil then
@@ -83,9 +71,7 @@ local function actSetCash(player, amount)
     if ProfileManager.GetProfile(player) == nil then
         return false, "your data isn't loaded yet."
     end
-    local current = ProfileManager.GetCash(player)
-    ProfileManager.AddCash(player, amount - current)
-    refresh(player)
+    AdminService.GrantCash(player, amount - ProfileManager.GetCash(player)) -- delta to reach the target
     return true, string.format("cash set to %d", math.floor(ProfileManager.GetCash(player)))
 end
 
@@ -94,11 +80,9 @@ local function actAddCash(player, amount)
     if amount == nil then
         return false, "usage: /addcash <amount>"
     end
-    if ProfileManager.GetProfile(player) == nil then
+    if AdminService.GrantCash(player, amount) == nil then
         return false, "your data isn't loaded yet."
     end
-    ProfileManager.AddCash(player, amount)
-    refresh(player)
     return true, string.format("cash now %d", math.floor(ProfileManager.GetCash(player)))
 end
 
@@ -107,45 +91,18 @@ local function actResetMoney(player)
 end
 
 local function actGive(player, brainrotId, rollMutation)
-    local def = brainrotId ~= nil and Catalog.Get(brainrotId) or nil
-    if def == nil then
+    if brainrotId == nil then
         return false, "usage: /give <id>  (try /help for ids)"
     end
-    local profile = ProfileManager.GetProfile(player)
-    local plot = PlotService.GetPlot(player)
-    if profile == nil or plot == nil then
-        return false, "not ready."
+    local granted, message = AdminService.GiveItem(player, brainrotId, rollMutation == true)
+    if not granted then
+        return false, message
     end
-    local padIndex = PlotService.FindFreePad(player, profile)
-    if padIndex == nil then
-        return false, "no free pad (/clearbrainrots or free one first)."
-    end
-    local roll = rollMutation and BrainrotFactory.RollFor.Purchase
-        or BrainrotFactory.RollFor.Product
-    -- Admin override: allowExclusive=true so /give can also mint a seasonal-exclusive species for tests.
-    local unit = BrainrotFactory.create(player, def, padIndex, roll, true)
-    if unit == nil then
-        return false, "couldn't create that unit."
-    end
-    table.insert(profile.Data.OwnedBrainrots, unit)
-    profile.Data.Discovered[def.Id] = true
-    BrainrotService.SpawnBrainrot(player, plot, unit)
-    ProtectionService.RefreshPrompts(player)
-    refresh(player)
-    return true, string.format("gave %s (mutation=%s)", def.Id, tostring(unit.Mutation))
+    return true, "gave " .. message
 end
 
 local function actClearBrainrots(player)
-    local profile = ProfileManager.GetProfile(player)
-    if profile == nil then
-        return false, "not ready."
-    end
-    for _, unit in ipairs(profile.Data.OwnedBrainrots) do
-        BrainrotService.RemoveModel(player, unit.Id)
-    end
-    profile.Data.OwnedBrainrots = {}
-    refresh(player)
-    return true, "cleared all placed brainrots."
+    return AdminService.ClearUnits(player)
 end
 
 local function actSetRebirth(player, count)
@@ -223,10 +180,41 @@ end
 -- ===========================================================================================
 local HELP_LINE = "[Admin] /setcash N · /addcash N · /resetmoney · /give <id> [m] · "
     .. "/clearbrainrots · /setrebirth N · /addxp N · /boss · /season · "
-    .. "/excl list|start <key>|end|grant <key> · /validate · /help"
+    .. "/excl list|start <key>|end|grant <key> · /validate · /help  ||  MOD: "
+    .. "/kick <name> [reason] · /ban <name> [min] [reason] · /unban <id> · "
+    .. "/mute <name> [min] · /unmute <name> · /announce <text>"
 
 local function actHelp()
     return true, HELP_LINE
+end
+
+-- Finds an in-server player by (case-insensitive) name, or nil.
+local function resolveByName(name)
+    if type(name) ~= "string" then
+        return nil
+    end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p.Name:lower() == name:lower() then
+            return p
+        end
+    end
+    return nil
+end
+
+-- Concatenates args[startIdx..] back into a single string (for reasons / announce text).
+local function joinFrom(args, startIdx)
+    local parts = {}
+    for i = startIdx, #args do
+        parts[#parts + 1] = args[i]
+    end
+    return table.concat(parts, " ")
+end
+
+-- Forwards a MODERATION command to the one authoritative dispatcher. AdminService re-checks the exact
+-- per-command tier server-side, so a Mod typing an Admin-only command is rejected there (not here).
+local function forward(player, command, payload)
+    local result = AdminService.dispatch(player, command, payload)
+    return result.Result == "Success", result.Message
 end
 
 -- alias -> function(player, args) -> (ok, message). Self-targeted (acts on the caller).
@@ -266,6 +254,54 @@ local chatHandlers = {
     end,
     ["/excl"] = function(player, args)
         return actExcl(player, args[1], args[2])
+    end,
+    -- Moderation: forwarded to AdminService.dispatch (which enforces the per-command tier server-side).
+    ["/kick"] = function(player, args)
+        local target = resolveByName(args[1])
+        if target == nil then
+            return false, "no player named '" .. tostring(args[1]) .. "' here."
+        end
+        return forward(player, "kick", { TargetUserId = target.UserId, Reason = joinFrom(args, 2) })
+    end,
+    ["/ban"] = function(player, args)
+        local target = resolveByName(args[1])
+        if target == nil then
+            return false,
+                "no '" .. tostring(args[1]) .. "' here (use the panel to ban an offline id)."
+        end
+        return forward(player, "ban", {
+            TargetUserId = target.UserId,
+            Minutes = tonumber(args[2]) or 0,
+            Reason = joinFrom(args, 3),
+        })
+    end,
+    ["/unban"] = function(player, args)
+        local id = tonumber(args[1])
+        if id == nil then
+            return false, "usage: /unban <userId>"
+        end
+        return forward(player, "unban", { TargetUserId = id })
+    end,
+    ["/mute"] = function(player, args)
+        local target = resolveByName(args[1])
+        if target == nil then
+            return false, "no player named '" .. tostring(args[1]) .. "' here."
+        end
+        return forward(
+            player,
+            "mute",
+            { TargetUserId = target.UserId, Minutes = tonumber(args[2]) or 0 }
+        )
+    end,
+    ["/unmute"] = function(player, args)
+        local target = resolveByName(args[1])
+        if target == nil then
+            return false, "no player named '" .. tostring(args[1]) .. "' here."
+        end
+        return forward(player, "unmute", { TargetUserId = target.UserId })
+    end,
+    ["/announce"] = function(player, args)
+        return forward(player, "announce", { Text = joinFrom(args, 1) })
     end,
 }
 

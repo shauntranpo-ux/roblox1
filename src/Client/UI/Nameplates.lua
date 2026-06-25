@@ -41,15 +41,23 @@ local function attach(targetPlayer, character, localPlayer)
         transparency = 0.25,
         Parent = billboard,
     })
+    -- M13.4: render the server-published, TextService-FILTERED SafeName (never a raw user-authored
+    -- name). It may publish a beat after we attach, so refresh the label if/when it changes.
+    local function safeName()
+        return targetPlayer:GetAttribute("SafeName") or targetPlayer.DisplayName
+    end
     local name = Builder.create("TextLabel", {
         Size = UDim2.fromScale(1, 1),
         BackgroundTransparency = 1,
-        Text = isFriend and ("★ " .. targetPlayer.DisplayName) or targetPlayer.DisplayName,
+        Text = isFriend and ("★ " .. safeName()) or safeName(),
         TextColor3 = isFriend and Theme.Colors.Gold or Theme.Colors.White,
         TextScaled = true,
         Parent = pill,
     }, { Builder.padding(4), Builder.create("UITextSizeConstraint", { MaxTextSize = 22 }) })
     Builder.styleText(name, { keepColor = true })
+    targetPlayer:GetAttributeChangedSignal("SafeName"):Connect(function()
+        name.Text = isFriend and ("★ " .. safeName()) or safeName()
+    end)
 end
 
 function Nameplates.mount(context)

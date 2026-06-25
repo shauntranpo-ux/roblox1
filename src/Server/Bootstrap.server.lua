@@ -68,6 +68,11 @@ local SetService = require(script.Parent.SetService)
 -- VM0: boot/join health check + the dev-only sacred-invariant validator.
 local Diagnostics = require(script.Parent.Diagnostics)
 local InvariantValidator = require(script.Parent.InvariantValidator)
+-- M13.4: admin + moderation. BanStore is the persistent global ban list; AdminService is the ONE
+-- server-authoritative command system (allowlist-gated) + the report flow + ban enforcement + the
+-- filtered-name publisher. DevCommands (below) now delegates its authority to the same AdminConfig.
+local BanStore = require(script.Parent.BanStore)
+local AdminService = require(script.Parent.AdminService)
 -- Admin/troubleshooting: in-chat commands (allowlisted) + Studio command-bar API.
 local DevCommands = require(script.Parent.DevCommands)
 
@@ -88,6 +93,8 @@ end
 -- Data layer, network surface, world, defense, income loop, then the client-facing handlers.
 start("ProfileManager", ProfileManager.Init)
 start("Remotes", Remotes.Init)
+-- M13.4: open the global ban DataStore (or its MOCK) before anyone can join + be checked.
+start("BanStore", BanStore.Init)
 -- VM6: generate the voxel world + the plot template BEFORE PlotService builds/assigns plots.
 start("WorldBuilder", WorldBuilder.Init)
 start("PlotService", PlotService.Init)
@@ -145,6 +152,8 @@ start("EvolutionService", EvolutionService.Init)
 start("BossService", BossService.Init)
 -- M9.4: set perks (binds ClaimSetPerk).
 start("SetService", SetService.Init)
+-- M13.4: bind the admin panel + report remotes + the server-side chat-mute gate.
+start("AdminService", AdminService.Init)
 -- Admin: register the allowlisted in-chat commands (hidden from chat).
 start("DevCommands", DevCommands.Init)
 
@@ -164,6 +173,14 @@ local function onPlayerAdded(player)
         return
     end
     handled[player] = true
+
+    -- M13.4: enforce BANS here, BEFORE any plot claim or profile load. A banned user is kicked with the
+    -- reason and we return -- their save is never opened, so a ban can never corrupt their data. The ban
+    -- store is global, so this enforces across every server; timed bans auto-expire (BanStore.GetBan).
+    if AdminService.EnforceBan(player) then
+        handled[player] = nil
+        return
+    end
 
     -- 1) Claim a base first (no yield) so the character has somewhere to spawn.
     local plot = PlotService.AssignPlot(player)
@@ -232,6 +249,9 @@ local function onPlayerAdded(player)
     ReferralService.SetupPlayer(player, profile)
     -- M13.3: reset the daily gift cap + apply the capped VIP perk if this is a private/VIP server.
     SocialService.SetupPlayer(player, profile)
+    -- M13.4: publish this player's filtered SafeName (every name display reads it) + their OWN admin
+    -- tier attribute (so the client knows whether to surface the admin panel; the allowlist stays server-only).
+    AdminService.SetupPlayer(player)
     -- M8.4: apply any currently-active event modifiers (idempotent) + prune stale event data.
     EventService.SetupPlayer(player, profile)
     -- M11.1: re-derive equipped perks + re-lock equipped units from the saved loadout (idempotent;
@@ -298,6 +318,8 @@ local function onPlayerRemoving(player)
     TradeService.ClearPlayer(player)
     PlotService.FreePlot(player)
     RateLimiter.clear(player)
+    -- M13.4: drop the player's session mute + report counter (a BAN is what persists, in the store).
+    AdminService.ClearPlayer(player)
     ProfileManager.ReleaseProfile(player)
 end
 

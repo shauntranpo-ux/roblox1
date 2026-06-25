@@ -205,8 +205,10 @@ function Social.refresh()
             end)
             if isFriend then
                 anyFriend = true
-                rowButton("🎁  Gift to " .. other.DisplayName, Theme.Colors.Positive, function()
-                    selectedFriend = { UserId = other.UserId, Name = other.DisplayName }
+                -- M13.4: use the server-published filtered SafeName, never the raw display name.
+                local safeName = other:GetAttribute("SafeName") or other.DisplayName
+                rowButton("🎁  Gift to " .. safeName, Theme.Colors.Positive, function()
+                    selectedFriend = { UserId = other.UserId, Name = safeName }
                     Social.refresh()
                 end)
             end

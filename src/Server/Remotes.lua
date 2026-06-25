@@ -88,6 +88,11 @@ Remotes.SocialUpdate = nil -- RemoteEvent : server -> a client, a ping that soci
 -- M11.4 seasonal exclusives. Client sends INTENT ONLY ({ Action="get"|"buy", Key? }); server gates by
 -- server-time season window + the idempotent claim set.
 Remotes.ExclusiveAction = nil -- RemoteFunction : client -> server ({ Action, Key? }) -> { Result, State?/Message }
+-- M13.4 admin/moderation. Client sends INTENT ONLY; the server re-verifies authority against the locked
+-- allowlist on EVERY command (a non-admin invoke is rejected + logged). Reports are open to all players.
+Remotes.AdminAction = nil -- RemoteFunction : admin client -> server ({ Command, ... }) -> { Result, State?/Message }
+Remotes.ReportPlayer = nil -- RemoteFunction : any client -> server ({ TargetUserId, Reason }) -> { Result, Message }
+Remotes.AdminBroadcast = nil -- RemoteEvent : server -> ALL clients, a filtered server-wide announcement { Text, From }
 
 -- Every remote name this module creates -- the SINGLE list the boot diagnostic verifies the
 -- ReplicatedStorage/Remotes surface against. Keep in sync with Init() below AND the client's
@@ -139,6 +144,9 @@ Remotes.ExpectedNames = {
     "ReferralUpdate",
     "SocialAction",
     "SocialUpdate",
+    "AdminAction",
+    "ReportPlayer",
+    "AdminBroadcast",
 }
 
 local folder = nil
@@ -335,6 +343,18 @@ function Remotes.Init()
     socialUpdate.Name = "SocialUpdate"
     socialUpdate.Parent = folder
 
+    local adminAction = Instance.new("RemoteFunction")
+    adminAction.Name = "AdminAction"
+    adminAction.Parent = folder
+
+    local reportPlayer = Instance.new("RemoteFunction")
+    reportPlayer.Name = "ReportPlayer"
+    reportPlayer.Parent = folder
+
+    local adminBroadcast = Instance.new("RemoteEvent")
+    adminBroadcast.Name = "AdminBroadcast"
+    adminBroadcast.Parent = folder
+
     folder.Parent = ReplicatedStorage
 
     Remotes.PurchaseRequest = purchase
@@ -383,6 +403,9 @@ function Remotes.Init()
     Remotes.ReferralUpdate = referralUpdate
     Remotes.SocialAction = socialAction
     Remotes.SocialUpdate = socialUpdate
+    Remotes.AdminAction = adminAction
+    Remotes.ReportPlayer = reportPlayer
+    Remotes.AdminBroadcast = adminBroadcast
 end
 
 -- Sends a toast to a single player. kind = "success" | "error" | "info". Optional `cue` is a
@@ -435,6 +458,14 @@ end
 function Remotes.PushMonetizationUpdate(player, passKey, owned)
     if Remotes.MonetizationUpdate ~= nil then
         Remotes.MonetizationUpdate:FireClient(player, { Key = passKey, Owned = owned })
+    end
+end
+
+-- Broadcasts a filtered server-wide admin announcement to EVERY client. payload = { Text, From }; the
+-- Text has ALREADY been TextService-filtered server-side (see AdminService.announce) before it gets here.
+function Remotes.BroadcastAdmin(payload)
+    if Remotes.AdminBroadcast ~= nil then
+        Remotes.AdminBroadcast:FireAllClients(payload)
     end
 end
 

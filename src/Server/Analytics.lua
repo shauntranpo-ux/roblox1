@@ -81,6 +81,11 @@ Analytics.Events = { -- custom (retention/engagement) event names
     GiftReceived = "gift_received", -- M13.3 a unit gifted (recipient side)
     FriendJoin = "friend_join", -- M13.3 a friend-join/follow intent
     VipSession = "vip_session", -- M13.3 a player session in a private/VIP server (value = 1 if owner)
+    AdminAction = "admin_action", -- M13.4 an authorized admin command ran
+    AdminDenied = "admin_denied", -- M13.4 a non-admin / under-tiered admin-command attempt (rejected)
+    AdminBan = "admin_ban", -- M13.4 a ban issued (value = minutes; 0 = permanent)
+    AdminMute = "admin_mute", -- M13.4 a mute issued (value = minutes; 0 = until unmute)
+    PlayerReport = "player_report", -- M13.4 a player-submitted report
 }
 
 Analytics.Funnel = { -- new-player onboarding funnel steps { stepNumber, stepName }

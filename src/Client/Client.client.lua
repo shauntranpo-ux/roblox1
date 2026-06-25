@@ -47,6 +47,7 @@ local QuestLog = require(UI.QuestLog)
 local FreeRewards = require(UI.FreeRewards)
 local Referral = require(UI.Referral)
 local Social = require(UI.Social)
+local Admin = require(UI.Admin)
 
 local player = Players.LocalPlayer
 
@@ -99,6 +100,9 @@ local remotes = {
     ReferralUpdate = remotesFolder:WaitForChild("ReferralUpdate"),
     SocialAction = remotesFolder:WaitForChild("SocialAction"),
     SocialUpdate = remotesFolder:WaitForChild("SocialUpdate"),
+    AdminAction = remotesFolder:WaitForChild("AdminAction"),
+    ReportPlayer = remotesFolder:WaitForChild("ReportPlayer"),
+    AdminBroadcast = remotesFolder:WaitForChild("AdminBroadcast"),
 }
 
 local context = { player = player, remotes = remotes }
@@ -218,6 +222,9 @@ end)
 safeMount("Social", function()
     Social.mount(context)
 end)
+safeMount("Admin", function()
+    Admin.mount(context)
+end)
 safeMount("Nameplates", function()
     Nameplates.mount(context)
 end)
@@ -256,6 +263,24 @@ safeMount("Menu", function()
     Menu.addButton("👥 Social", function()
         PanelManager.open("Social")
     end)
+    Menu.addButton("🚩 Report", function()
+        PanelManager.open("Report")
+    end)
+    -- M13.4: the Admin entry appears ONLY if the SERVER stamped an AdminTier on us (the allowlist is
+    -- server-side; the button means nothing -- every action is re-authorized server-side). Handles the
+    -- tier arriving a beat after the HUD builds.
+    local adminButtonAdded = false
+    local function maybeAddAdminButton()
+        if adminButtonAdded or player:GetAttribute("AdminTier") == nil then
+            return
+        end
+        adminButtonAdded = true
+        Menu.addButton("🛡 Admin", function()
+            PanelManager.open("Admin")
+        end)
+    end
+    maybeAddAdminButton()
+    player:GetAttributeChangedSignal("AdminTier"):Connect(maybeAddAdminButton)
     Menu.addButton("🎁 Exclusives", function()
         PanelManager.open("Exclusives")
     end)
@@ -318,6 +343,8 @@ safeMount("PanelManager registry", function()
     PanelManager.register("FreeRewards", FreeRewards.toggle)
     PanelManager.register("Referral", Referral.toggle)
     PanelManager.register("Social", Social.toggle)
+    PanelManager.register("Report", Admin.toggleReport)
+    PanelManager.register("Admin", Admin.toggleAdmin)
 end)
 
 -- Hide the "Hold to steal" prompt on the LOCAL player's OWN brainrots (you can't steal your
@@ -375,7 +402,8 @@ end)
 -- the thief, add a small "you stole one" cue.
 remotes.KillFeed.OnClientEvent:Connect(function(payload)
     KillFeed.show(payload)
-    if typeof(payload) == "table" and payload.Thief == player.Name then
+    -- M13.4: match "you" by userId (the names in the payload are now the filtered SafeName, not .Name).
+    if typeof(payload) == "table" and payload.ThiefUserId == player.UserId then
         Effects.playSfx("steal")
     end
 end)
@@ -410,4 +438,16 @@ remotes.BossUpdate.OnClientEvent:Connect(function(payload)
     if typeof(payload) == "table" then
         BossHud.onUpdate(payload)
     end
+end)
+
+-- M13.4 Server -> ALL clients: a filtered server-wide admin announcement. The Text was TextService-
+-- filtered server-side before broadcast; strip stray angle brackets so it can't disturb the banner's
+-- RichText, then show it on the big banner + a toast.
+remotes.AdminBroadcast.OnClientEvent:Connect(function(payload)
+    if typeof(payload) ~= "table" or type(payload.Text) ~= "string" then
+        return
+    end
+    local safe = payload.Text:gsub("[<>]", "")
+    Banner.show("📣 " .. safe, 8)
+    Notifications.show("info", "[Announcement] " .. safe)
 end)

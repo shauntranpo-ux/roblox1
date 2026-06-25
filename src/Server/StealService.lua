@@ -432,9 +432,13 @@ local function onPromptTriggered(prompt, thief)
         )
     end
     if not thiefInvisible then
+        -- M13.4: broadcast the FILTERED SafeName (never a raw user-authored name) + the userIds, so the
+        -- client can flag "you" by id instead of a brittle name-equality check.
         Remotes.BroadcastKillFeed({
-            Thief = thief.Name,
-            Victim = victim.Name,
+            Thief = thief:GetAttribute("SafeName") or thief.Name,
+            ThiefUserId = thief.UserId,
+            Victim = victim:GetAttribute("SafeName") or victim.Name,
+            VictimUserId = victim.UserId,
             Name = displayName,
             Rarity = def.Rarity,
             Mutation = entry.Mutation,
