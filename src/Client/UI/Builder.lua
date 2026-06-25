@@ -481,6 +481,75 @@ function Builder.popOpen(frame)
     TweenService:Create(frame, Theme.Tween.Open, { Size = target }):Play()
 end
 
+-- A mini DROPDOWN: a compact gloss button showing "Label: current"; clicking toggles a small option list
+-- below it. `options` = array of strings, `current` = selected string, `onPick(value)` fires on choose.
+function Builder.dropdown(props, options, current, onPick)
+    props = props or {}
+    local size = props.Size or UDim2.fromOffset(150, 34)
+    local label = props.label or "Pick"
+    local container = Builder.create("Frame", {
+        Size = size,
+        Position = props.Position,
+        LayoutOrder = props.LayoutOrder,
+        BackgroundTransparency = 1,
+        Parent = props.Parent,
+    })
+    local trigger = Builder.glossButton({
+        Size = UDim2.fromScale(1, 1),
+        color = props.color or Theme.Colors.Row,
+        Text = label .. ": " .. tostring(current),
+        maxText = 15,
+        Parent = container,
+    }, nil)
+    trigger.ZIndex = 6
+    local list = Builder.create("Frame", {
+        Position = UDim2.new(0, 0, 1, 4),
+        Size = UDim2.fromOffset(size.X.Offset, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundColor3 = Theme.Colors.Panel,
+        BorderSizePixel = 0,
+        Visible = false,
+        ZIndex = 50,
+        Parent = container,
+    }, {
+        Builder.corner(Theme.Radius.Button),
+        Builder.create(
+            "UIStroke",
+            { Color = Theme.Colors.Outline, Thickness = 2, Transparency = 0.2 }
+        ),
+        Builder.create(
+            "UIListLayout",
+            { Padding = UDim.new(0, 2), SortOrder = Enum.SortOrder.LayoutOrder }
+        ),
+        Builder.padding(4),
+    })
+    local function setOpen(o)
+        list.Visible = o
+    end
+    trigger.Activated:Connect(function()
+        setOpen(not list.Visible)
+    end)
+    for i, opt in ipairs(options) do
+        local ob = Builder.glossButton({
+            Size = UDim2.new(1, -8, 0, 30),
+            color = Theme.Colors.Row,
+            Text = tostring(opt),
+            maxText = 15,
+            LayoutOrder = i,
+            Parent = list,
+        }, nil)
+        ob.ZIndex = 51
+        ob.Activated:Connect(function()
+            trigger.Text = label .. ": " .. tostring(opt)
+            setOpen(false)
+            if onPick ~= nil then
+                onPick(opt)
+            end
+        end)
+    end
+    return container
+end
+
 -- Builds the standard centered modal panel: a translucent gradient body with a thick dark outline,
 -- a glossy accent header (icon-less title + round red X), and a styled scrolling content area.
 -- `accentKey` (optional) picks the header gradient from Theme.Accents. Returns the ScrollingFrame.
