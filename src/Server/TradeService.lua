@@ -34,6 +34,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Catalog = require(ReplicatedStorage.Shared.Catalog)
 local TradeConfig = require(ReplicatedStorage.Shared.TradeConfig)
+local UnitIncome = require(ReplicatedStorage.Shared.UnitIncome)
 
 local ProfileManager = require(script.Parent.ProfileManager)
 local PlotService = require(script.Parent.PlotService)
@@ -136,7 +137,8 @@ local function itemize(ownerProfile, offer)
                 Id = id,
                 Name = def ~= nil and def.DisplayName or unit.Type,
                 Rarity = def ~= nil and def.Rarity or "Common",
-                IncomePerSec = unit.IncomePerSec,
+                IncomePerSec = UnitIncome.effective(unit), -- mutation-aware so players can value it
+                Mutation = unit.Mutation,
             })
         end
     end
@@ -293,6 +295,11 @@ local function performSwap(session)
                 unit.PadIndex = padIndex
                 table.insert(toProfile.Data.OwnedBrainrots, unit)
                 toProfile.Data.Discovered[unit.Type] = true
+                -- The unit's Mutation field travels UNCHANGED with the moved record; the receiver
+                -- now owns it, so they discover that mutation.
+                if unit.Mutation ~= nil then
+                    toProfile.Data.MutationsDiscovered[unit.Mutation] = true
+                end
                 if toPlot ~= nil then
                     BrainrotService.SpawnBrainrot(toPlayer, toPlot, unit)
                 end

@@ -18,7 +18,6 @@
 -- ===========================================================================================
 
 local DataStoreService = game:GetService("DataStoreService")
-local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -30,6 +29,7 @@ local Benefits = require(script.Parent.Benefits)
 local PlayerStats = require(script.Parent.PlayerStats)
 local PlotService = require(script.Parent.PlotService)
 local BrainrotService = require(script.Parent.BrainrotService)
+local BrainrotFactory = require(script.Parent.BrainrotFactory)
 local ProtectionService = require(script.Parent.ProtectionService)
 local Leaderstats = require(script.Parent.Leaderstats)
 local Remotes = require(script.Parent.Remotes)
@@ -104,12 +104,8 @@ local function prepareReward(player, profile, reward)
             return nil, "Free a pad first, then redeem again."
         end
         return function()
-            local brainrot = {
-                Id = HttpService:GenerateGUID(false),
-                Type = def.Id,
-                IncomePerSec = def.IncomePerSec,
-                PadIndex = padIndex,
-            }
+            local brainrot =
+                BrainrotFactory.create(player, def, padIndex, BrainrotFactory.RollFor.Code)
             table.insert(profile.Data.OwnedBrainrots, brainrot)
             profile.Data.Discovered[def.Id] = true
             BrainrotService.SpawnBrainrot(player, plot, brainrot)

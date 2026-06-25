@@ -42,6 +42,7 @@ local ProfileManager = require(script.Parent.ProfileManager)
 local PlotService = require(script.Parent.PlotService)
 local ProtectionService = require(script.Parent.ProtectionService)
 local BrainrotService = require(script.Parent.BrainrotService)
+local BrainrotFactory = require(script.Parent.BrainrotFactory)
 local PlayerStats = require(script.Parent.PlayerStats)
 local Leaderstats = require(script.Parent.Leaderstats)
 local Remotes = require(script.Parent.Remotes)
@@ -223,12 +224,8 @@ local function prepareGrant(player, profile, grant)
             return nil -- no home for it yet; Roblox retries (incl. next session)
         end
         return function()
-            local brainrot = {
-                Id = HttpService:GenerateGUID(false),
-                Type = def.Id,
-                IncomePerSec = def.IncomePerSec,
-                PadIndex = padIndex,
-            }
+            local brainrot =
+                BrainrotFactory.create(player, def, padIndex, BrainrotFactory.RollFor.Product)
             table.insert(profile.Data.OwnedBrainrots, brainrot)
             profile.Data.Discovered[def.Id] = true
             BrainrotService.SpawnBrainrot(player, plot, brainrot)

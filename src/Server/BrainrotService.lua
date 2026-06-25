@@ -7,7 +7,6 @@
 -- server can resolve a steal authoritatively. Models are tracked PER PLAYER, KEYED BY the
 -- brainrot's unique Id, so StealService can remove/respawn exactly one unit.
 
-local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
@@ -15,6 +14,9 @@ local Catalog = require(ReplicatedStorage.Shared.Catalog)
 local Rarity = require(ReplicatedStorage.Shared.Rarity)
 local Format = require(ReplicatedStorage.Shared.Format)
 local StealConfig = require(ReplicatedStorage.Shared.StealConfig)
+local MutationConfig = require(ReplicatedStorage.Shared.MutationConfig)
+local UnitIncome = require(ReplicatedStorage.Shared.UnitIncome)
+local BrainrotFactory = require(script.Parent.BrainrotFactory)
 
 local BrainrotService = {}
 
@@ -50,9 +52,12 @@ local function mainPart(instance)
     return instance.PrimaryPart or instance:FindFirstChildWhichIsA("BasePart")
 end
 
--- Adds the rarity-colored name/income BillboardGui to a part.
-local function addInfoLabel(part, def, incomePerSec)
+-- Adds the name/income BillboardGui to a part. `unit` is an owned-unit record (IncomePerSec +
+-- optional Mutation); the label shows the EFFECTIVE income via the canonical helper and prefixes
+-- the mutation name (mutation-colored) when present.
+local function addInfoLabel(part, def, unit)
     local rarity = Rarity.Get(def.Rarity)
+    local mutation = unit.Mutation ~= nil and MutationConfig.Get(unit.Mutation) or nil
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "Info"
     billboard.Size = UDim2.fromScale(4.5, 1.6)
@@ -67,37 +72,48 @@ local function addInfoLabel(part, def, incomePerSec)
     local label = Instance.new("TextLabel")
     label.Size = UDim2.fromScale(1, 1)
     label.BackgroundTransparency = 1
-    label.TextColor3 = rarity.Color
+    label.TextColor3 = mutation ~= nil and mutation.Color or rarity.Color
     label.TextStrokeTransparency = 0.4
     label.TextScaled = true
     label.Font = Enum.Font.GothamBold
-    label.Text = def.DisplayName .. "\n+$" .. Format.short(incomePerSec) .. "/s"
+    local prefix = (mutation ~= nil and mutation.DisplayName ~= "")
+            and (mutation.DisplayName .. " ")
+        or ""
+    label.Text = prefix
+        .. def.DisplayName
+        .. "\n+$"
+        .. Format.short(UnitIncome.effective(unit))
+        .. "/s"
     label.Parent = billboard
 end
 
--- Builds the rarity-tinted placeholder visual for one on-pad brainrot.
+-- Builds the rarity-tinted (and, if mutated, mutation-styled) placeholder visual for one on-pad
+-- brainrot. A mutated unit overrides the tint + material + accent so it reads at a glance.
 local function makeBrainrotPart(def, brainrot, pad)
     local rarity = Rarity.Get(def.Rarity)
+    local mutation = brainrot.Mutation ~= nil and MutationConfig.Get(brainrot.Mutation) or nil
+    local tint = mutation ~= nil and mutation.Color or rarity.Color
 
     local part = Instance.new("Part")
     part.Name = "Brainrot_" .. brainrot.Id
     part.Anchored = true
     part.CanCollide = false
     part.Size = Vector3.new(4, 4, 4)
-    part.Material = Enum.Material.SmoothPlastic
-    part.Color = rarity.Color -- rarity tint: the tier reads from the unit's color
+    part.Material = mutation ~= nil and mutation.Material or Enum.Material.SmoothPlastic
+    part.Color = tint
     part.CFrame = placementCFrame(pad)
 
-    -- Subtle rarity accent: a colored outline + faint surface glow around the unit.
+    -- Accent outline + faint glow (mutation-colored when mutated, else rarity-colored). A mutated
+    -- unit gets a thicker, brighter accent so a Rainbow/Diamond is unmistakable.
     local box = Instance.new("SelectionBox")
     box.Adornee = part
-    box.LineThickness = 0.06
-    box.Color3 = rarity.Color
-    box.SurfaceColor3 = rarity.Color
-    box.SurfaceTransparency = 0.85
+    box.LineThickness = mutation ~= nil and 0.14 or 0.06
+    box.Color3 = tint
+    box.SurfaceColor3 = tint
+    box.SurfaceTransparency = mutation ~= nil and 0.55 or 0.85
     box.Parent = part
 
-    addInfoLabel(part, def, brainrot.IncomePerSec)
+    addInfoLabel(part, def, brainrot)
     return part
 end
 
@@ -140,7 +156,20 @@ function BrainrotService.SpawnBrainrot(player, plot, brainrot)
         instance.Name = "Brainrot_" .. brainrot.Id
         local part = mainPart(instance)
         if part ~= nil then
-            addInfoLabel(part, def, brainrot.IncomePerSec)
+            -- FORWARD-COMPAT: real art keeps its model; the mutation reads as an accent overlay +
+            -- the label below. (A richer aura/particle overlay can be added here later.)
+            addInfoLabel(part, def, brainrot)
+            local mutation = brainrot.Mutation ~= nil and MutationConfig.Get(brainrot.Mutation)
+                or nil
+            if mutation ~= nil then
+                local box = Instance.new("SelectionBox")
+                box.Adornee = part
+                box.LineThickness = 0.14
+                box.Color3 = mutation.Color
+                box.SurfaceColor3 = mutation.Color
+                box.SurfaceTransparency = 0.55
+                box.Parent = part
+            end
         end
         if instance:IsA("Model") then
             instance:PivotTo(placementCFrame(pad))
@@ -197,13 +226,14 @@ end
 -- Builds the carried model for a steal: a lightweight rarity-tinted part welded above the
 -- thief's HumanoidRootPart. Server-created so the weld replicates to every client. The weld
 -- is named "CarryWeld" so StealService can bob it. Returns the part (nil if no HRP).
-function BrainrotService.MakeCarriedModel(character, brainrotType, incomePerSec)
+function BrainrotService.MakeCarriedModel(character, unit)
     local hrp = character:FindFirstChild("HumanoidRootPart")
     if hrp == nil then
         return nil
     end
-    local def = resolveDef(brainrotType)
+    local def = resolveDef(unit.Type)
     local rarity = Rarity.Get(def.Rarity)
+    local mutation = unit.Mutation ~= nil and MutationConfig.Get(unit.Mutation) or nil
 
     local part = Instance.new("Part")
     part.Name = "CarriedBrainrot"
@@ -211,11 +241,11 @@ function BrainrotService.MakeCarriedModel(character, brainrotType, incomePerSec)
     part.CanCollide = false
     part.Massless = true -- never affect the thief's movement physics
     part.Size = Vector3.new(3, 3, 3)
-    part.Material = Enum.Material.SmoothPlastic
-    part.Color = rarity.Color
+    part.Material = mutation ~= nil and mutation.Material or Enum.Material.SmoothPlastic
+    part.Color = mutation ~= nil and mutation.Color or rarity.Color
     part.CFrame = hrp.CFrame * CFrame.new(0, 3, 0)
 
-    addInfoLabel(part, def, incomePerSec)
+    addInfoLabel(part, def, unit)
 
     local weld = Instance.new("Weld")
     weld.Name = "CarryWeld"
@@ -235,19 +265,19 @@ function BrainrotService.SetupPlayer(player, profile, plot)
     spawnedModels[player] = {}
 
     if #profile.Data.OwnedBrainrots == 0 then
+        -- The starter is a CLEAN grant (no mutation roll) via the central factory.
         local starter = Catalog.GetStarter()
-        table.insert(profile.Data.OwnedBrainrots, {
-            Id = HttpService:GenerateGUID(false),
-            Type = starter.Id,
-            IncomePerSec = starter.IncomePerSec,
-            PadIndex = 1,
-        })
+        table.insert(
+            profile.Data.OwnedBrainrots,
+            BrainrotFactory.create(player, starter, 1, BrainrotFactory.RollFor.Starter)
+        )
         -- ProfileStore auto-saves periodically and on session end; no manual save needed.
     end
 
     for _, brainrot in ipairs(profile.Data.OwnedBrainrots) do
         -- Seed discovery for existing saves too: anything currently owned counts as owned.
         profile.Data.Discovered[brainrot.Type] = true
+        BrainrotFactory.MarkDiscovered(profile, brainrot.Mutation)
         BrainrotService.SpawnBrainrot(player, plot, brainrot)
     end
 end

@@ -23,6 +23,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StealConfig = require(ReplicatedStorage.Shared.StealConfig)
 local Catalog = require(ReplicatedStorage.Shared.Catalog)
 local Rarity = require(ReplicatedStorage.Shared.Rarity)
+local MutationConfig = require(ReplicatedStorage.Shared.MutationConfig)
 
 local ProfileManager = require(script.Parent.ProfileManager)
 local PlotService = require(script.Parent.PlotService)
@@ -133,6 +134,11 @@ local function transferOwnership(steal)
     entry.PadIndex = steal.ReservedPadIndex
     table.insert(thiefProfile.Data.OwnedBrainrots, entry)
     thiefProfile.Data.Discovered[entry.Type] = true
+    -- The unit's intrinsic Mutation field moves WITH the whole record (never re-rolled); the thief
+    -- now owns it, so they discover that mutation.
+    if entry.Mutation ~= nil then
+        thiefProfile.Data.MutationsDiscovered[entry.Mutation] = true
+    end
     return entry
 end
 
@@ -301,15 +307,20 @@ local function onPromptTriggered(prompt, thief)
 
     -- Visuals: lift it off the victim's pad, weld a carried model to the thief, slow the thief.
     BrainrotService.RemoveModel(victim, brainrotId)
-    steal.CarriedModel = BrainrotService.MakeCarriedModel(character, entry.Type, entry.IncomePerSec)
+    steal.CarriedModel = BrainrotService.MakeCarriedModel(character, entry)
     applyCarryPenalty(thief, steal)
 
     -- Victim stops earning this unit immediately.
     PlayerStats.UpdateIncome(victim, victimProfile)
 
-    -- Feedback: rarity-colored victim toast + everyone-sees kill-feed banner.
+    -- Feedback: rarity-colored victim toast + everyone-sees kill-feed banner. The mutation name is
+    -- prefixed (e.g. "RAINBOW Tralalero") to amplify the drama -- the mutation travels with the unit.
     local def = defFor(entry.Type)
     local rarity = Rarity.Get(def.Rarity)
+    local mutDef = entry.Mutation ~= nil and MutationConfig.Get(entry.Mutation) or nil
+    local displayName = (
+        (mutDef ~= nil and mutDef.DisplayName ~= "") and (mutDef.DisplayName .. " ") or ""
+    ) .. def.DisplayName
     Remotes.NotifyPlayer(
         victim,
         "error",
@@ -317,15 +328,16 @@ local function onPromptTriggered(prompt, thief)
             .. ' stole your <font color="'
             .. toHex(rarity.Color)
             .. '"><b>'
-            .. def.DisplayName
+            .. displayName
             .. "</b></font>!",
         "robbed"
     )
     Remotes.BroadcastKillFeed({
         Thief = thief.Name,
         Victim = victim.Name,
-        Name = def.DisplayName,
+        Name = displayName,
         Rarity = def.Rarity,
+        Mutation = entry.Mutation,
     })
     Analytics.customOnce(victim, Analytics.Events.FirstRobbed)
 end

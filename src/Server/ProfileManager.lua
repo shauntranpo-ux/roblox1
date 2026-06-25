@@ -59,6 +59,10 @@ local PROFILE_TEMPLATE = {
     -- M8.2 TRADING: capped per-player history of completed trades (partner + what was given/received
     -- + when), for support/disputes. Trimmed to TradeConfig.MaxHistory. Reconciles as empty.
     TradeHistory = {},
+    -- M8.3 MUTATIONS: set of mutation Keys this player has ever owned (key -> true). Per-unit
+    -- Mutation lives on each OwnedBrainrots record (legacy units reconcile as nil = Normal); this
+    -- set reconciles as empty and is updated by the factory + on receiving a mutated unit.
+    MutationsDiscovered = {},
 }
 
 local Profiles = {} -- [Player] = Profile

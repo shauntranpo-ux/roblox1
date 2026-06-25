@@ -8,6 +8,10 @@
 -- income loop reads the cache every frame instead of re-summing the roster, so accrual is
 -- O(players) per frame, not O(brainrots) -- the difference at a full server with hundreds of units.
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local UnitIncome = require(ReplicatedStorage.Shared.UnitIncome)
+
 local TransitRegistry = require(script.Parent.TransitRegistry)
 local Benefits = require(script.Parent.Benefits)
 
@@ -23,7 +27,7 @@ local function computeBaseRate(profile)
     local sum = 0
     for _, brainrot in ipairs(profile.Data.OwnedBrainrots) do
         if not TransitRegistry.Has(brainrot.Id) then
-            sum += brainrot.IncomePerSec
+            sum += UnitIncome.effective(brainrot) -- canonical helper: base * mutation multiplier
         end
     end
     return sum

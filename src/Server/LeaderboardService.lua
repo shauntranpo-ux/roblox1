@@ -17,6 +17,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Monetization = require(ReplicatedStorage.Shared.Monetization)
 local Catalog = require(ReplicatedStorage.Shared.Catalog)
+local UnitIncome = require(ReplicatedStorage.Shared.UnitIncome)
 
 local ProfileManager = require(script.Parent.ProfileManager)
 local Benefits = require(script.Parent.Benefits)
@@ -33,12 +34,15 @@ local nameCache = {} -- [userId] = displayName
 
 -- Effective income = base owned income * the player's income multiplier (the 2x Cash gamepass
 -- counts on the board too). A briefly carried unit is not excluded -- negligible over a 60s tick.
+-- Effective income = Σ effective per-unit income (mutation-aware, via the canonical helper) *
+-- global multiplier * prestige. Mutation factor is per-unit (uncapped); the global multiplier is
+-- capped; prestige is the separate axis -- matching the income loop exactly.
 local function incomeValue(player, profile)
     local sum = 0
     for _, brainrot in ipairs(profile.Data.OwnedBrainrots) do
-        sum += brainrot.IncomePerSec
+        sum += UnitIncome.effective(brainrot)
     end
-    return sum * Benefits.GetIncomeMultiplier(player)
+    return sum * Benefits.GetIncomeMultiplier(player) * (profile.Data.PrestigeMultiplier or 1)
 end
 
 -- Rarest-collection metric: a single positive integer = SUM over Discovered Ids of that Id's

@@ -2,7 +2,6 @@
 -- item id; the server validates everything against its own catalog and state, and
 -- mutates only if every check passes. Nothing from the client is trusted.
 
-local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -14,6 +13,7 @@ local Analytics = require(script.Parent.Analytics)
 local ProfileManager = require(script.Parent.ProfileManager)
 local PlotService = require(script.Parent.PlotService)
 local BrainrotService = require(script.Parent.BrainrotService)
+local BrainrotFactory = require(script.Parent.BrainrotFactory)
 local ProtectionService = require(script.Parent.ProtectionService)
 local PlayerStats = require(script.Parent.PlayerStats)
 local Leaderstats = require(script.Parent.Leaderstats)
@@ -73,12 +73,9 @@ local function onPurchase(player, itemId)
         return
     end
 
-    local brainrot = {
-        Id = HttpService:GenerateGUID(false),
-        Type = item.Id,
-        IncomePerSec = item.IncomePerSec,
-        PadIndex = padIndex,
-    }
+    -- Cash purchases are THE mutation source: the factory rolls a server-side mutation.
+    local brainrot =
+        BrainrotFactory.create(player, item, padIndex, BrainrotFactory.RollFor.Purchase)
     table.insert(profile.Data.OwnedBrainrots, brainrot)
 
     -- Record the acquire for the later Index (set of roster Ids ever owned).

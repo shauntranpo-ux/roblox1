@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Catalog = require(ReplicatedStorage.Shared.Catalog)
 local TradeConfig = require(ReplicatedStorage.Shared.TradeConfig)
+local UnitIncome = require(ReplicatedStorage.Shared.UnitIncome)
 
 local Remotes = require(script.Parent.Remotes)
 local ProfileManager = require(script.Parent.ProfileManager)
@@ -37,9 +38,10 @@ local function getInventory(player)
             Id = brainrot.Id, -- unique per-unit Id (the trade picker offers by this)
             Name = def.DisplayName,
             Rarity = def.Rarity, -- rarity key; the client colors it via Shared/Rarity
-            IncomePerSec = brainrot.IncomePerSec,
+            IncomePerSec = UnitIncome.effective(brainrot), -- mutation-aware effective income
             Type = brainrot.Type,
             Tradeable = TradeConfig.IsTradeable(def),
+            Mutation = brainrot.Mutation, -- mutation key (nil = Normal)
         })
     end
     return owned

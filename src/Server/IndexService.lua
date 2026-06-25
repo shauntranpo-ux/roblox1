@@ -7,7 +7,6 @@
 -- no free pad is REFUSED and NOT recorded (no dupe/loss; retryable). The client sends only a milestone
 -- Id (intent); the server verifies it's actually completed + unclaimed.
 
-local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Catalog = require(ReplicatedStorage.Shared.Catalog)
@@ -19,6 +18,7 @@ local Benefits = require(script.Parent.Benefits)
 local PlayerStats = require(script.Parent.PlayerStats)
 local PlotService = require(script.Parent.PlotService)
 local BrainrotService = require(script.Parent.BrainrotService)
+local BrainrotFactory = require(script.Parent.BrainrotFactory)
 local ProtectionService = require(script.Parent.ProtectionService)
 local Leaderstats = require(script.Parent.Leaderstats)
 local RateLimiter = require(script.Parent.RateLimiter)
@@ -121,12 +121,8 @@ local function prepareReward(player, profile, milestoneId, reward)
             return nil, "Free a pad first, then claim."
         end
         return function()
-            local unit = {
-                Id = HttpService:GenerateGUID(false),
-                Type = def.Id,
-                IncomePerSec = def.IncomePerSec,
-                PadIndex = padIndex,
-            }
+            local unit =
+                BrainrotFactory.create(player, def, padIndex, BrainrotFactory.RollFor.Index)
             table.insert(profile.Data.OwnedBrainrots, unit)
             profile.Data.Discovered[def.Id] = true
             BrainrotService.SpawnBrainrot(player, plot, unit)
@@ -191,7 +187,16 @@ function IndexService.GetState(player)
     for id in pairs(profile.Data.ClaimedIndexRewards) do
         claimed[id] = true
     end
-    return { Discovered = discovered, Claimed = claimed, Score = collectionScore(profile) }
+    local mutations = {}
+    for key in pairs(profile.Data.MutationsDiscovered) do
+        mutations[key] = true
+    end
+    return {
+        Discovered = discovered,
+        Claimed = claimed,
+        Score = collectionScore(profile),
+        Mutations = mutations,
+    }
 end
 
 function IndexService.Init()

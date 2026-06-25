@@ -16,7 +16,6 @@
 --   once; the prestige multiplier is RE-DERIVED from the count (idempotent), never accumulated.
 -- ===========================================================================================
 
-local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local RebirthConfig = require(ReplicatedStorage.Shared.RebirthConfig)
@@ -25,6 +24,7 @@ local Catalog = require(ReplicatedStorage.Shared.Catalog)
 local ProfileManager = require(script.Parent.ProfileManager)
 local PlotService = require(script.Parent.PlotService)
 local BrainrotService = require(script.Parent.BrainrotService)
+local BrainrotFactory = require(script.Parent.BrainrotFactory)
 local PlayerStats = require(script.Parent.PlayerStats)
 local Leaderstats = require(script.Parent.Leaderstats)
 local ProtectionService = require(script.Parent.ProtectionService)
@@ -81,12 +81,8 @@ local function commitRebirth(player, profile)
         local plot = PlotService.GetPlot(player)
         if padIndex ~= nil and plot ~= nil then
             local starter = Catalog.GetStarter()
-            local unit = {
-                Id = HttpService:GenerateGUID(false),
-                Type = starter.Id,
-                IncomePerSec = starter.IncomePerSec,
-                PadIndex = padIndex,
-            }
+            local unit =
+                BrainrotFactory.create(player, starter, padIndex, BrainrotFactory.RollFor.Starter)
             table.insert(profile.Data.OwnedBrainrots, unit)
             profile.Data.Discovered[starter.Id] = true
             BrainrotService.SpawnBrainrot(player, plot, unit)

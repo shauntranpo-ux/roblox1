@@ -68,6 +68,27 @@ function Benefits.GetStealCooldownMult(player)
     return s ~= nil and s.StealCooldownMult or 1
 end
 
+-- M8.3 MUTATION-LUCK HOOK: a per-player luck multiplier (default 1.0) the mutation roll respects.
+-- Keyed sources (product, like income) so a future "Lucky" pass / code boost can feed it without
+-- touching the roll. Nothing feeds it this milestone -- rolls run at base odds.
+function Benefits.SetLuckSource(player, sourceKey, mult)
+    local s = ensure(player)
+    s.LuckSources = s.LuckSources or {}
+    s.LuckSources[sourceKey] = mult
+end
+
+function Benefits.GetLuckMultiplier(player)
+    local s = state[player]
+    if s == nil or s.LuckSources == nil then
+        return 1
+    end
+    local product = 1
+    for _, mult in pairs(s.LuckSources) do
+        product *= mult
+    end
+    return product
+end
+
 -- Drops all benefit state for a leaving player.
 function Benefits.ClearPlayer(player)
     state[player] = nil

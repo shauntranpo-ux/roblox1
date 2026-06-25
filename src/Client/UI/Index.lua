@@ -14,6 +14,7 @@ local Format = require(Shared:WaitForChild("Format"))
 local Catalog = require(Shared:WaitForChild("Catalog"))
 local Rarity = require(Shared:WaitForChild("Rarity"))
 local IndexConfig = require(Shared:WaitForChild("IndexConfig"))
+local MutationConfig = require(Shared:WaitForChild("MutationConfig"))
 
 local Index = {}
 
@@ -221,6 +222,31 @@ function Index.refresh()
     header("Milestones", nextOrder())
     for _, milestone in ipairs(IndexConfig.Milestones) do
         milestoneRow(milestone, state, nextOrder())
+    end
+
+    -- Mutations discovery strip (compact -- NOT a full species x mutation grid).
+    local mutations = state.Mutations or {}
+    header("Mutations", nextOrder())
+    for _, m in ipairs(MutationConfig.Mutations) do
+        if m.Key ~= "normal" then
+            local has = mutations[m.Key] == true
+            Builder.create("TextLabel", {
+                Size = UDim2.new(1, 0, 0, 26),
+                BackgroundTransparency = 1,
+                Font = Theme.FontBold,
+                Text = string.format(
+                    "%s (x%d)  %s",
+                    m.DisplayName,
+                    m.IncomeMultiplier,
+                    has and "owned" or "locked"
+                ),
+                TextColor3 = has and m.Color or Theme.Colors.Disabled,
+                TextSize = 15,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                LayoutOrder = nextOrder(),
+                Parent = list,
+            })
+        end
     end
 
     -- Each rarity tier: a header with its found/total, then that tier's roster rows beneath it.
