@@ -94,7 +94,7 @@ local function buildRow(item, order, parent)
         Position = UDim2.fromOffset(68, 4),
         Size = UDim2.new(1, -232, 0, 28),
         Text = item.DisplayName,
-        TextColor3 = Theme.Colors.Text,
+        TextColor3 = Theme.Colors.Ink,
         TextSize = 20,
         TextScaled = false,
         TextTruncate = Enum.TextTruncate.AtEnd,
@@ -158,7 +158,7 @@ local function buildRobuxRow(entry, kind, parent)
         Size = UDim2.new(1, -150, 0, 26),
         Font = Theme.FontBold,
         Text = def.Name,
-        TextColor3 = Theme.Colors.Text,
+        TextColor3 = Theme.Colors.Ink,
         TextSize = 20,
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = row,
@@ -171,7 +171,7 @@ local function buildRobuxRow(entry, kind, parent)
         Size = UDim2.new(1, -150, 0, 52),
         Font = Theme.Font,
         Text = def.Description,
-        TextColor3 = Theme.Colors.SubText,
+        TextColor3 = Theme.Colors.InkSoft,
         TextSize = 15,
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -211,7 +211,7 @@ local function buildPlaceholder(parent, text)
         BackgroundTransparency = 1,
         Font = Theme.Font,
         Text = text,
-        TextColor3 = Theme.Colors.SubText,
+        TextColor3 = Theme.Colors.InkSoft,
         TextSize = 16,
         TextWrapped = true,
         Parent = parent,
@@ -269,15 +269,15 @@ local function buildShell()
         BorderSizePixel = 0,
     }, {
         Builder.corner(Theme.Radius.Panel),
-        Builder.create("UIStroke", {
-            Color = Theme.Colors.Outline,
+        Builder.create("UIStroke", { -- soft accent glow rim
+            Color = Theme.accentColor("Shop"),
             Thickness = Theme.Stroke.Width,
-            Transparency = 0.2,
+            Transparency = 0.1,
         }),
         Builder.create("UISizeConstraint", { MaxSize = Vector2.new(520, 720) }),
-        Builder.create("UIGradient", {
+        Builder.create("UIGradient", { -- bright gloss top -> soft cloud body
             Rotation = 90,
-            Color = ColorSequence.new(Color3.fromRGB(58, 36, 100), Theme.Colors.Background),
+            Color = ColorSequence.new(Theme.Colors.CloudTop, Theme.Colors.Cloud),
         }),
     })
     panel:SetAttribute("Glassed", true) -- PanelManager.applyGlass skips it (no double styling)

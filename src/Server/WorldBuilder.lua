@@ -128,12 +128,15 @@ local function worldSign(parent, pos, text, boardColor)
     -- Board dimensions
     local boardW, boardH = 22, 9
     local boardY = pos.Y + 16 -- board centre height above world origin
+    -- Soft PASTEL accent board (was a garish fully-saturated slab) -> cohesive cream-accent sign; the
+    -- white Fredoka text + dark stroke reads on it, the wood frame + posts stay warm.
+    local boardCol = (boardColor or P.RedTrim):Lerp(P.Plaster, 0.5)
 
     -- Solid backing board (the coloured face)
     local board = part({
         Size = Vector3.new(boardW, boardH, 1),
         Position = Vector3.new(pos.X, boardY, pos.Z),
-        Color = boardColor or P.RedTrim,
+        Color = boardCol,
     }, parent)
 
     -- 4 thin P.Beam frame strips around the board face (slightly proud of the board front)
@@ -772,7 +775,7 @@ local function buildPlotTemplate()
     part({
         Size = Vector3.new(46, 1, 36),
         Position = Vector3.new(0, -1.5, 0),
-        Color = Color3.fromRGB(38, 41, 54),
+        Color = Color3.fromRGB(78, 74, 100), -- softer seam-hider (was near-black 38,41,54)
     }, model)
 
     -- GRID-FIT pads inside the base (40 x 30) so brainrots never overflow, however many unlock. ALL pads
@@ -823,10 +826,11 @@ local function buildPlotTemplate()
         Size = Vector3.new(46, 1, 1.2),
         Position = Vector3.new(0, 17, 9),
         Color = P.ShieldRim,
-        Glow = true, -- intentional accent: the shield-wall rim stays a subtle glow
+        -- Glow OFF: a clean solid bright-cyan rim instead of the blown-out neon strip (no white-out).
+        Glow = false,
         CanCollide = false,
     }, model)
-    rim.Transparency = 0.35
+    rim.Transparency = 0.15
 
     local barAnchor = part({
         Size = Vector3.new(1, 1, 1),
@@ -970,6 +974,138 @@ local function platformProps(folder, cfg)
             CanCollide = false,
         }, folder)
         emitter(glow, Color3.fromRGB(120, 235, 255), 18, 1.2)
+    end
+end
+
+-- ── SUNNY MEADOW foliage: lush, CAPPED cover (tall grass, bushes, hedge rows, voxel tree clusters,
+-- rocks) so the first biome feels alive AND gives wild brainrots places to roam + hide. Grass/bushes/
+-- hedges are CanCollide=false (walk-through cover -> the spawn area stays walkable); tree clusters +
+-- rocks collide but AVOID the spawn cone so spawns still land on valid ground. Tune density in
+-- WorldConfig.MeadowFoliage. Anchored + deterministic (seeded rng); re-running Init reproduces it.
+local function meadowFoliage(folder, cfg)
+    local F = WorldConfig.MeadowFoliage
+    local y = cfg.Y
+    local rad = cfg.Radius
+    local innerR = F.InnerRadius
+    local spawnA = math.rad(90)
+    local arenaA = math.rad(270)
+    local elevA = math.rad(WorldConfig.Levels.ElevatorAngleDeg)
+    local elevR = WorldConfig.Levels.ElevatorRadius
+
+    local function angDiff(x, ref)
+        local d = (x - ref) % (math.pi * 2)
+        if d > math.pi then
+            d = d - math.pi * 2
+        end
+        return math.abs(d)
+    end
+    -- COLLIDING props (trees/rocks) keep clear of the spawn cone, boss arena, and the elevator car so
+    -- spawns + traversal stay clean. Non-colliding cover (grass/bushes/hedges) ignores this.
+    local function blockedForColliders(a, r)
+        if angDiff(a, spawnA) < math.rad(14) then
+            return true
+        end
+        if angDiff(a, arenaA) < math.rad(34) then
+            return true
+        end
+        if angDiff(a, elevA) < math.rad(20) then
+            return true
+        end
+        local ex, ez = math.cos(elevA) * elevR, math.sin(elevA) * elevR
+        local px, pz = math.cos(a) * r, math.sin(a) * r
+        return (px - ex) ^ 2 + (pz - ez) ^ 2 < 40 ^ 2
+    end
+    -- A polar point in the meadow ring [innerR, rad-12]; `towardSpawn` biases it to the spawn side.
+    local function pick(towardSpawn)
+        local a = towardSpawn and (spawnA + rng:NextNumber(-math.rad(60), math.rad(60)))
+            or rng:NextNumber(0, math.pi * 2)
+        local r = rng:NextNumber(innerR, rad - 12)
+        return a, r, Vector3.new(math.cos(a) * r, y, math.sin(a) * r)
+    end
+
+    -- (a) Tall grass tufts: cheap non-colliding green blades; dense cover including near the spawn.
+    for i = 1, F.GrassTufts do
+        local _, _, pos = pick(i % 2 == 0)
+        local h = rng:NextNumber(3, 6)
+        part({
+            Size = Vector3.new(rng:NextNumber(1.5, 3), h, rng:NextNumber(1.5, 3)),
+            Position = pos + Vector3.new(0, h / 2, 0),
+            Color = P.Grass:Lerp(Color3.fromRGB(184, 226, 120), rng:NextNumber(0, 0.5)),
+            Material = Enum.Material.Grass,
+            CanCollide = false,
+        }, folder)
+    end
+
+    -- (b) Bushes: rounded non-colliding cover to hide near/behind (walk-through; 2 cubes each).
+    for i = 1, F.Bushes do
+        local _, _, pos = pick(i % 2 == 0)
+        local base = P.Grass:Lerp(Color3.fromRGB(80, 152, 72), 0.3)
+        part({
+            Size = Vector3.new(5, 3.5, 5),
+            Position = pos + Vector3.new(0, 1.75, 0),
+            Color = base,
+            Material = Enum.Material.Grass,
+            CanCollide = false,
+        }, folder)
+        part({
+            Size = Vector3.new(3.5, 2.5, 3.5),
+            Position = pos + Vector3.new(rng:NextNumber(-1.5, 1.5), 3.4, rng:NextNumber(-1.5, 1.5)),
+            Color = base:Lerp(Color3.new(0, 0, 0), 0.1),
+            Material = Enum.Material.Grass,
+            CanCollide = false,
+        }, folder)
+    end
+
+    -- (c) Hedge rows: low non-colliding green walls (tangent to the ring) -- cover lines to weave around.
+    for _ = 1, F.Hedges do
+        local a, _, pos = pick(false)
+        local seg = math.floor(rng:NextNumber(3, 5))
+        local dirA = a + math.rad(90)
+        for s = 0, seg - 1 do
+            local off = (s - (seg - 1) / 2) * 5
+            part({
+                Size = Vector3.new(5, 5, 3),
+                Position = pos + Vector3.new(math.cos(dirA) * off, 2.5, math.sin(dirA) * off),
+                Color = P.Grass:Lerp(Color3.fromRGB(60, 132, 60), 0.4),
+                Material = Enum.Material.Grass,
+                CanCollide = false,
+            }, folder)
+        end
+    end
+
+    -- (d) Voxel tree CLUSTERS (small forests): colliding landmarks; skip the spawn cone/arena/elevator.
+    local clusters = 0
+    for _ = 1, F.TreeClusters * 3 do
+        if clusters >= F.TreeClusters then
+            break
+        end
+        local a, r, pos = pick(false)
+        if not blockedForColliders(a, r) then
+            for _ = 1, math.floor(rng:NextNumber(2, 4)) do
+                local off = Vector3.new(rng:NextNumber(-7, 7), 0, rng:NextNumber(-7, 7))
+                tree(folder, pos + off, P.Wood, P.Grass:Lerp(Color3.fromRGB(122, 202, 92), 0.4))
+            end
+            clusters += 1
+        end
+    end
+
+    -- (e) Mossy rocks: colliding accents; skip the spawn cone/arena/elevator.
+    local rocks = 0
+    for _ = 1, F.Rocks * 2 do
+        if rocks >= F.Rocks then
+            break
+        end
+        local a, r, pos = pick(false)
+        if not blockedForColliders(a, r) then
+            local s = rng:NextNumber(4, 9)
+            part({
+                Size = Vector3.new(s, s * 0.7, s),
+                Position = pos + Vector3.new(0, s * 0.35, 0),
+                Color = P.Stone:Lerp(P.Grass, 0.2),
+                Material = Enum.Material.Slate,
+            }, folder)
+            rocks += 1
+        end
     end
 end
 
@@ -1201,6 +1337,11 @@ local function buildPlatform(folder, cfg)
     if cfg.Tier > 1 then
         platformProps(folder, cfg) -- level 1 = the hub; upper levels get the biome flavor scatter
         buildElevatorCar(folder, cfg.Y)
+    end
+    -- The first biome (the meadow) skips the generic platformProps, so give it richer CAPPED foliage
+    -- cover (forests/bushes/grass/hedges/rocks) for the wild brainrots to roam + hide in.
+    if cfg.Style == "meadow" then
+        meadowFoliage(folder, cfg)
     end
     -- TERRAIN FIX: add blocky elevation + color-jittered ground to every platform (levels 1..N).
     -- On level 1 the centre guard (clearR=62) naturally keeps hills away from the hub/plot ring.

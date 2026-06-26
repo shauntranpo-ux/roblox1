@@ -49,7 +49,7 @@ local function label(text, color, size, bold)
         BackgroundTransparency = 1,
         Font = bold and Theme.FontBold or Theme.Font,
         Text = text,
-        TextColor3 = color or Theme.Colors.Text,
+        TextColor3 = color or Theme.Colors.Ink,
         TextSize = 15,
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -83,7 +83,7 @@ function Events.refresh()
     clear()
     order = 0
     if not ok or type(state) ~= "table" or #state.Active == 0 then
-        label("No active events right now. Check back soon!", Theme.Colors.SubText)
+        label("No active events right now. Check back soon!", Theme.Colors.InkSoft)
         return
     end
 
@@ -94,7 +94,7 @@ function Events.refresh()
                 )))
             or "ENDED (claim window)"
         label(event.Name .. "  —  " .. countdown, Theme.Colors.Accent, 28, true)
-        label(event.Description, Theme.Colors.SubText)
+        label(event.Description, Theme.Colors.InkSoft)
         if event.CurrencyName ~= nil then
             label(
                 event.CurrencyName .. ": " .. Format.short(event.Currency),
@@ -114,10 +114,10 @@ function Events.refresh()
                     Format.short(prog),
                     Format.short(quest.Target)
                 ),
-                done and Theme.Colors.Positive or Theme.Colors.Text
+                done and Theme.Colors.Positive or Theme.Colors.Ink
             )
             if event.Claimed[quest.Id] then
-                label("  ✓ claimed", Theme.Colors.SubText)
+                label("  ✓ claimed", Theme.Colors.InkSoft)
             elseif done then
                 local key, objId = event.Key, quest.Id
                 actionButton("Claim reward", function()

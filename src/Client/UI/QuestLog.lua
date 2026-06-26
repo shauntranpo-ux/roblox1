@@ -208,7 +208,7 @@ function QuestLog.refresh()
             BackgroundTransparency = 1,
             Font = Theme.FontBody,
             Text = "Nothing here right now.",
-            TextColor3 = Theme.Colors.SubText,
+            TextColor3 = Theme.Colors.InkSoft,
             TextSize = 15,
             LayoutOrder = nextOrder(),
             Parent = list,
