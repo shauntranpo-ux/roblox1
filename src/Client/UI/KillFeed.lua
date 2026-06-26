@@ -72,32 +72,37 @@ function KillFeed.show(payload)
         tostring(payload.Victim)
     )
 
+    -- Soft DARK bubble (over the world -> white-fill text recipe + rarity glow rim). DarkPill, not the
+    -- now-light Theme.Colors.Panel (which would make white text invisible).
+    local feedLabel = Builder.create("TextLabel", {
+        BackgroundTransparency = 1,
+        Size = UDim2.fromScale(1, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        Font = Theme.Font,
+        RichText = true,
+        Text = text,
+        TextColor3 = Theme.Colors.Text,
+        TextSize = 16,
+        TextWrapped = true,
+        TextXAlignment = Enum.TextXAlignment.Center,
+    })
+    Builder.styleText(feedLabel, { keepColor = true })
+
     local banner = Builder.create("Frame", {
-        BackgroundColor3 = Theme.Colors.Panel,
+        BackgroundColor3 = Theme.Colors.DarkPill,
         BackgroundTransparency = 1,
         Size = UDim2.fromScale(1, 0),
         AutomaticSize = Enum.AutomaticSize.Y,
         BorderSizePixel = 0,
     }, {
-        Builder.corner(UDim.new(0, 10)),
+        Builder.corner(Theme.Radius.Card),
         Builder.padding(10),
-        Builder.create("UIStroke", { Color = rarity.Color, Thickness = 1.5, Transparency = 0.2 }),
-        Builder.create("TextLabel", {
-            BackgroundTransparency = 1,
-            Size = UDim2.fromScale(1, 0),
-            AutomaticSize = Enum.AutomaticSize.Y,
-            Font = Theme.Font,
-            RichText = true,
-            Text = text,
-            TextColor3 = Theme.Colors.Text,
-            TextSize = 16,
-            TextWrapped = true,
-            TextXAlignment = Enum.TextXAlignment.Center,
-        }),
+        Builder.create("UIStroke", { Color = rarity.Color, Thickness = 2, Transparency = 0.2 }),
+        feedLabel,
     })
     banner.Parent = container
 
-    TweenService:Create(banner, TweenInfo.new(0.2), { BackgroundTransparency = 0.1 }):Play()
+    TweenService:Create(banner, TweenInfo.new(0.2), { BackgroundTransparency = 0.08 }):Play()
 
     task.delay(5, function()
         if banner.Parent == nil then
