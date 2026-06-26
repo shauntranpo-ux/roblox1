@@ -411,21 +411,21 @@ local function buildStructure(folder, pos, tagName, label, accent)
             Color = P.Beam,
             Material = Enum.Material.Wood,
         }, folder)
-        -- 4 corner posts
+        -- 4 corner posts (bottom at y=6.5 = tier-3 pedestal top; centre = 6.5 + 8 = 14.5)
         for _, sx in ipairs({ -1, 1 }) do
             for _, sz in ipairs({ -1, 1 }) do
                 part({
                     Size = Vector3.new(1.5, 16, 1.5),
-                    Position = pos + Vector3.new(sx * 6.5, 13, sz * 6),
+                    Position = pos + Vector3.new(sx * 6.5, 14.5, sz * 6),
                     Color = P.Beam,
                     Material = Enum.Material.Wood,
                 }, folder)
             end
         end
-        -- PEAKED canopy: two sloped slabs meeting at a ridge above the posts
+        -- PEAKED canopy: two sloped slabs meeting at a ridge above the posts (posts top at 22.5)
         -- Left half slopes up-right; right half slopes up-left (mirrored via CFrame.Angles)
         for _, sx in ipairs({ -1, 1 }) do
-            local slopeCF = CFrame.new(pos + Vector3.new(sx * 3.5, 22, 0))
+            local slopeCF = CFrame.new(pos + Vector3.new(sx * 3.5, 23.5, 0))
                 * CFrame.Angles(0, 0, sx * math.rad(25))
             part({
                 Size = Vector3.new(8, 1.2, 15),
@@ -437,26 +437,26 @@ local function buildStructure(folder, pos, tagName, label, accent)
         -- Plaster stripe along the canopy front eave
         part({
             Size = Vector3.new(15, 1, 2),
-            Position = pos + Vector3.new(0, 19.5, 7.2),
+            Position = pos + Vector3.new(0, 21, 7.2),
             Color = P.Plaster,
             Material = Enum.Material.Fabric,
         }, folder)
         -- Back shelf board
         part({
             Size = Vector3.new(13, 1, 4),
-            Position = pos + Vector3.new(0, 13, -5.5),
+            Position = pos + Vector3.new(0, 14.5, -5.5),
             Color = P.Beam,
             Material = Enum.Material.Wood,
         }, folder)
         -- Hanging product cube on the shelf
         part({
             Size = Vector3.new(3.5, 3.5, 3.5),
-            Position = pos + Vector3.new(0, 15.5, -5.5),
+            Position = pos + Vector3.new(0, 17, -5.5),
             Color = P.Gold,
         }, folder)
         -- Small framed wood plaque mounted on the canopy front (replaces the giant floating sign).
         -- Frame: a flat P.Beam board slightly proud of the canopy front face
-        local plaquePos = pos + Vector3.new(0, 21, 7.6)
+        local plaquePos = pos + Vector3.new(0, 22.5, 7.6)
         local plaqueBoard = part({
             Size = Vector3.new(10, 3.5, 0.6),
             Position = plaquePos,
@@ -598,23 +598,23 @@ end
 local function buildBaseEnclosure(folder, center, face)
     local W, D, H = 54, 46, 15
     local cf = CFrame.new(center) * (face - face.Position)
-    -- raised warm-stone floor
+    -- raised warm-stone floor (top at y=1 so pads sit ON it, not clipped through)
     part({
         Size = Vector3.new(W, 2, D),
-        CFrame = cf * CFrame.new(0, 1, 0),
+        CFrame = cf * CFrame.new(0, 0, 0),
         Color = P.Stone,
         Material = Enum.Material.Slate,
     }, folder)
-    -- cream plaster back + side walls
+    -- cream plaster back + side walls (floor top now y=1; wall centres shifted down by 1 to sit on floor)
     part({
         Size = Vector3.new(W, H, 1.5),
-        CFrame = cf * CFrame.new(0, H / 2 + 2, -D / 2),
+        CFrame = cf * CFrame.new(0, H / 2 + 1, -D / 2),
         Color = P.Plaster,
     }, folder)
     for _, sx in ipairs({ -1, 1 }) do
         part({
             Size = Vector3.new(1.5, H, D),
-            CFrame = cf * CFrame.new(sx * W / 2, H / 2 + 2, 0),
+            CFrame = cf * CFrame.new(sx * W / 2, H / 2 + 1, 0),
             Color = P.Plaster,
         }, folder)
     end
@@ -624,23 +624,23 @@ local function buildBaseEnclosure(folder, center, face)
     for _, sx in ipairs({ -1, 1 }) do
         part({
             Size = Vector3.new(segW, H * 0.55, 1.5),
-            CFrame = cf * CFrame.new(sx * (doorHalf + segW / 2), H * 0.275 + 2, D / 2),
+            CFrame = cf * CFrame.new(sx * (doorHalf + segW / 2), H * 0.275 + 1, D / 2),
             Color = P.Plaster,
         }, folder)
     end
-    -- wood corner beams (the cottage frame)
+    -- wood corner beams (the cottage frame; bottom at y=1 matching the floor top)
     for _, sx in ipairs({ -1, 1 }) do
         for _, sz in ipairs({ -1, 1 }) do
             part({
                 Size = Vector3.new(2.5, H + 5, 2.5),
-                CFrame = cf * CFrame.new(sx * W / 2, (H + 5) / 2 + 2, sz * D / 2),
+                CFrame = cf * CFrame.new(sx * W / 2, (H + 5) / 2 + 1, sz * D / 2),
                 Color = P.Beam,
                 Material = Enum.Material.Wood,
             }, folder)
         end
     end
     -- clay EAVE trim around the open top (a thin perimeter lip; center stays open)
-    local eaveY = H + 3
+    local eaveY = H + 2
     part({
         Size = Vector3.new(W + 4, 2, 3),
         CFrame = cf * CFrame.new(0, eaveY, -D / 2),
@@ -664,7 +664,7 @@ local function buildBaseEnclosure(folder, center, face)
     -- a warm doorway header banner (no glow)
     part({
         Size = Vector3.new(doorHalf * 2 + 4, 3, 2),
-        CFrame = cf * CFrame.new(0, H * 0.55 + 4, D / 2),
+        CFrame = cf * CFrame.new(0, H * 0.55 + 3, D / 2),
         Color = P.Roof,
     }, folder)
 end
@@ -741,6 +741,7 @@ local function buildPlotTemplate()
         local row = math.floor((i - 1) / cols)
         local x = (col - (cols - 1) / 2) * cell
         local z = -2 - (row - (rows - 1) / 2) * cell
+        -- Pads: Size y=1, centre y=1.5 -> bottom y=1 = sits ON the enclosure floor whose top is y=1
         local pad = part({
             Size = Vector3.new(6, 1, 6),
             Position = Vector3.new(x, 1.5, z),
