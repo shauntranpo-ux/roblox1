@@ -457,8 +457,11 @@ function LeaderboardBillboards.Init()
 
     local template = getTemplate()
     local boards = LeaderboardService.GetBoardList()
+    -- Center the (#boards + 1 Season) stands as a tidy GROUNDED row on the plaza (was scattered out
+    -- past the courtyard edge onto the meadow / the new foliage ring). Stands fan out from `base`.
+    local base = Vector3.new(-(#boards * STAND_SPACING) / 2, FIRST_STAND.Y, FIRST_STAND.Z)
     for index, board in ipairs(boards) do
-        local basePosition = FIRST_STAND + Vector3.new((index - 1) * STAND_SPACING, 0, 0)
+        local basePosition = base + Vector3.new((index - 1) * STAND_SPACING, 0, 0)
         local boardKey = board.Key
         local update
         if template ~= nil then
@@ -475,7 +478,7 @@ function LeaderboardBillboards.Init()
     end
 
     -- M8.5: a 4th stand for the CURRENT SEASON board (reads SeasonService's cached top-N).
-    local seasonPos = FIRST_STAND + Vector3.new(#boards * STAND_SPACING, 0, 0)
+    local seasonPos = base + Vector3.new(#boards * STAND_SPACING, 0, 0)
     local seasonBoard = { Key = "Season", Title = "Top Season" }
     local seasonUpdate = template ~= nil and buildTemplateStand(template, seasonBoard, seasonPos)
         or buildGeneratedStand(seasonBoard, seasonPos)
