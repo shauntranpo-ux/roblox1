@@ -33,7 +33,7 @@ WorldConfig.Palette = {
     ShieldRim = rgb(168, 214, 230), -- soft cyan rim (was pure white)
     Gold = rgb(236, 196, 104), -- warm honey gold (was neon #FFC107)
     HubStone = rgb(198, 192, 178), -- warm light stone (was near-white #E1E8F0)
-    PlotBase = rgb(62, 60, 76),
+    PlotBase = rgb(104, 100, 132), -- soft slate-lavender (was harsh near-black 62,60,76) -- softer base + leaderboard slabs
     Wood = rgb(120, 86, 58),
     Grape = rgb(150, 120, 205), -- soft purple tying world accents to the UI theme
 }
@@ -82,8 +82,22 @@ WorldConfig.Terrain = {
     RockCount = 10, -- scattered blocky rocks per biome
     ClearRadius = 62, -- keep this radius around the biome center (spawn) + the arena FLAT
     ColorJitter = 14, -- +/- RGB jitter so surfaces aren't one dead-flat color
-    PlotPadColor = rgb(70, 76, 96), -- the clean raised level platform under each base
+    PlotPadColor = rgb(150, 146, 170), -- soft slate-lavender pad under each base (was dark slab 70,76,96)
     PlotPadInset = 8, -- the platform extends this far past the plot footprint (a clean margin)
+}
+
+-- ── SUNNY MEADOW foliage (TUNE DENSITY HERE) ──────────────────────────────────────────────────
+-- The first biome (the meadow) is the showcase; tier 1 skips the generic platformProps, so it gets
+-- this richer, capped cover instead: tall grass + bushes + hedges + voxel tree clusters + rocks, giving
+-- wild brainrots places to roam + hide. Grass/bushes/hedges are CanCollide=false (walk-through cover, so
+-- the spawn area stays walkable); tree clusters + rocks collide but avoid the spawn cone. Capped for perf.
+WorldConfig.MeadowFoliage = {
+    InnerRadius = 150, -- foliage starts just OUTSIDE the base plot ring (keeps the plaza/bases clear)
+    GrassTufts = 54, -- cheap non-colliding tall-grass blades (dense ground cover, incl. near spawn)
+    Bushes = 24, -- rounded non-colliding bushes (cover to hide near/behind)
+    Hedges = 6, -- low non-colliding hedge rows (cover lines to weave around)
+    TreeClusters = 8, -- small voxel "forests" (2-4 trees each), colliding, away from the spawn cone
+    Rocks = 8, -- mossy colliding rocks (accents), away from the spawn cone
 }
 -- ── STACKED-LEVEL LAYOUT (a vertical TOWER: bases on the bottom 'start' platform; each biome a floating
 -- disc platform stacked ABOVE the previous with a big height gap; ride the ELEVATOR up to the next level.

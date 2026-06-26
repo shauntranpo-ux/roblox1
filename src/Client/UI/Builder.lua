@@ -219,15 +219,15 @@ function Builder.pillTab(parent, text, order, onClick)
         AutoButtonColor = false,
         Font = Theme.FontDisplay,
         Text = "  " .. text .. "  ",
-        TextColor3 = Theme.Colors.SubText,
+        TextColor3 = Theme.Colors.InkSoft, -- readable on the light pill / cloud body
         TextSize = 18,
         Parent = parent,
     }, {
         Builder.corner(Theme.Radius.Pill),
         Builder.create("UIStroke", {
-            Color = Theme.Colors.Outline,
+            Color = Theme.Colors.Accent,
             Thickness = 2,
-            Transparency = 0.3,
+            Transparency = 0.55, -- soft accent rim instead of a hard dark border
         }),
     })
     if onClick ~= nil then
@@ -239,8 +239,9 @@ end
 -- Sets a pill tab's selected look (accent-filled vs muted).
 function Builder.setPillSelected(tab, accentKey, selected)
     tab.BackgroundColor3 = selected and Theme.accentColor(accentKey) or Theme.Colors.Row
-    tab.BackgroundTransparency = selected and 0 or 0.25
-    tab.TextColor3 = selected and Theme.Colors.Text or Theme.Colors.SubText
+    tab.BackgroundTransparency = selected and 0 or 0.15
+    -- selected: white on the bright accent; idle: ink on the soft periwinkle pill.
+    tab.TextColor3 = selected and Theme.Colors.Text or Theme.Colors.InkSoft
 end
 
 -- Adds a rarity-colored border + translucent rounded card look to an existing frame (once).
@@ -249,7 +250,7 @@ function Builder.rarityCard(frame, rarityColor)
         return frame
     end
     frame:SetAttribute("Carded", true)
-    frame.BackgroundColor3 = Theme.Colors.Row
+    frame.BackgroundColor3 = Theme.Colors.Card -- near-white card on the light cloud body
     frame.BackgroundTransparency = Theme.RowTransparency
     if frame:FindFirstChildOfClass("UICorner") == nil then
         Builder.corner(Theme.Radius.Card).Parent = frame
@@ -273,7 +274,8 @@ end
 -- black rim + shadow.
 function Builder.styleText(label, opts)
     opts = opts or {}
-    local s = Theme.TextStyle
+    -- ink = true -> dark indigo fill + soft light halo, for LIGHT panel interiors (item names/values).
+    local s = opts.ink == true and Theme.TextStyleInk or Theme.TextStyle
     label.Font = opts.font or s.Font
     if opts.keepColor ~= true then
         label.TextColor3 = opts.color or s.Fill
@@ -377,68 +379,11 @@ function Builder.pill(props)
     })
 end
 
--- A glossy gradient STAT BAR (HP green / XP cyan) with a centered label. Returns (frame, set) where
--- set(cur, max, text) clamps to [0,max], tweens the fill, and sets the centered text.
+-- A glossy gradient STAT BAR (HP green / XP cyan). Back-compat alias that routes through the single
+-- Builder.progressBar (so HP/XP/catch/boss bars all share the animated fill + gloss sweep). Returns
+-- (frame, set) where set(cur, max, text) clamps, tweens the fill, and sets the centered text.
 function Builder.statBar(props)
-    props = props or {}
-    local fillTop = props.fillTop or Theme.Colors.HpFill
-    local fillBottom = props.fillBottom or Theme.Colors.HpFillDark
-    local bg = Builder.create("Frame", {
-        Size = props.Size or UDim2.fromOffset(160, 22),
-        Position = props.Position,
-        AnchorPoint = props.AnchorPoint,
-        LayoutOrder = props.LayoutOrder,
-        BackgroundColor3 = Theme.Colors.DarkPill,
-        BackgroundTransparency = 0.2,
-        BorderSizePixel = 0,
-        ClipsDescendants = true,
-        Parent = props.Parent,
-    }, {
-        Builder.corner(UDim.new(1, 0)),
-        Builder.create("UIStroke", {
-            Color = Theme.Colors.White,
-            Thickness = 2,
-            Transparency = 0.2,
-        }),
-    })
-    local fill = Builder.create("Frame", {
-        Size = UDim2.fromScale(0, 1),
-        BackgroundColor3 = fillTop,
-        BorderSizePixel = 0,
-        ZIndex = 2,
-        Parent = bg,
-    }, {
-        Builder.corner(UDim.new(1, 0)),
-        Builder.create("UIGradient", {
-            Rotation = 90,
-            Color = ColorSequence.new(fillTop, fillBottom),
-        }),
-        Builder.create("Frame", {
-            Size = UDim2.fromScale(1, 0.45),
-            BackgroundColor3 = Theme.Colors.GlossTop,
-            BackgroundTransparency = 0.7,
-            BorderSizePixel = 0,
-        }, { Builder.corner(UDim.new(1, 0)) }),
-    })
-    local label = Builder.create("TextLabel", {
-        Size = UDim2.fromScale(1, 1),
-        BackgroundTransparency = 1,
-        Text = "",
-        TextColor3 = Theme.Colors.White,
-        TextScaled = true,
-        ZIndex = 3,
-        Parent = bg,
-    }, { Builder.padding(2), Builder.create("UITextSizeConstraint", { MaxTextSize = 16 }) })
-    Builder.styleText(label, { keepColor = true })
-
-    local function set(cur, max, text)
-        cur = math.max(0, tonumber(cur) or 0)
-        max = math.max(1, tonumber(max) or 1)
-        local pct = math.clamp(cur / max, 0, 1)
-        TweenService:Create(fill, Theme.Hud.BarTween, { Size = UDim2.fromScale(pct, 1) }):Play()
-        label.Text = text or (math.floor(cur) .. " / " .. math.floor(max))
-    end
-    return bg, set
+    return Builder.progressBar(props)
 end
 
 -- Consistent scroll styling (subtle accent bar, smooth, auto canvas).
@@ -451,6 +396,394 @@ function Builder.styleScroll(scroll)
     scroll.CanvasSize = UDim2.new()
     scroll.ElasticBehavior = Enum.ElasticBehavior.Always
     return scroll
+end
+
+-- ===========================================================================================
+-- SOFT/BUBBLY KIT: shadow, glow rim, the unified icon BUBBLE, progress bar, idle-life loops,
+-- count-up. All read Theme tokens so the whole game stays cohesive + tunes from one place.
+-- ===========================================================================================
+
+-- Press-squish helper: scales `target` to Theme.Juice.ButtonSquish on press, springy Back-ease back on
+-- release. `inputObj` (a button) drives it; `target` (defaults to inputObj) is what visually squishes.
+function Builder.bindSquish(inputObj, target)
+    target = target or inputObj
+    local function squish()
+        if target:GetAttribute("BaseSize") == nil then
+            target:SetAttribute("BaseSize", target.Size)
+        end
+        local base = target:GetAttribute("BaseSize")
+        local k = Theme.Juice.ButtonSquish
+        target.Size =
+            UDim2.new(base.X.Scale * k, base.X.Offset * k, base.Y.Scale * k, base.Y.Offset * k)
+    end
+    local function restore()
+        local base = target:GetAttribute("BaseSize")
+        if base ~= nil then
+            TweenService:Create(target, Theme.Tween.Squish, { Size = base }):Play()
+        end
+    end
+    inputObj.InputBegan:Connect(function(input)
+        if
+            input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch
+        then
+            squish()
+        end
+    end)
+    inputObj.InputEnded:Connect(function(input)
+        if
+            input.UserInputType == Enum.UserInputType.MouseButton1
+            or input.UserInputType == Enum.UserInputType.Touch
+        then
+            restore()
+        end
+    end)
+end
+
+-- A SOFT DROP SHADOW placed behind `frame` as a sibling (for ABSOLUTELY-positioned elements: panels,
+-- the TAP button, world-space frames -- not list items). Uses Theme.Assets.ShadowImage (a 9-slice soft
+-- shadow) when supplied; otherwise a layered translucent rounded frame so it always works with no asset.
+-- Idempotent (guarded by the "SoftShadow" name).
+function Builder.softShadow(frame, opts)
+    opts = opts or {}
+    local parent = opts.parent or frame.Parent
+    if parent == nil or parent:FindFirstChild("SoftShadow") ~= nil then
+        return frame
+    end
+    local sh = Theme.Shadow
+    local spread = opts.spread or sh.Spread
+    local radius = opts.radius or Theme.Radius.Panel
+    local img = Theme.Assets.ShadowImage
+    if img ~= nil and img ~= "" then
+        Builder.create("ImageLabel", {
+            Name = "SoftShadow",
+            AnchorPoint = frame.AnchorPoint,
+            Position = frame.Position + UDim2.fromOffset(sh.Offset.X, sh.Offset.Y),
+            Size = UDim2.new(
+                frame.Size.X.Scale,
+                frame.Size.X.Offset + spread * 2,
+                frame.Size.Y.Scale,
+                frame.Size.Y.Offset + spread * 2
+            ),
+            BackgroundTransparency = 1,
+            Image = img,
+            ImageColor3 = sh.Color,
+            ImageTransparency = opts.transparency or sh.Transparency,
+            ScaleType = Enum.ScaleType.Slice,
+            SliceCenter = Theme.Assets.ShadowSlice,
+            ZIndex = (frame.ZIndex or 1) - 1,
+            Parent = parent,
+        })
+        return frame
+    end
+    -- Fallback is an ImageLabel (NOT a Frame) so it is never mistaken for the panel by callers that
+    -- locate the main frame via FindFirstChildWhichIsA("Frame") (e.g. PanelManager.register). With no
+    -- Image set it simply renders its rounded BackgroundColor3 -- a soft faux-shadow with zero assets.
+    Builder.create("ImageLabel", {
+        Name = "SoftShadow",
+        AnchorPoint = frame.AnchorPoint,
+        Position = frame.Position + UDim2.fromOffset(sh.Offset.X, sh.Offset.Y + 2),
+        Size = UDim2.new(
+            frame.Size.X.Scale,
+            frame.Size.X.Offset + spread,
+            frame.Size.Y.Scale,
+            frame.Size.Y.Offset + spread
+        ),
+        BackgroundColor3 = sh.Color,
+        BackgroundTransparency = opts.transparency or sh.Transparency,
+        ImageTransparency = 1,
+        BorderSizePixel = 0,
+        ZIndex = (frame.ZIndex or 1) - 1,
+        Parent = parent,
+    }, { Builder.corner(radius) })
+    return frame
+end
+
+-- A soft accent GLOW RIM on any frame/button: recolors its stroke to a soft accent (no hard dark border).
+function Builder.glowRim(obj, accentKey)
+    local stroke = obj:FindFirstChildOfClass("UIStroke")
+    if stroke == nil then
+        stroke = Builder.create("UIStroke", { Parent = obj })
+    end
+    stroke.Color = Theme.accentColor(accentKey)
+    stroke.Thickness = Theme.Rim.Thickness
+    stroke.Transparency = Theme.Rim.Transparency
+    return obj
+end
+
+-- The unified soft rounded-square "BUBBLE" icon chip (the ONE shape language for the HUD rail + edge
+-- columns): squircle + gloss sheen + soft shadow + glow rim + press squish. Returns
+-- (container, bubble, content, button) -- mirrors Builder.diamond so it is a drop-in replacement.
+function Builder.iconBubble(props, onClick)
+    props = props or {}
+    local size = props.size or 56
+    local radius = props.radius or Theme.Radius.Bubble
+    local container = Builder.create("Frame", {
+        Size = UDim2.fromOffset(size, size),
+        Position = props.Position,
+        AnchorPoint = props.AnchorPoint,
+        LayoutOrder = props.LayoutOrder,
+        BackgroundTransparency = 1,
+        Parent = props.Parent,
+    })
+    -- soft shadow behind the bubble (a child of the transparent container, lower ZIndex)
+    Builder.create("Frame", {
+        Name = "BubbleShadow",
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 4),
+        Size = UDim2.fromScale(1.02, 1.05),
+        BackgroundColor3 = Theme.Shadow.Color,
+        BackgroundTransparency = Theme.Shadow.Transparency,
+        BorderSizePixel = 0,
+        ZIndex = 1,
+        Parent = container,
+    }, { Builder.corner(radius) })
+    local bubble = Builder.create("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromScale(1, 1),
+        BackgroundColor3 = props.color or Theme.Colors.DarkPill,
+        BackgroundTransparency = props.transparency or 0.05,
+        BorderSizePixel = 0,
+        ZIndex = 2,
+        Parent = container,
+    }, {
+        Builder.corner(radius),
+        Builder.create("UIStroke", {
+            Color = Theme.Colors.White,
+            Thickness = 2.5,
+            Transparency = 0.2,
+        }),
+        Builder.create("Frame", { -- top gloss sheen
+            Size = UDim2.fromScale(1, 0.46),
+            BackgroundColor3 = Theme.Colors.GlossTop,
+            BackgroundTransparency = 0.78,
+            BorderSizePixel = 0,
+            ZIndex = 2,
+        }, { Builder.corner(radius) }),
+    })
+    local content = Builder.create("TextLabel", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromScale(0.74, 0.74),
+        BackgroundTransparency = 1,
+        Text = props.Text or "",
+        TextColor3 = props.textColor or Theme.Colors.White,
+        TextScaled = true,
+        ZIndex = 4,
+        Parent = container,
+    }, { Builder.create("UITextSizeConstraint", { MaxTextSize = props.maxText or 26 }) })
+    Builder.styleText(content, { keepColor = true })
+    local button = Builder.create("TextButton", {
+        Size = UDim2.fromScale(1, 1),
+        BackgroundTransparency = 1,
+        Text = "",
+        AutoButtonColor = false,
+        ZIndex = 6,
+        Parent = container,
+    })
+    Builder.bindSquish(button, bubble)
+    if onClick ~= nil then
+        button.Activated:Connect(onClick)
+    end
+    return container, bubble, content, button
+end
+
+-- A glossy rounded PROGRESS BAR with an animated fill + a looping gloss SWEEP + a centered label. The
+-- single bar builder (HP / XP / catch meter / boss bar all route through it). Returns (frame, set) where
+-- set(cur, max, text) clamps to [0,max], tweens the fill, and sets the centered text.
+function Builder.progressBar(props)
+    props = props or {}
+    local fillTop = props.fillTop or Theme.Colors.HpFill
+    local fillBottom = props.fillBottom or Theme.Colors.HpFillDark
+    local bg = Builder.create("Frame", {
+        Size = props.Size or UDim2.fromOffset(160, 22),
+        Position = props.Position,
+        AnchorPoint = props.AnchorPoint,
+        LayoutOrder = props.LayoutOrder,
+        BackgroundColor3 = props.trackColor or Theme.Colors.DarkPill,
+        BackgroundTransparency = props.trackTransparency or 0.2,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        Parent = props.Parent,
+    }, {
+        Builder.corner(UDim.new(1, 0)),
+        Builder.create("UIStroke", {
+            Color = Theme.Colors.White,
+            Thickness = 2,
+            Transparency = 0.25,
+        }),
+    })
+    local fill = Builder.create("Frame", {
+        Size = UDim2.fromScale(0, 1),
+        BackgroundColor3 = fillTop,
+        BorderSizePixel = 0,
+        ZIndex = 2,
+        ClipsDescendants = true,
+        Parent = bg,
+    }, {
+        Builder.corner(UDim.new(1, 0)),
+        Builder.create("UIGradient", {
+            Rotation = 90,
+            Color = ColorSequence.new(fillTop, fillBottom),
+        }),
+        Builder.create("Frame", { -- static top gloss
+            Size = UDim2.fromScale(1, 0.45),
+            BackgroundColor3 = Theme.Colors.GlossTop,
+            BackgroundTransparency = 0.7,
+            BorderSizePixel = 0,
+        }, { Builder.corner(UDim.new(1, 0)) }),
+    })
+    -- moving gloss SWEEP: a tilted highlight that slides across the fill on a loop (juicy "alive" feel).
+    if props.sweep ~= false then
+        local sweep = Builder.create("Frame", {
+            Name = "GlossSweep",
+            AnchorPoint = Vector2.new(0, 0.5),
+            Position = UDim2.fromScale(-0.3, 0.5),
+            Size = UDim2.fromScale(0.22, 1.4),
+            Rotation = 14,
+            BackgroundColor3 = Theme.Colors.White,
+            BackgroundTransparency = 0.62,
+            BorderSizePixel = 0,
+            ZIndex = 3,
+            Parent = fill,
+        })
+        TweenService:Create(
+            sweep,
+            TweenInfo.new(
+                Theme.Anim.GlossSweepPeriod,
+                Enum.EasingStyle.Linear,
+                Enum.EasingDirection.Out,
+                -1,
+                false,
+                0.7 -- pause between sweeps
+            ),
+            { Position = UDim2.fromScale(1.3, 0.5) }
+        ):Play()
+    end
+    local label = Builder.create("TextLabel", {
+        Size = UDim2.fromScale(1, 1),
+        BackgroundTransparency = 1,
+        Text = "",
+        TextColor3 = Theme.Colors.White,
+        TextScaled = true,
+        ZIndex = 4,
+        Visible = props.label ~= false,
+        Parent = bg,
+    }, { Builder.padding(2), Builder.create("UITextSizeConstraint", { MaxTextSize = 16 }) })
+    Builder.styleText(label, { keepColor = true })
+
+    local function set(cur, max, text)
+        cur = math.max(0, tonumber(cur) or 0)
+        max = math.max(1, tonumber(max) or 1)
+        local pct = math.clamp(cur / max, 0, 1)
+        TweenService
+            :Create(
+                fill,
+                props.fillTween or Theme.Tween.BarFill,
+                { Size = UDim2.fromScale(pct, 1) }
+            )
+            :Play()
+        label.Text = text or (math.floor(cur) .. " / " .. math.floor(max))
+    end
+    return bg, set
+end
+
+-- Breathing PULSE for primary CTAs: a child UIScale oscillates (composes with the Size-based press
+-- squish without fighting it). Returns the tween (track it in a janitor to stop). Best on standalone
+-- (non-list) CTAs so the scale doesn't nudge sibling layout.
+function Builder.pulse(obj)
+    local scale = obj:FindFirstChild("PulseScale")
+    if scale == nil then
+        scale = Builder.create("UIScale", { Name = "PulseScale", Scale = 1, Parent = obj })
+    end
+    local tween = TweenService:Create(
+        scale,
+        TweenInfo.new(
+            Theme.Anim.PulsePeriod,
+            Enum.EasingStyle.Sine,
+            Enum.EasingDirection.InOut,
+            -1,
+            true
+        ),
+        { Scale = Theme.Anim.PulseScale }
+    )
+    tween:Play()
+    return tween
+end
+
+-- Gentle vertical BOB (idle float) for an ABSOLUTELY-positioned element (e.g. a HUD icon glyph inside a
+-- fixed-size chip). Oscillates Position.Y only; loops. Returns the tween.
+function Builder.bob(obj)
+    local p = obj.Position
+    local up = UDim2.new(p.X.Scale, p.X.Offset, p.Y.Scale, p.Y.Offset - Theme.Anim.BobAmplitude)
+    local tween = TweenService:Create(
+        obj,
+        TweenInfo.new(
+            Theme.Anim.BobPeriod,
+            Enum.EasingStyle.Sine,
+            Enum.EasingDirection.InOut,
+            -1,
+            true
+        ),
+        { Position = up }
+    )
+    tween:Play()
+    return tween
+end
+
+-- Soft SHIMMER: a white sheen overlay on `obj` whose transparency oscillates so the element feels alive.
+-- Idempotent (guarded by the "Shimmer" child). Returns the tween.
+function Builder.shimmer(obj)
+    local sheen = obj:FindFirstChild("Shimmer")
+    if sheen == nil then
+        sheen = Builder.create("Frame", {
+            Name = "Shimmer",
+            Size = UDim2.fromScale(1, 1),
+            BackgroundColor3 = Theme.Colors.White,
+            BackgroundTransparency = 0.85,
+            BorderSizePixel = 0,
+            ZIndex = (obj.ZIndex or 1) + 1,
+            Parent = obj,
+        }, { Builder.corner(Theme.Radius.Button) })
+    end
+    local tween = TweenService:Create(
+        sheen,
+        TweenInfo.new(
+            Theme.Anim.ShimmerPeriod,
+            Enum.EasingStyle.Sine,
+            Enum.EasingDirection.InOut,
+            -1,
+            true
+        ),
+        { BackgroundTransparency = 0.97 }
+    )
+    tween:Play()
+    return tween
+end
+
+-- Animated number COUNT-UP: tweens a hidden NumberValue from->to and writes fmt(value) to `label`.
+-- Cleans up the NumberValue + connection on completion. Returns the tween.
+function Builder.countUp(label, from, to, fmt, dur)
+    fmt = fmt or function(v)
+        return tostring(math.floor(v))
+    end
+    local nv = Instance.new("NumberValue")
+    nv.Value = from
+    local conn = nv.Changed:Connect(function(v)
+        label.Text = fmt(v)
+    end)
+    local tween = TweenService:Create(
+        nv,
+        TweenInfo.new(dur or 0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        { Value = to }
+    )
+    tween.Completed:Connect(function()
+        conn:Disconnect()
+        nv:Destroy()
+    end)
+    tween:Play()
+    return tween
 end
 
 -- Gentle infinite "floating in place" idle bob for a center-anchored panel (oscillates Position.Y only).
@@ -617,20 +950,20 @@ function Builder.panel(parent, title, onClose, accentKey)
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0.5, 0.5),
         Size = UDim2.fromScale(0.86, 0.74),
-        BackgroundColor3 = Theme.Colors.Background,
+        BackgroundColor3 = Theme.Colors.Cloud, -- LIGHT airy cloud body (was dark grape)
         BackgroundTransparency = Theme.BodyTransparency,
         BorderSizePixel = 0,
     }, {
         Builder.corner(Theme.Radius.Panel),
-        Builder.create("UIStroke", {
+        Builder.create("UIStroke", { -- soft accent glow rim
             Color = Theme.accentColor(accentKey),
             Thickness = 3,
-            Transparency = 0,
+            Transparency = 0.1,
         }),
         Builder.create("UISizeConstraint", { MaxSize = Vector2.new(580, 760) }),
-        Builder.create("UIGradient", {
+        Builder.create("UIGradient", { -- bright-gloss top -> soft cloud body
             Rotation = 90,
-            Color = ColorSequence.new(Color3.fromRGB(58, 36, 100), Theme.Colors.Background),
+            Color = ColorSequence.new(Theme.Colors.CloudTop, Theme.Colors.Cloud),
         }),
     })
     -- Mark as already glassed so PanelManager's UIStyle.applyGlass skips it (no double styling).
@@ -655,14 +988,18 @@ function Builder.panel(parent, title, onClose, accentKey)
     Builder.styleScroll(list)
 
     panel.Parent = parent
+    -- Soft drop shadow behind the centered panel (sibling under the ScreenGui; absolute position).
+    Builder.softShadow(panel, { radius = Theme.Radius.Panel })
     Builder.floatLoop(panel)
+    -- Self pop-open ONLY for popups NOT coordinated by PanelManager (it owns the open/close anim for
+    -- registered primary panels and sets PMManaged, so this avoids a double pop on those).
     if parent ~= nil and parent:IsA("ScreenGui") then
         parent:GetPropertyChangedSignal("Enabled"):Connect(function()
-            if parent.Enabled then
+            if parent.Enabled and not panel:GetAttribute("PMManaged") then
                 Builder.popOpen(panel)
             end
         end)
-        if parent.Enabled then
+        if parent.Enabled and not panel:GetAttribute("PMManaged") then
             Builder.popOpen(panel)
         end
     end
