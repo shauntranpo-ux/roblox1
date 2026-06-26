@@ -25,13 +25,22 @@ local REFRESH = 5 -- s between (cheap, in-memory) billboard redraws
 local FIRST_STAND = Vector3.new(80, 0, -40) -- base of the left-most stand
 local STAND_SPACING = 44 -- studs between stands
 
+-- Soft / bubbly leaderboard palette (cohesive with the UI design system): a LIGHT cream board with
+-- INK names + a bright per-board accent title bar, on a warm wood pillar (was near-black slabs).
 local COLORS = {
-    Pillar = Color3.fromRGB(28, 31, 40),
-    Panel = Color3.fromRGB(22, 24, 31),
-    Title = Color3.fromRGB(240, 242, 248),
-    Name = Color3.fromRGB(210, 214, 224),
-    Value = Color3.fromRGB(120, 220, 150),
-    Empty = Color3.fromRGB(90, 96, 110),
+    Pillar = Color3.fromRGB(150, 116, 80), -- warm wood backing pillar (was near-black)
+    Panel = Color3.fromRGB(248, 245, 255), -- soft cream/lavender board (was near-black)
+    Title = Color3.fromRGB(255, 255, 255), -- white title on the bright accent bar
+    Name = Color3.fromRGB(74, 58, 122), -- INK names on the light board
+    Value = Color3.fromRGB(46, 170, 96), -- income green values
+    Empty = Color3.fromRGB(150, 142, 172), -- soft muted "no entries"
+}
+-- Per-board accent for the title bar (matches the UI accent families).
+local BOARD_ACCENT = {
+    Cash = Color3.fromRGB(240, 178, 40), -- gold
+    Income = Color3.fromRGB(74, 184, 114), -- green
+    Collection = Color3.fromRGB(224, 96, 168), -- pink
+    Season = Color3.fromRGB(120, 150, 235), -- blue
 }
 
 local folder = nil
@@ -265,36 +274,52 @@ local function buildGeneratedStand(board, basePosition)
     sg.Adornee = wall
     sg.Parent = wall
 
-    -- Dark panel background
+    local accent = BOARD_ACCENT[board.Key] or BOARD_ACCENT.Cash
+
+    -- Soft cream panel background with rounded corners + a bright accent rim (bubbly board look).
     local panel = Instance.new("Frame")
     panel.Name = "Panel"
     panel.Size = UDim2.fromScale(1, 1)
     panel.BackgroundColor3 = COLORS.Panel
-    panel.BackgroundTransparency = 0.1
+    panel.BackgroundTransparency = 0.05
     panel.BorderSizePixel = 0
     panel.Parent = sg
+    local panelCorner = Instance.new("UICorner")
+    panelCorner.CornerRadius = UDim.new(0, 28)
+    panelCorner.Parent = panel
+    local panelStroke = Instance.new("UIStroke")
+    panelStroke.Color = accent
+    panelStroke.Thickness = 5
+    panelStroke.Transparency = 0.1
+    panelStroke.Parent = panel
 
-    -- Title bar at the top of the panel (fixed, not scrolled)
+    -- Title bar at the top of the panel (fixed, not scrolled) -- bright accent + bubble font.
     local title = Instance.new("TextLabel")
     title.Name = "Title"
-    title.Size = UDim2.new(1, 0, 0, TITLE_PX)
-    title.Position = UDim2.fromOffset(0, 0)
-    title.BackgroundColor3 = COLORS.Pillar
+    title.Size = UDim2.new(1, -16, 0, TITLE_PX)
+    title.Position = UDim2.fromOffset(8, 8)
+    title.BackgroundColor3 = accent
     title.BackgroundTransparency = 0
     title.BorderSizePixel = 0
-    title.Font = Enum.Font.GothamBold
+    title.Font = Enum.Font.FredokaOne
     title.Text = board.Title
     title.TextColor3 = COLORS.Title
+    title.TextStrokeColor3 = Color3.fromRGB(36, 22, 60)
+    title.TextStrokeTransparency = 0.2
     title.TextScaled = true
     title.Parent = panel
+    local titleCorner = Instance.new("UICorner")
+    titleCorner.CornerRadius = UDim.new(0, 20)
+    titleCorner.Parent = title
 
     -- Rows container: a Frame that will be tweened to scroll upward.
     -- Starts at the top (just below the title) and scrolls until all rows are off-screen,
     -- then resets to the top and loops.
+    local ROWS_TOP = TITLE_PX + 20 -- clear the inset title bar
     local rowContainer = Instance.new("Frame")
     rowContainer.Name = "RowContainer"
-    rowContainer.Size = UDim2.new(1, 0, 0, TOP_N * ROW_PX)
-    rowContainer.Position = UDim2.fromOffset(0, TITLE_PX)
+    rowContainer.Size = UDim2.new(1, -16, 0, TOP_N * ROW_PX)
+    rowContainer.Position = UDim2.fromOffset(8, ROWS_TOP)
     rowContainer.BackgroundTransparency = 1
     rowContainer.ClipsDescendants = false
     rowContainer.Parent = panel
@@ -319,7 +344,7 @@ local function buildGeneratedStand(board, basePosition)
         left.Size = UDim2.fromScale(0.68, 1)
         left.Position = UDim2.fromOffset(8, 0)
         left.BackgroundTransparency = 1
-        left.Font = Enum.Font.GothamMedium
+        left.Font = Enum.Font.FredokaOne
         left.TextColor3 = COLORS.Name
         left.TextScaled = true
         left.TextXAlignment = Enum.TextXAlignment.Left
@@ -332,7 +357,7 @@ local function buildGeneratedStand(board, basePosition)
         right.Position = UDim2.new(1, -8, 0, 0)
         right.Size = UDim2.fromScale(0.3, 1)
         right.BackgroundTransparency = 1
-        right.Font = Enum.Font.GothamBold
+        right.Font = Enum.Font.FredokaOne
         right.TextColor3 = COLORS.Value
         right.TextScaled = true
         right.TextXAlignment = Enum.TextXAlignment.Right
@@ -349,11 +374,11 @@ local function buildGeneratedStand(board, basePosition)
         TweenInfo.new(scrollDuration, Enum.EasingStyle.Linear, Enum.EasingDirection.In)
     task.spawn(function()
         while true do
-            -- Reset to top instantly, then tween upward
-            rowContainer.Position = UDim2.fromOffset(0, TITLE_PX)
-            local targetY = TITLE_PX - TOP_N * ROW_PX
+            -- Reset to the row container's resting spot (x=8 inset, y=ROWS_TOP), then tween upward.
+            rowContainer.Position = UDim2.fromOffset(8, ROWS_TOP)
+            local targetY = ROWS_TOP - TOP_N * ROW_PX
             local tween = TweenService:Create(rowContainer, scrollInfo, {
-                Position = UDim2.fromOffset(0, targetY),
+                Position = UDim2.fromOffset(8, targetY),
             })
             tween:Play()
             tween.Completed:Wait()

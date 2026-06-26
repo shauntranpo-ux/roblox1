@@ -97,7 +97,7 @@ local function unitCard(unit)
         Size = UDim2.new(1, -116, 0, 22),
         BackgroundTransparency = 1,
         Text = "[S" .. stage .. "] " .. unit.Name .. starSuffix(unit.Star),
-        TextColor3 = Theme.Colors.Text,
+        TextColor3 = Theme.Colors.Ink,
         TextSize = 16,
         TextTruncate = Enum.TextTruncate.AtEnd,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -154,7 +154,7 @@ local function unitCard(unit)
         BackgroundTransparency = 1,
         Font = Theme.FontDisplay,
         Text = barText,
-        TextColor3 = Theme.Colors.Text,
+        TextColor3 = Theme.Colors.Ink,
         TextSize = 12,
         ZIndex = 2,
         Parent = barBg,
@@ -177,7 +177,7 @@ local function unitCard(unit)
                 perkRatio,
                 cost > 0 and ("  -  cost $" .. Format.full(cost)) or ""
             ),
-            TextColor3 = Theme.Colors.SubText,
+            TextColor3 = Theme.Colors.InkSoft,
             TextSize = 13,
             TextWrapped = true,
             TextXAlignment = Enum.TextXAlignment.Left,
@@ -215,13 +215,13 @@ function Evolution.refresh()
     end
     label(
         "Raise a unit: it banks XP as it earns. Evolve for a big income + perk jump. Stage & XP travel when stolen/traded.",
-        Theme.Colors.SubText,
+        Theme.Colors.InkSoft,
         34
     )
 
     local units = getUnits()
     if #units == 0 then
-        label("No units yet.", Theme.Colors.SubText)
+        label("No units yet.", Theme.Colors.InkSoft)
         return
     end
     for _, unit in ipairs(units) do

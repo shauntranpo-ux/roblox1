@@ -1,6 +1,6 @@
--- EdgeTabs: glossy round icon TABS pinned to the screen edges (Left + Right vertical rails). Each feature
--- gets its own tab here instead of being buried in the Menu list. Buttons reuse Builder.glossButton (press
--- squish) + a hover label. Mount once like the other HUD modules; call EdgeTabs.add per feature.
+-- EdgeTabs: soft "bubble" icon TABS pinned to the screen edges (Left + Right vertical rails). Each feature
+-- gets its own tab here instead of being buried in the Menu list. Tabs use Builder.iconBubble (the unified
+-- squircle shape shared with the HUD rail) + a hover label. Mount once; call EdgeTabs.add per feature.
 
 local Builder = require(script.Parent.Builder)
 local Theme = require(script.Parent.Theme)
@@ -38,25 +38,25 @@ function EdgeTabs.mount(context)
     rails.Right = makeRail("Right")
 end
 
--- Add a round icon tab to a rail. `side` = "Left"|"Right", `icon` = emoji, `label` = hover text.
+-- Add an icon BUBBLE tab to a rail. `side` = "Left"|"Right", `icon` = emoji, `label` = hover text.
+-- Uses Builder.iconBubble so the edge columns share the HUD rail's shape language (no clashing shapes).
 function EdgeTabs.add(side, icon, label, onClick)
     local rail = rails[side] or rails.Right
     if rail == nil then
         return nil
     end
     order += 1
-    local btn = Builder.glossButton({
-        Size = UDim2.fromOffset(52, 52),
+    local container, _, _, button = Builder.iconBubble({
+        size = 52,
         color = Theme.Colors.Accent,
         Text = icon,
         maxText = 26,
-        radius = Theme.Radius.Pill,
         LayoutOrder = order,
         Parent = rail,
     }, onClick)
     local tip = Builder.create("TextLabel", {
         AnchorPoint = Vector2.new(side == "Left" and 0 or 1, 0.5),
-        Position = UDim2.new(side == "Left" and 1 or 0, side == "Left" and 8 or -8, 0.5, 0),
+        Position = UDim2.new(side == "Left" and 1 or 0, side == "Left" and 10 or -10, 0.5, 0),
         Size = UDim2.fromOffset(0, 26),
         AutomaticSize = Enum.AutomaticSize.X,
         BackgroundColor3 = Theme.Colors.DarkPill,
@@ -66,16 +66,17 @@ function EdgeTabs.add(side, icon, label, onClick)
         TextColor3 = Theme.Colors.Text,
         TextSize = 18,
         Visible = false,
-        ZIndex = 5,
-        Parent = btn,
-    }, { Builder.corner(UDim.new(0, 8)) })
-    btn.MouseEnter:Connect(function()
+        ZIndex = 8,
+        Parent = container,
+    }, { Builder.corner(Theme.Radius.Bubble) })
+    Builder.styleText(tip, { keepColor = true })
+    button.MouseEnter:Connect(function()
         tip.Visible = true
     end)
-    btn.MouseLeave:Connect(function()
+    button.MouseLeave:Connect(function()
         tip.Visible = false
     end)
-    return btn
+    return button
 end
 
 return EdgeTabs

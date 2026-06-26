@@ -53,7 +53,7 @@ local function makeTutorialBubble(parent)
         Visible = false,
         Parent = parent,
     }, {
-        Builder.corner(UDim.new(0, 18)),
+        Builder.corner(Theme.Radius.Card),
         Builder.create("UIStroke", {
             Color = Theme.Colors.White,
             Thickness = 2.5,

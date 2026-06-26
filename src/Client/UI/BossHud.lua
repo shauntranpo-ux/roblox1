@@ -24,7 +24,7 @@ local gui = nil
 local alertLabel = nil
 local barFrame = nil
 local nameLabel = nil
-local fillFrame = nil
+local bossSet = nil -- progressBar setter for the boss HP bar
 local timerLabel = nil
 local marker = nil
 local numberPool = {} -- { label, busy } recycled damage-number labels
@@ -35,13 +35,11 @@ local active = false
 local alertToken = 0
 
 local function setBar(meter, maxMeter)
-    if fillFrame == nil then
+    if bossSet == nil then
         return
     end
-    local pct = (type(meter) == "number" and type(maxMeter) == "number" and maxMeter > 0)
-            and math.clamp(meter / maxMeter, 0, 1)
-        or 0
-    fillFrame.Size = UDim2.fromScale(pct, 1)
+    -- progressBar clamps + tweens the fill (gloss sweep is automatic); the timer is a separate overlay.
+    bossSet(meter, maxMeter, "")
 end
 
 -- Pop a pooled damage number at the boss's screen position (recycled labels; capped; graceful if the
@@ -170,15 +168,11 @@ function BossHud.onUpdate(payload)
             if camera ~= nil then
                 local screen = camera:WorldToViewportPoint(bossPos)
                 if screen.Z > 0 then
-                    Effects.burst(
-                        UDim2.fromOffset(screen.X, screen.Y),
-                        Color3.fromRGB(255, 220, 120),
-                        24
-                    )
+                    Effects.burst(UDim2.fromOffset(screen.X, screen.Y), Theme.Colors.Gold, 24)
                 end
             end
         end
-        Effects.flash(Color3.fromRGB(255, 220, 120))
+        Effects.flash(Theme.Colors.Gold)
         Effects.playSfx("boss_death")
         hideBoss()
     elseif kind == "flee" then
@@ -220,80 +214,107 @@ function BossHud.mount(context)
     local player = context.player
     gui = Builder.screenGui("BossHud", player:WaitForChild("PlayerGui"), true)
 
+    -- Spawn alert: a soft dark "bubble" banner over the world with a Danger glow rim (one pill family
+    -- with the quest banner + biome label). White-fill text recipe (reads over the 3D world).
     alertLabel = Builder.create("TextLabel", {
         AnchorPoint = Vector2.new(0.5, 0),
         Position = UDim2.new(0.5, 0, 0, 6),
         Size = UDim2.fromOffset(720, 44),
-        BackgroundColor3 = Color3.fromRGB(150, 30, 50),
-        BackgroundTransparency = 0.1,
+        BackgroundColor3 = Theme.Colors.DarkPill,
+        BackgroundTransparency = 0.12,
         Font = Theme.FontDisplay,
         Text = "",
-        TextColor3 = Color3.fromRGB(255, 240, 200),
+        TextColor3 = Theme.Colors.White,
         TextScaled = true,
         Visible = false,
         Parent = gui,
-    }, { Builder.corner(UDim.new(0, 10)), Builder.padding(6) })
+    }, {
+        Builder.corner(Theme.Radius.Card),
+        Builder.padding(8),
+        Builder.create(
+            "UIStroke",
+            { Color = Theme.Colors.Danger, Thickness = 2.5, Transparency = 0.2 }
+        ),
+        Builder.create("UITextSizeConstraint", { MaxTextSize = 28 }),
+    })
+    Builder.styleText(alertLabel, { keepColor = true })
 
+    -- Boss HP bar: a soft dark pill holding the TITAN name + the shared Builder.progressBar (animated
+    -- red fill + gloss sweep). Same pill style as the quest banner + biome label.
     barFrame = Builder.create("Frame", {
         AnchorPoint = Vector2.new(0.5, 0),
         Position = UDim2.new(0.5, 0, 0, 34),
-        Size = UDim2.fromOffset(420, 40),
-        BackgroundColor3 = Color3.fromRGB(20, 14, 30),
-        BackgroundTransparency = 0.2,
+        Size = UDim2.fromOffset(420, 48),
+        BackgroundColor3 = Theme.Colors.DarkPill,
+        BackgroundTransparency = 0.15,
         Visible = false,
         Parent = gui,
-    }, { Builder.corner(UDim.new(0, 8)), Builder.padding(4) })
+    }, {
+        Builder.corner(Theme.Radius.Card),
+        Builder.padding(6),
+        Builder.create(
+            "UIStroke",
+            { Color = Theme.Colors.Danger, Thickness = 2.5, Transparency = 0.3 }
+        ),
+    })
 
     nameLabel = Builder.create("TextLabel", {
-        Position = UDim2.fromOffset(2, 0),
-        Size = UDim2.new(1, -4, 0, 14),
+        Position = UDim2.fromOffset(4, 0),
+        Size = UDim2.new(1, -8, 0, 16),
         BackgroundTransparency = 1,
         Font = Theme.FontBody,
         Text = "TITAN",
-        TextColor3 = Color3.fromRGB(255, 230, 120),
-        TextSize = 12,
+        TextColor3 = Theme.Colors.Gold,
+        TextSize = 13,
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = barFrame,
     })
+    Builder.styleText(nameLabel, { keepColor = true })
 
-    local barBg = Builder.create("Frame", {
-        Position = UDim2.fromOffset(2, 16),
-        Size = UDim2.new(1, -4, 0, 16),
-        BackgroundColor3 = Color3.fromRGB(40, 28, 52),
-        BorderSizePixel = 0,
+    local _, bossBarSet = Builder.progressBar({
+        Position = UDim2.fromOffset(4, 18),
+        Size = UDim2.new(1, -8, 0, 18),
+        fillTop = Color3.fromRGB(255, 96, 110), -- boss red
+        fillBottom = Color3.fromRGB(196, 40, 64),
+        label = false,
         Parent = barFrame,
-    }, { Builder.corner(UDim.new(1, 0)) })
-
-    fillFrame = Builder.create("Frame", {
-        Size = UDim2.fromScale(1, 1),
-        BackgroundColor3 = Color3.fromRGB(230, 70, 90),
-        BorderSizePixel = 0,
-        Parent = barBg,
-    }, { Builder.corner(UDim.new(1, 0)) })
+    })
+    bossSet = bossBarSet
 
     timerLabel = Builder.create("TextLabel", {
-        Size = UDim2.fromScale(1, 1),
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0, 27),
+        Size = UDim2.new(1, -8, 0, 18),
         BackgroundTransparency = 1,
         Font = Theme.FontDisplay,
         Text = "",
-        TextColor3 = Color3.fromRGB(255, 255, 255),
-        TextSize = 12,
-        ZIndex = 2,
-        Parent = barBg,
+        TextColor3 = Theme.Colors.White,
+        TextSize = 13,
+        ZIndex = 6,
+        Parent = barFrame,
     })
+    Builder.styleText(timerLabel, { keepColor = true })
 
+    -- Off-screen direction marker: same soft dark pill + Danger rim.
     marker = Builder.create("TextLabel", {
         AnchorPoint = Vector2.new(0.5, 0.5),
-        Size = UDim2.fromOffset(150, 26),
-        BackgroundColor3 = Color3.fromRGB(150, 30, 50),
-        BackgroundTransparency = 0.25,
+        Size = UDim2.fromOffset(154, 28),
+        BackgroundColor3 = Theme.Colors.DarkPill,
+        BackgroundTransparency = 0.2,
         Font = Theme.FontDisplay,
         Text = "▾ TITAN",
-        TextColor3 = Color3.fromRGB(255, 240, 200),
+        TextColor3 = Theme.Colors.White,
         TextSize = 14,
         Visible = false,
         Parent = gui,
-    }, { Builder.corner(UDim.new(0, 8)) })
+    }, {
+        Builder.corner(UDim.new(1, 0)),
+        Builder.create(
+            "UIStroke",
+            { Color = Theme.Colors.Danger, Thickness = 2, Transparency = 0.3 }
+        ),
+    })
+    Builder.styleText(marker, { keepColor = true })
 
     -- Pre-build the recycled damage-number pool (capped, hidden until used).
     for _ = 1, NUMBER_POOL_SIZE do
@@ -303,8 +324,8 @@ function BossHud.mount(context)
             BackgroundTransparency = 1,
             Font = Theme.FontDisplay,
             Text = "",
-            TextColor3 = Color3.fromRGB(255, 235, 120),
-            TextStrokeColor3 = Color3.fromRGB(60, 10, 10),
+            TextColor3 = Theme.Colors.Gold,
+            TextStrokeColor3 = Theme.Colors.Outline,
             TextStrokeTransparency = 0.4,
             TextSize = 30,
             ZIndex = 5,

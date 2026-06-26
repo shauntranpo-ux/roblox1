@@ -68,7 +68,7 @@ local function countdownLabel(text, endsAt)
         BackgroundTransparency = 1,
         Font = Theme.FontBody,
         Text = text,
-        TextColor3 = Theme.Colors.SubText,
+        TextColor3 = Theme.Colors.InkSoft,
         TextSize = 13,
         TextXAlignment = Enum.TextXAlignment.Left,
         LayoutOrder = nextOrder(),
