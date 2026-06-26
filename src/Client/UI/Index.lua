@@ -114,7 +114,7 @@ local function gridCard(order, opts)
         Size = UDim2.new(1, 0, 0, 26),
         BackgroundTransparency = 1,
         Text = opts.discovered and opts.title or "???",
-        TextColor3 = opts.discovered and Theme.Colors.Text or Theme.Colors.SubText,
+        TextColor3 = opts.discovered and Theme.Colors.Ink or Theme.Colors.InkSoft,
         TextSize = 15,
         TextScaled = false,
         TextTruncate = Enum.TextTruncate.AtEnd,
@@ -163,7 +163,7 @@ local function setCard(order, set, state)
         Size = UDim2.new(1, 0, 0, 32),
         BackgroundTransparency = 1,
         Text = set.Name .. (set.Premium and "  [P]" or ""),
-        TextColor3 = Theme.Colors.Text,
+        TextColor3 = Theme.Colors.Ink,
         TextSize = 14,
         TextWrapped = true,
         Parent = card,
@@ -176,7 +176,7 @@ local function setCard(order, set, state)
         BackgroundTransparency = 1,
         Font = Theme.FontDisplay,
         Text = string.format("%d / %d", got, total),
-        TextColor3 = Theme.Colors.Text,
+        TextColor3 = Theme.Colors.Ink,
         TextSize = 20,
         Parent = card,
     })
@@ -218,7 +218,7 @@ local function setCard(order, set, state)
             BackgroundTransparency = 1,
             Font = Theme.FontDisplay,
             Text = claimed and "CLAIMED" or (set.Premium and "PREMIUM" or "LOCKED"),
-            TextColor3 = claimed and Theme.Colors.Positive or Theme.Colors.SubText,
+            TextColor3 = claimed and Theme.Colors.Positive or Theme.Colors.InkSoft,
             TextSize = 14,
             Parent = card,
         })
@@ -370,7 +370,7 @@ local function renderBottom(state)
         BackgroundTransparency = 1,
         Font = Theme.FontDisplay,
         Text = string.format("%d / %d", found, total),
-        TextColor3 = Theme.Colors.Text,
+        TextColor3 = Theme.Colors.Ink,
         TextSize = 13,
         ZIndex = 2,
         Parent = barBg,
@@ -443,15 +443,15 @@ local function buildShell()
         BorderSizePixel = 0,
     }, {
         Builder.corner(Theme.Radius.Panel),
-        Builder.create("UIStroke", {
-            Color = Theme.Colors.Outline,
+        Builder.create("UIStroke", { -- soft accent glow rim
+            Color = Theme.accentColor("Index"),
             Thickness = Theme.Stroke.Width,
-            Transparency = 0.2,
+            Transparency = 0.1,
         }),
         Builder.create("UISizeConstraint", { MaxSize = Vector2.new(560, 680) }),
-        Builder.create("UIGradient", {
+        Builder.create("UIGradient", { -- bright gloss top -> soft cloud body
             Rotation = 90,
-            Color = ColorSequence.new(Color3.fromRGB(58, 36, 100), Theme.Colors.Background),
+            Color = ColorSequence.new(Theme.Colors.CloudTop, Theme.Colors.Cloud),
         }),
     })
     panel:SetAttribute("Glassed", true)

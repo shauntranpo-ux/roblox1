@@ -35,7 +35,7 @@ function SharedEventHud.onUpdate(payload)
         -- Drama scales the flash/sound with the (hidden) tier -- reveals nothing about identity.
         local drama = tonumber(payload.Drama) or 1
         if drama >= 2 then
-            Effects.flash(Color3.fromRGB(255, 220, 120))
+            Effects.flash(Theme.Colors.Gold)
         end
         Effects.playSfx("milestone")
     elseif kind == "update" then
@@ -89,14 +89,20 @@ function SharedEventHud.mount(context)
     marker = Builder.create("TextLabel", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Size = UDim2.fromOffset(170, 28),
-        BackgroundColor3 = Color3.fromRGB(150, 30, 50),
-        BackgroundTransparency = 0.25,
+        BackgroundColor3 = Theme.Colors.DarkPill,
+        BackgroundTransparency = 0.2,
         Text = "▾ MYSTERY",
         TextColor3 = Theme.Colors.White,
         TextScaled = true,
         Visible = false,
         Parent = gui,
-    }, { Builder.corner(UDim.new(0, 8)) })
+    }, {
+        Builder.corner(UDim.new(1, 0)),
+        Builder.create(
+            "UIStroke",
+            { Color = Theme.Colors.Accent, Thickness = 2, Transparency = 0.3 }
+        ),
+    })
     Builder.styleText(marker, { keepColor = true })
 
     context.remotes.SharedEvent.OnClientEvent:Connect(function(payload)
