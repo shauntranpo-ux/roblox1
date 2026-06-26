@@ -250,92 +250,273 @@ end
 -- A modeled hub STRUCTURE for a tagged interactable. Builds a unique look per `tagName`, tags the base
 -- block with `tagName` (the contract), floats a label, and returns the tagged block.
 local function buildStructure(folder, pos, tagName, label, accent)
-    local base = part(
-        { Size = Vector3.new(12, 4, 12), Position = pos + Vector3.new(0, 2, 0), Color = P.HubStone },
-        folder
-    )
+    -- Stepped stone PEDESTAL base: 3 tiers so every fixture sits on a real plinth.
+    -- Tier 1 (widest) = base, tagged with tagName so the game systems bind to it.
+    local base = part({
+        Size = Vector3.new(14, 3, 14),
+        Position = pos + Vector3.new(0, 1.5, 0),
+        Color = P.HubStone,
+    }, folder)
     base.Name = tagName
     tag(base, tagName)
+    -- Tier 2
+    part(
+        { Size = Vector3.new(12, 2, 12), Position = pos + Vector3.new(0, 4, 0), Color = P.Stone },
+        folder
+    )
+    -- Tier 3 (top stepping-stone)
+    part({
+        Size = Vector3.new(10, 1.5, 10),
+        Position = pos + Vector3.new(0, 5.75, 0),
+        Color = P.Plaster,
+    }, folder)
+
     if tagName == "FreeGift" then
-        part(
-            { Size = Vector3.new(8, 8, 8), Position = pos + Vector3.new(0, 8, 0), Color = accent },
-            folder
-        )
+        -- Main gift box sitting on the pedestal
+        part({
+            Size = Vector3.new(8, 8, 8),
+            Position = pos + Vector3.new(0, 10.5, 0),
+            Color = accent,
+        }, folder)
+        -- Ribbon bands (two crossing strips)
         part({
             Size = Vector3.new(8.4, 1.6, 1.6),
-            Position = pos + Vector3.new(0, 8, 0),
+            Position = pos + Vector3.new(0, 10.5, 0),
             Color = P.Roof,
         }, folder)
         part({
             Size = Vector3.new(1.6, 1.6, 8.4),
-            Position = pos + Vector3.new(0, 8, 0),
+            Position = pos + Vector3.new(0, 10.5, 0),
             Color = P.Roof,
+        }, folder)
+        -- Bow knot on top
+        part({
+            Size = Vector3.new(3, 2.5, 3),
+            Position = pos + Vector3.new(0, 15, 0),
+            Color = P.Gold,
+        }, folder)
+        -- Small side decoration boxes (depth dressing)
+        part({
+            Size = Vector3.new(4, 4, 4),
+            Position = pos + Vector3.new(-7, 7.5, 2),
+            Color = P.Grape,
         }, folder)
         part({
             Size = Vector3.new(3, 3, 3),
-            Position = pos + Vector3.new(0, 12.5, 0),
-            Color = P.Gold,
+            Position = pos + Vector3.new(6, 7, -2),
+            Color = P.RedTrim,
         }, folder)
+        -- Coin scatter
+        local coinCF = CFrame.new(pos + Vector3.new(5, 7.5, 4)) * CFrame.Angles(0, 0, math.rad(90))
+        local coin =
+            part({ Size = Vector3.new(0.8, 2.5, 2.5), CFrame = coinCF, Color = P.Gold }, folder)
+        coin.Shape = Enum.PartType.Cylinder
     elseif tagName == "DailyChest" then
+        -- Chest body (wood lower half)
         part({
-            Size = Vector3.new(9, 5, 6),
-            Position = pos + Vector3.new(0, 6.5, 0),
+            Size = Vector3.new(10, 6, 7),
+            Position = pos + Vector3.new(0, 9, 0),
             Color = P.Wood,
             Material = Enum.Material.Wood,
         }, folder)
-        part(
-            { Size = Vector3.new(9, 3, 6), Position = pos + Vector3.new(0, 10, 0), Color = accent },
-            folder
-        )
+        -- Chest lid (accent color arched top)
         part({
-            Size = Vector3.new(1.5, 3, 1.5),
-            Position = pos + Vector3.new(0, 8.5, 3),
-            Color = P.Gold,
-        }, folder)
-    elseif tagName == "SpinWheel" then
-        part({
-            Size = Vector3.new(1.5, 10, 1.5),
-            Position = pos + Vector3.new(0, 9, 0),
-            Color = P.HubStone,
-        }, folder)
-        part({
-            Size = Vector3.new(12, 12, 1),
-            Position = pos + Vector3.new(0, 15, 0),
+            Size = Vector3.new(10, 3.5, 7),
+            Position = pos + Vector3.new(0, 13, 0),
             Color = accent,
         }, folder)
-    else
-        -- warm-wood counter (the stall front)
+        -- Gold lock hasp
         part({
-            Size = Vector3.new(12, 5, 4),
-            Position = pos + Vector3.new(0, 4.5, 0),
+            Size = Vector3.new(1.8, 3.5, 1.8),
+            Position = pos + Vector3.new(0, 10.5, 3.6),
+            Color = P.Gold,
+        }, folder)
+        -- Side coin scatter (give depth)
+        local coinCF1 = CFrame.new(pos + Vector3.new(-6, 8, 1)) * CFrame.Angles(0, 0, math.rad(90))
+        local c1 =
+            part({ Size = Vector3.new(0.8, 2.8, 2.8), CFrame = coinCF1, Color = P.Gold }, folder)
+        c1.Shape = Enum.PartType.Cylinder
+        local coinCF2 = CFrame.new(pos + Vector3.new(6, 8, -1)) * CFrame.Angles(0, 0, math.rad(90))
+        local c2 =
+            part({ Size = Vector3.new(0.8, 2.2, 2.2), CFrame = coinCF2, Color = P.Gold }, folder)
+        c2.Shape = Enum.PartType.Cylinder
+        -- Small treasure box beside it
+        part({
+            Size = Vector3.new(4, 3.5, 4),
+            Position = pos + Vector3.new(7, 8, 2),
             Color = P.Beam,
             Material = Enum.Material.Wood,
         }, folder)
-        -- wood frame posts
+    elseif tagName == "SpinWheel" then
+        -- Two wood support LEGS (P.Beam) flanking the wheel axle
+        for _, sx in ipairs({ -1, 1 }) do
+            part({
+                Size = Vector3.new(2, 18, 2),
+                Position = pos + Vector3.new(sx * 5, 9, 0),
+                Color = P.Beam,
+                Material = Enum.Material.Wood,
+            }, folder)
+        end
+        -- Horizontal axle bar connecting the legs at the top
+        part({
+            Size = Vector3.new(14, 2, 2),
+            Position = pos + Vector3.new(0, 18, 0),
+            Color = P.Beam,
+            Material = Enum.Material.Wood,
+        }, folder)
+        -- Wheel HUB: a thick cylinder mounted on the axle, face pointing toward player (+Z)
+        local hubCF = CFrame.new(pos + Vector3.new(0, 18, 0)) * CFrame.Angles(0, 0, math.rad(90))
+        local hub =
+            part({ Size = Vector3.new(3, 13, 13), CFrame = hubCF, Color = P.HubStone }, folder)
+        hub.Shape = Enum.PartType.Cylinder
+        -- 8 colored wedge SPOKES rotated around the hub center (thin blocks at 45-deg steps)
+        local spokeColors = {
+            accent,
+            P.RedTrim,
+            P.Gold,
+            P.Grape,
+            P.ShieldCyan,
+            P.Plaster,
+            P.Roof,
+            P.Grass,
+        }
+        for i = 0, 7 do
+            local angle = math.rad(i * 45)
+            local spokeCF = CFrame.new(pos + Vector3.new(0, 18, 0))
+                * CFrame.Angles(angle, 0, math.rad(90))
+                * CFrame.new(0, 0, -4.5)
+            part({
+                Size = Vector3.new(2.2, 1.5, 9),
+                CFrame = spokeCF,
+                Color = spokeColors[i + 1],
+                Material = Enum.Material.SmoothPlastic,
+            }, folder)
+        end
+        -- Small pointer WEDGE at the 12-o'clock position (above the wheel)
+        part({
+            Size = Vector3.new(2.5, 3, 2.5),
+            Position = pos + Vector3.new(0, 25, -1),
+            Color = P.Gold,
+        }, folder)
+        -- Center cap disc (decorative bolt face)
+        local capCF = CFrame.new(pos + Vector3.new(0, 18, -6.6)) * CFrame.Angles(0, 0, math.rad(90))
+        local cap = part({ Size = Vector3.new(1.2, 3, 3), CFrame = capCF, Color = P.Gold }, folder)
+        cap.Shape = Enum.PartType.Cylinder
+    else
+        -- STALL KIOSK (NetShop / PremiumShop)
+        -- Wood counter slab (front face of the kiosk)
+        part({
+            Size = Vector3.new(13, 4, 5),
+            Position = pos + Vector3.new(0, 7, 3),
+            Color = P.Beam,
+            Material = Enum.Material.Wood,
+        }, folder)
+        -- 4 corner posts
         for _, sx in ipairs({ -1, 1 }) do
             for _, sz in ipairs({ -1, 1 }) do
                 part({
-                    Size = Vector3.new(1.5, 14, 1.5),
-                    Position = pos + Vector3.new(sx * 6, 7, sz * 6),
+                    Size = Vector3.new(1.5, 16, 1.5),
+                    Position = pos + Vector3.new(sx * 6.5, 13, sz * 6),
                     Color = P.Beam,
                     Material = Enum.Material.Wood,
                 }, folder)
             end
         end
-        -- striped cloth canopy (accent color slab + Plaster stripe = awning look)
+        -- PEAKED canopy: two sloped slabs meeting at a ridge above the posts
+        -- Left half slopes up-right; right half slopes up-left (mirrored via CFrame.Angles)
+        for _, sx in ipairs({ -1, 1 }) do
+            local slopeCF = CFrame.new(pos + Vector3.new(sx * 3.5, 22, 0))
+                * CFrame.Angles(0, 0, sx * math.rad(25))
+            part({
+                Size = Vector3.new(8, 1.2, 15),
+                CFrame = slopeCF,
+                Color = accent,
+                Material = Enum.Material.Fabric,
+            }, folder)
+        end
+        -- Plaster stripe along the canopy front eave
         part({
-            Size = Vector3.new(15, 2, 15),
-            Position = pos + Vector3.new(0, 15, 0),
-            Color = accent,
-            Material = Enum.Material.Fabric,
-        }, folder)
-        part({
-            Size = Vector3.new(15, 0.8, 3),
-            Position = pos + Vector3.new(0, 14.2, 7),
+            Size = Vector3.new(15, 1, 2),
+            Position = pos + Vector3.new(0, 19.5, 7.2),
             Color = P.Plaster,
             Material = Enum.Material.Fabric,
         }, folder)
+        -- Back shelf board
+        part({
+            Size = Vector3.new(13, 1, 4),
+            Position = pos + Vector3.new(0, 13, -5.5),
+            Color = P.Beam,
+            Material = Enum.Material.Wood,
+        }, folder)
+        -- Hanging product cube on the shelf
+        part({
+            Size = Vector3.new(3.5, 3.5, 3.5),
+            Position = pos + Vector3.new(0, 15.5, -5.5),
+            Color = P.Gold,
+        }, folder)
+        -- Small framed wood plaque mounted on the canopy front (replaces the giant floating sign).
+        -- Frame: a flat P.Beam board slightly proud of the canopy front face
+        local plaquePos = pos + Vector3.new(0, 21, 7.6)
+        local plaqueBoard = part({
+            Size = Vector3.new(10, 3.5, 0.6),
+            Position = plaquePos,
+            Color = P.Beam,
+            Material = Enum.Material.Wood,
+        }, folder)
+        -- Plaque label: a SurfaceGui on the front face of the board (keeps the text, no giant sign post)
+        if label ~= nil then
+            local sg = Instance.new("SurfaceGui")
+            sg.Name = "Sign"
+            sg.Face = Enum.NormalId.Front
+            sg.CanvasSize = Vector2.new(400, 140)
+            sg.Adornee = plaqueBoard
+            sg.Parent = plaqueBoard
+            local shadow = Instance.new("TextLabel")
+            shadow.Size = UDim2.fromScale(1, 1)
+            shadow.Position = UDim2.fromOffset(3, 3)
+            shadow.BackgroundTransparency = 1
+            shadow.Font = Enum.Font.FredokaOne
+            shadow.Text = label
+            shadow.TextColor3 = Color3.fromRGB(0, 0, 0)
+            shadow.TextTransparency = 0.5
+            shadow.TextScaled = true
+            shadow.Parent = sg
+            local lbl = Instance.new("TextLabel")
+            lbl.Size = UDim2.fromScale(1, 1)
+            lbl.BackgroundTransparency = 1
+            lbl.Font = Enum.Font.FredokaOne
+            lbl.Text = label
+            lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+            lbl.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+            lbl.TextStrokeTransparency = 0
+            lbl.TextScaled = true
+            lbl.Parent = sg
+        end
+        -- Thin frame border around the plaque (4 P.Beam strips)
+        part({
+            Size = Vector3.new(10.8, 0.6, 0.4),
+            Position = plaquePos + Vector3.new(0, 1.75, 0.1),
+            Color = P.Wood,
+            Material = Enum.Material.Wood,
+        }, folder) -- top bar
+        part({
+            Size = Vector3.new(10.8, 0.6, 0.4),
+            Position = plaquePos + Vector3.new(0, -1.75, 0.1),
+            Color = P.Wood,
+            Material = Enum.Material.Wood,
+        }, folder) -- bottom bar
+        for _, sx in ipairs({ -1, 1 }) do
+            part({
+                Size = Vector3.new(0.6, 3.5, 0.4),
+                Position = plaquePos + Vector3.new(sx * 5.4, 0, 0.1),
+                Color = P.Wood,
+                Material = Enum.Material.Wood,
+            }, folder) -- side bars
+        end
+        -- For stalls the label is rendered on the plaque above; skip the old worldSign call below.
+        return base
     end
+
     if label ~= nil then
         worldSign(folder, pos + Vector3.new(0, 0, -8), label, accent)
     end

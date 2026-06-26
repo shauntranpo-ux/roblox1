@@ -40,8 +40,155 @@ local function formatRow(entry)
     return string.format("%d.  %s", entry.Rank, entry.Name), "$" .. Format.short(entry.Value)
 end
 
+-- Helper: one anchored part parented to a model/folder (mirrors WorldBuilder's part() mini-helper).
+local function standPart(props, parent)
+    local p = Instance.new("Part")
+    p.Anchored = true
+    p.TopSurface = Enum.SurfaceType.Smooth
+    p.BottomSurface = Enum.SurfaceType.Smooth
+    p.Size = props.Size
+    p.Color = props.Color or Color3.fromRGB(235, 235, 235)
+    p.Material = props.Material or Enum.Material.SmoothPlastic
+    p.CFrame = props.CFrame or CFrame.new(props.Position or Vector3.zero)
+    if props.Shape ~= nil then
+        p.Shape = props.Shape
+    end
+    p.Parent = parent
+    return p
+end
+
+-- Shared palette refs (mirrors WorldBuilder P; defined here to avoid a cross-require).
+local SP = {
+    Stone = Color3.fromRGB(163, 162, 165),
+    Beam = Color3.fromRGB(140, 108, 72),
+    Wood = Color3.fromRGB(106, 74, 42),
+    Gold = Color3.fromRGB(251, 197, 49),
+    Grape = Color3.fromRGB(107, 50, 124),
+    Pillar = Color3.fromRGB(28, 31, 40),
+    Panel = Color3.fromRGB(22, 24, 31),
+}
+
+-- Themed TOPPER geometry added above the board panel per board identity.
+-- `topY` = Y position of the top of the board; parts are placed above that.
+local function buildTopper(key, basePosition, topY, podiumFolder)
+    local tx = basePosition.X
+    local tz = basePosition.Z
+    if key == "Cash" then
+        -- Gold coin (cylinder on its side, face toward player)
+        local coinCF = CFrame.new(tx, topY + 4, tz) * CFrame.Angles(0, 0, math.rad(90))
+        local coin = standPart(
+            { Size = Vector3.new(1.5, 8, 8), CFrame = coinCF, Color = SP.Gold },
+            podiumFolder
+        )
+        coin.Shape = Enum.PartType.Cylinder
+        -- Inner ring cutout illusion: smaller darker cylinder
+        local innerCF = CFrame.new(tx, topY + 4, tz) * CFrame.Angles(0, 0, math.rad(90))
+        local inner = standPart({
+            Size = Vector3.new(1.6, 4, 4),
+            CFrame = innerCF,
+            Color = Color3.fromRGB(200, 155, 30),
+        }, podiumFolder)
+        inner.Shape = Enum.PartType.Cylinder
+    elseif key == "Income" then
+        -- Clock face: flat cylinder disc + two hand blocks
+        local clockCF = CFrame.new(tx, topY + 5, tz) * CFrame.Angles(0, 0, math.rad(90))
+        local clock = standPart({
+            Size = Vector3.new(1.2, 8, 8),
+            CFrame = clockCF,
+            Color = Color3.fromRGB(240, 238, 228),
+        }, podiumFolder)
+        clock.Shape = Enum.PartType.Cylinder
+        -- Hour hand (short, points to ~2 o'clock)
+        local hourCF = CFrame.new(tx, topY + 6.5, tz)
+            * CFrame.Angles(math.rad(-30), 0, math.rad(90))
+            * CFrame.new(0, 0, -1.5)
+        standPart(
+            { Size = Vector3.new(1.3, 1, 3), CFrame = hourCF, Color = SP.Pillar },
+            podiumFolder
+        )
+        -- Minute hand (long, points straight up)
+        local minCF = CFrame.new(tx, topY + 6.5, tz)
+            * CFrame.Angles(0, 0, math.rad(90))
+            * CFrame.new(0, 0, -2)
+        standPart(
+            { Size = Vector3.new(1.3, 0.8, 4), CFrame = minCF, Color = SP.Pillar },
+            podiumFolder
+        )
+    elseif key == "Collection" then
+        -- Gem: a tall tapered block (Grape/purple)
+        standPart({
+            Size = Vector3.new(3.5, 7, 3.5),
+            Position = Vector3.new(tx, topY + 5.5, tz),
+            Color = SP.Grape,
+        }, podiumFolder)
+        -- Facet cap (lighter tip)
+        standPart({
+            Size = Vector3.new(2, 3, 2),
+            Position = Vector3.new(tx, topY + 10.5, tz),
+            Color = Color3.fromRGB(160, 100, 190),
+        }, podiumFolder)
+    else
+        -- Trophy (Top Season): base cup + stem + handles
+        -- Cup body
+        standPart({
+            Size = Vector3.new(6, 5, 4),
+            Position = Vector3.new(tx, topY + 5.5, tz),
+            Color = SP.Gold,
+        }, podiumFolder)
+        -- Stem
+        standPart({
+            Size = Vector3.new(1.5, 3, 1.5),
+            Position = Vector3.new(tx, topY + 2.5, tz),
+            Color = SP.Gold,
+        }, podiumFolder)
+        -- Trophy handles (left + right small blocks)
+        for _, sx in ipairs({ -1, 1 }) do
+            standPart({
+                Size = Vector3.new(2, 3, 1),
+                Position = Vector3.new(tx + sx * 4, topY + 5.5, tz),
+                Color = SP.Gold,
+            }, podiumFolder)
+        end
+        -- Gold star on top of cup
+        standPart({
+            Size = Vector3.new(3, 3, 1),
+            Position = Vector3.new(tx, topY + 9, tz),
+            Color = SP.Gold,
+        }, podiumFolder)
+    end
+end
+
 -- Builds the generated pillar + BillboardGui for one board and returns an Update(rows) closure.
 local function buildGeneratedStand(board, basePosition)
+    -- ── PODIUM GEOMETRY ─────────────────────────────────────────────────────────────────────────
+    -- Stepped stone pedestal: 3 tiers beneath the pillar.
+    local podiumFolder = Instance.new("Folder")
+    podiumFolder.Name = "Podium_" .. board.Key
+    podiumFolder.Parent = folder
+
+    -- Tier 1 (widest, ground level)
+    standPart({
+        Size = Vector3.new(14, 3, 8),
+        Position = basePosition + Vector3.new(0, 1.5, 0),
+        Color = SP.Stone,
+        Material = Enum.Material.Slate,
+    }, podiumFolder)
+    -- Tier 2
+    standPart({
+        Size = Vector3.new(11, 2, 6),
+        Position = basePosition + Vector3.new(0, 4, 0),
+        Color = SP.Beam,
+        Material = Enum.Material.Wood,
+    }, podiumFolder)
+    -- Tier 3 (top step, transitions to the pillar)
+    standPart({
+        Size = Vector3.new(8, 1.5, 5),
+        Position = basePosition + Vector3.new(0, 5.75, 0),
+        Color = SP.Stone,
+        Material = Enum.Material.SmoothPlastic,
+    }, podiumFolder)
+
+    -- ── MAIN PILLAR (the adornee for the BillboardGui -- position/size unchanged) ──────────────
     local pillar = Instance.new("Part")
     pillar.Name = "LeaderboardStand_" .. board.Key
     pillar.Anchored = true
@@ -52,6 +199,49 @@ local function buildGeneratedStand(board, basePosition)
     pillar.Material = Enum.Material.SmoothPlastic
     pillar.Parent = folder
 
+    -- ── SIDE POSTS framing the board (two wood columns flanking the billboard face) ────────────
+    for _, sx in ipairs({ -1, 1 }) do
+        standPart({
+            Size = Vector3.new(1.5, 20, 1.5),
+            Position = basePosition + Vector3.new(sx * 6, 10, 0),
+            Color = SP.Beam,
+            Material = Enum.Material.Wood,
+        }, podiumFolder)
+    end
+
+    -- ── WOOD FRAME around the billboard face (4 thin P.Beam strips bordering the SurfaceGui area)
+    -- The BillboardGui sits at StudsOffset (0,11,0) from pillar centre; board face is at pillar +Z.
+    -- Frame centre matches the billboard visual centre: basePosition + (0, 7+11, 0) = (0, 18, 0).
+    local frameCX = basePosition.X
+    local frameCY = basePosition.Y + 18
+    local frameCZ = basePosition.Z + 2.5 -- just in front of the pillar front face
+    local frameW, frameH = 11, 14 -- slightly larger than the BillboardGui StudsOffset footprint
+    standPart({
+        Size = Vector3.new(frameW, 1, 1),
+        Position = Vector3.new(frameCX, frameCY + frameH / 2, frameCZ),
+        Color = SP.Beam,
+        Material = Enum.Material.Wood,
+    }, podiumFolder) -- top bar
+    standPart({
+        Size = Vector3.new(frameW, 1, 1),
+        Position = Vector3.new(frameCX, frameCY - frameH / 2, frameCZ),
+        Color = SP.Beam,
+        Material = Enum.Material.Wood,
+    }, podiumFolder) -- bottom bar
+    for _, sx in ipairs({ -1, 1 }) do
+        standPart({
+            Size = Vector3.new(1, frameH, 1),
+            Position = Vector3.new(frameCX + sx * frameW / 2, frameCY, frameCZ),
+            Color = SP.Beam,
+            Material = Enum.Material.Wood,
+        }, podiumFolder) -- side bars
+    end
+
+    -- ── THEMED TOPPER above the board ────────────────────────────────────────────────────────────
+    -- topY = top of the board frame
+    buildTopper(board.Key, basePosition, frameCY + frameH / 2 + 0.5, podiumFolder)
+
+    -- ── BILLBOARDGUI (adornee = pillar; position/size/StudsOffset UNCHANGED so live text binds) ─
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "Board"
     billboard.Size = UDim2.fromScale(10, 12)
