@@ -56,7 +56,7 @@ local function label(text, color, size)
         BackgroundTransparency = 1,
         Font = Theme.FontBold,
         Text = text,
-        TextColor3 = color or Theme.Colors.Text,
+        TextColor3 = color or Theme.Colors.Ink,
         TextSize = 16,
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -166,7 +166,7 @@ end
 local function renderPicker()
     clear()
     order = 0
-    label("Add a unit to your offer", Theme.Colors.Text)
+    label("Add a unit to your offer", Theme.Colors.Ink)
     button("‹ Back", Theme.Colors.Disabled, function()
         if snapshot ~= nil then
             Trade.renderActive(snapshot)
@@ -243,7 +243,7 @@ function Trade.renderActive(payload)
         itemRow(item, not payload.InCountdown) -- offer is locked-in during the countdown
     end
     if payload.CashEnabled then
-        label("Your cash offered: $" .. Format.short(payload.You.Cash), Theme.Colors.SubText, 22)
+        label("Your cash offered: $" .. Format.short(payload.You.Cash), Theme.Colors.InkSoft, 22)
     end
     if not payload.InCountdown then
         button("+ Add unit", Theme.Colors.Accent, renderPicker)
@@ -261,7 +261,7 @@ function Trade.renderActive(payload)
     if payload.CashEnabled then
         label(
             "Partner cash offered: $" .. Format.short(payload.Them.Cash),
-            Theme.Colors.SubText,
+            Theme.Colors.InkSoft,
             22
         )
     end
@@ -333,7 +333,7 @@ function Trade.renderPlayerList()
     prevReady = false
     prevConfirm = false
     countdownToken += 1 -- kill any running countdown ticker
-    label("Trade with a player in this server:", Theme.Colors.Text)
+    label("Trade with a player in this server:", Theme.Colors.Ink)
     local any = false
     for _, other in ipairs(Players:GetPlayers()) do
         if other ~= player then
@@ -344,7 +344,7 @@ function Trade.renderPlayerList()
         end
     end
     if not any then
-        label("No other players here right now.", Theme.Colors.SubText)
+        label("No other players here right now.", Theme.Colors.InkSoft)
     end
 end
 

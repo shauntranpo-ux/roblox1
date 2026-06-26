@@ -112,7 +112,7 @@ local function exclusiveCard(ex)
         Size = UDim2.new(1, -116, 0, 22),
         BackgroundTransparency = 1,
         Text = ex.DisplayName .. "  [" .. ex.Kind .. "]",
-        TextColor3 = Theme.Colors.Text,
+        TextColor3 = Theme.Colors.Ink,
         TextSize = 16,
         TextTruncate = Enum.TextTruncate.AtEnd,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -126,7 +126,7 @@ local function exclusiveCard(ex)
         BackgroundTransparency = 1,
         Font = Theme.FontBody,
         Text = sourceText(ex),
-        TextColor3 = Theme.Colors.SubText,
+        TextColor3 = Theme.Colors.InkSoft,
         TextSize = 13,
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -166,7 +166,7 @@ local function exclusiveCard(ex)
             BackgroundTransparency = 1,
             Font = Theme.FontBody,
             Text = ex.Obtainable and "earn it!" or "window closed",
-            TextColor3 = Theme.Colors.SubText,
+            TextColor3 = Theme.Colors.InkSoft,
             TextSize = 13,
             TextWrapped = true,
             Parent = card,
@@ -191,18 +191,18 @@ function Exclusives.refresh()
     local state = getState()
     label(
         "Season " .. tostring(state.SeasonId) .. " exclusives" .. countdownText(),
-        Theme.Colors.Text,
+        Theme.Colors.Ink,
         26,
         Theme.FontDisplay
     )
     label(
         "Get these ONLY this season -- then they're gone forever. Owned copies stay yours + are tradeable.",
-        Theme.Colors.SubText,
+        Theme.Colors.InkSoft,
         32
     )
 
     if #state.Current == 0 then
-        label("No exclusives are live this season. Check back next season!", Theme.Colors.SubText)
+        label("No exclusives are live this season. Check back next season!", Theme.Colors.InkSoft)
     else
         for _, ex in ipairs(state.Current) do
             exclusiveCard(ex)
@@ -210,7 +210,7 @@ function Exclusives.refresh()
     end
 
     -- The full owned/missed roll (FOMO): every configured exclusive + whether you have it.
-    label("All exclusives (owned / missed)", Theme.Colors.Text, 28, Theme.FontDisplay)
+    label("All exclusives (owned / missed)", Theme.Colors.Ink, 28, Theme.FontDisplay)
     for _, ex in ipairs(state.All) do
         label(
             (ex.Owned and "  ✓ " or "  ✗ ")
@@ -218,7 +218,7 @@ function Exclusives.refresh()
                 .. "  (Season "
                 .. tostring(ex.SeasonId)
                 .. ")",
-            ex.Owned and Theme.Colors.Positive or Theme.Colors.SubText,
+            ex.Owned and Theme.Colors.Positive or Theme.Colors.InkSoft,
             20
         )
     end

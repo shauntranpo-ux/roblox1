@@ -41,7 +41,7 @@ local function label(text, color, size, font)
         BackgroundTransparency = 1,
         Font = font or Theme.FontBody,
         Text = text,
-        TextColor3 = color or Theme.Colors.Text,
+        TextColor3 = color or Theme.Colors.Ink,
         TextSize = 15,
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -93,7 +93,7 @@ end
 local function renderPicker(slot, equippedIds)
     clearRows()
     order = 0
-    label("Pick a unit for slot " .. slot, Theme.Colors.Text, 26, Theme.FontDisplay)
+    label("Pick a unit for slot " .. slot, Theme.Colors.Ink, 26, Theme.FontDisplay)
     Builder.glossButton({
         Size = UDim2.new(1, 0, 0, 40),
         color = Theme.Colors.Disabled,
@@ -143,7 +143,7 @@ local function renderPicker(slot, equippedIds)
         end
     end
     if not any then
-        label("No free units to equip.", Theme.Colors.SubText)
+        label("No free units to equip.", Theme.Colors.InkSoft)
     end
 end
 
@@ -167,7 +167,7 @@ local function slotCard(entry, equippedIds)
         Size = UDim2.new(1, -116, 0, 24),
         BackgroundTransparency = 1,
         Text = titleText,
-        TextColor3 = Theme.Colors.Text,
+        TextColor3 = Theme.Colors.Ink,
         TextSize = 17,
         TextTruncate = Enum.TextTruncate.AtEnd,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -182,7 +182,7 @@ local function slotCard(entry, equippedIds)
         Font = Theme.FontBody,
         Text = filled and (entry.PerkName .. "  (" .. (entry.Category or "") .. ")")
             or "(empty slot)",
-        TextColor3 = filled and Theme.Colors.Accent or Theme.Colors.SubText,
+        TextColor3 = filled and Theme.Colors.Accent or Theme.Colors.InkSoft,
         TextSize = 14,
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = card,
@@ -194,7 +194,7 @@ local function slotCard(entry, equippedIds)
         Font = Theme.FontBody,
         Text = filled and (entry.Magnitude .. "  -  " .. (entry.PerkDesc or ""))
             or "Tap Equip to assign a unit.",
-        TextColor3 = filled and Theme.Colors.Positive or Theme.Colors.SubText,
+        TextColor3 = filled and Theme.Colors.Positive or Theme.Colors.InkSoft,
         TextSize = 13,
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -232,7 +232,7 @@ function Loadout.refresh()
     end
     label(
         "Equip a unit's SIGNATURE PERK into a slot. It KEEPS earning on its pad while equipped.",
-        Theme.Colors.SubText
+        Theme.Colors.InkSoft
     )
 
     local loadout = getLoadout()

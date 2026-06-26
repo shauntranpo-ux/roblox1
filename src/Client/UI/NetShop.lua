@@ -40,7 +40,7 @@ local function label(text, color, size, font)
         BackgroundTransparency = 1,
         Font = font or Theme.FontBody,
         Text = text,
-        TextColor3 = color or Theme.Colors.Text,
+        TextColor3 = color or Theme.Colors.Ink,
         TextSize = 15,
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -110,7 +110,7 @@ function NetShop.refresh()
             .. "/"
             .. tostring(state.MaxTier)
             .. ")",
-        Theme.Colors.Text,
+        Theme.Colors.Ink,
         28,
         Theme.FontDisplay
     )
@@ -128,7 +128,7 @@ function NetShop.refresh()
             Size = UDim2.new(1, -120, 0, 24),
             BackgroundTransparency = 1,
             Text = "Next: " .. tostring(state.Next.Name),
-            TextColor3 = Theme.Colors.Text,
+            TextColor3 = Theme.Colors.Ink,
             TextSize = 17,
             TextXAlignment = Enum.TextXAlignment.Left,
             Parent = card,
@@ -140,7 +140,7 @@ function NetShop.refresh()
             BackgroundTransparency = 1,
             Font = Theme.FontBody,
             Text = bonusText(state.Next) .. "\nCost: $" .. Format.full(state.Next.Cost or 0),
-            TextColor3 = Theme.Colors.SubText,
+            TextColor3 = Theme.Colors.InkSoft,
             TextSize = 13,
             TextWrapped = true,
             TextXAlignment = Enum.TextXAlignment.Left,
@@ -161,7 +161,7 @@ function NetShop.refresh()
     end
 
     -- Pro Net gamepass (NON-RANDOM, disclosed fixed bonus).
-    label("Pro Net (Gamepass)", Theme.Colors.Text, 26, Theme.FontDisplay)
+    label("Pro Net (Gamepass)", Theme.Colors.Ink, 26, Theme.FontDisplay)
     local pn = state.ProNetBonus or {}
     label(
         state.HasProNet and "OWNED -- fixed bonus active."
@@ -170,7 +170,7 @@ function NetShop.refresh()
                 math.floor((pn.HoldReduce or 0) * 100 + 0.5),
                 math.floor(pn.RangeAdd or 0)
             ),
-        state.HasProNet and Theme.Colors.Positive or Theme.Colors.SubText,
+        state.HasProNet and Theme.Colors.Positive or Theme.Colors.InkSoft,
         34
     )
     if not state.HasProNet then
