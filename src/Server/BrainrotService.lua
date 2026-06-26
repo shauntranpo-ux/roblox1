@@ -158,6 +158,56 @@ end
 
 -- Builds the on-pad visual for one brainrot: the 2D picture (if it has an IconId) or, until art is
 -- added, a rarity-tinted placeholder cube. A mutated unit overrides the tint/accent so it reads.
+-- A flat, CAMERA-FACING 2D card for a unit that has no picture (IconId): a rounded tinted card with the
+-- name on a BillboardGui, so it always faces the camera and reads as a "2D brainrot" -- never a 3D cube.
+local function addCardBillboard(part, def, tint)
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "Art"
+    billboard.Size = UDim2.fromScale(5, 6)
+    billboard.StudsOffsetWorldSpace = Vector3.new(0, 1.5, 0)
+    billboard.LightInfluence = 0
+    billboard.MaxDistance = 130
+    billboard.Adornee = part
+    billboard.Parent = part
+
+    local card = Instance.new("Frame")
+    card.Size = UDim2.fromScale(1, 1)
+    card.BackgroundColor3 = tint
+    card.BackgroundTransparency = 0.05
+    card.BorderSizePixel = 0
+    card.Parent = billboard
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 16)
+    corner.Parent = card
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = Color3.fromRGB(20, 16, 30)
+    stroke.Thickness = 3
+    stroke.Parent = card
+
+    local gloss = Instance.new("Frame")
+    gloss.Size = UDim2.fromScale(1, 0.42)
+    gloss.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    gloss.BackgroundTransparency = 0.78
+    gloss.BorderSizePixel = 0
+    gloss.ZIndex = 0
+    gloss.Parent = card
+    local glossCorner = Instance.new("UICorner")
+    glossCorner.CornerRadius = UDim.new(0, 16)
+    glossCorner.Parent = gloss
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.fromScale(0.86, 0.86)
+    label.Position = UDim2.fromScale(0.07, 0.07)
+    label.BackgroundTransparency = 1
+    label.Font = Enum.Font.FredokaOne
+    label.Text = def.DisplayName
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextStrokeColor3 = Color3.fromRGB(20, 16, 30)
+    label.TextStrokeTransparency = 0
+    label.TextScaled = true
+    label.Parent = card
+end
+
 local function makeBrainrotPart(def, brainrot, pad)
     local rarity = Rarity.Get(def.Rarity)
     local mutation = brainrot.Mutation ~= nil and MutationConfig.Get(brainrot.Mutation) or nil
@@ -176,19 +226,13 @@ local function makeBrainrotPart(def, brainrot, pad)
     part.Color = tint
     part.CFrame = placementCFrame(pad)
 
+    -- Either way the cube is an INVISIBLE anchor; a camera-facing 2D BILLBOARD is the unit's whole look
+    -- (a flat "2D brainrot", never a 3D block) -- the picture if it has one, else a tinted name card.
+    part.Transparency = 1
     if hasArt(def) then
-        -- 2D picture path: the cube is an invisible anchor; the billboard image IS the unit.
-        part.Transparency = 1
         addArtBillboard(part, def, mutation)
     else
-        -- Placeholder path: rarity/mutation-colored accent outline + faint glow.
-        local box = Instance.new("SelectionBox")
-        box.Adornee = part
-        box.LineThickness = mutation ~= nil and 0.14 or 0.06
-        box.Color3 = tint
-        box.SurfaceColor3 = tint
-        box.SurfaceTransparency = mutation ~= nil and 0.55 or 0.85
-        box.Parent = part
+        addCardBillboard(part, def, tint)
     end
 
     addInfoLabel(part, def, brainrot)
