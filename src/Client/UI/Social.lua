@@ -43,7 +43,7 @@ local function label(text, color, size, font)
         BackgroundTransparency = 1,
         Font = font or Theme.FontBody,
         Text = text,
-        TextColor3 = color or Theme.Colors.Text,
+        TextColor3 = color or Theme.Colors.Ink,
         TextSize = 15,
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -163,7 +163,7 @@ local function renderUnitPicker()
         end
     end
     if not any then
-        label("No giftable units (locked/favorited/premium excluded).", Theme.Colors.SubText, 36)
+        label("No giftable units (locked/favorited/premium excluded).", Theme.Colors.InkSoft, 36)
     end
     rowButton("← Back", Theme.Colors.DarkPill, function()
         selectedFriend = nil
@@ -201,13 +201,13 @@ function Social.refresh()
                     .. "% income (+"
                     .. tostring(state.VipOwnerPct)
                     .. "% for the owner).",
-                Theme.Colors.SubText,
+                Theme.Colors.InkSoft,
                 36
             )
         end
         label(
             "Gifts left today: " .. tostring(state.GiftsLeft) .. " / " .. tostring(state.DailyCap),
-            Theme.Colors.Text
+            Theme.Colors.Ink
         )
     end
 
@@ -217,7 +217,7 @@ function Social.refresh()
     end
 
     -- Gift a friend in this server.
-    label("Gift a Friend (in this server)", Theme.Colors.Text, 26, Theme.FontDisplay)
+    label("Gift a Friend (in this server)", Theme.Colors.Ink, 26, Theme.FontDisplay)
     local localPlayer = Players.LocalPlayer
     local anyFriend = false
     for _, other in ipairs(Players:GetPlayers()) do
@@ -238,11 +238,11 @@ function Social.refresh()
         end
     end
     if not anyFriend then
-        label("No friends in this server right now. Invite some below!", Theme.Colors.SubText, 36)
+        label("No friends in this server right now. Invite some below!", Theme.Colors.InkSoft, 36)
     end
 
     -- Play with friends (reuse M13.1's invite) + a best-effort join.
-    label("Play With Friends", Theme.Colors.Text, 26, Theme.FontDisplay)
+    label("Play With Friends", Theme.Colors.Ink, 26, Theme.FontDisplay)
     rowButton("📨  Invite Friends", Theme.Colors.Gold, function()
         PanelManager.open("Referral") -- reuse the M13.1 invite flow (no duplication)
     end)
@@ -310,7 +310,7 @@ function Social.mount(context)
         BackgroundTransparency = 1,
         Font = Theme.FontBody,
         Text = "",
-        TextColor3 = Theme.Colors.White,
+        TextColor3 = Theme.Colors.Ink,
         TextSize = 16,
         TextWrapped = true,
         ZIndex = 21,

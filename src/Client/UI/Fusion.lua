@@ -42,7 +42,7 @@ local function label(text, color, size, parent)
         BackgroundTransparency = 1,
         Font = Theme.FontBody,
         Text = text,
-        TextColor3 = color or Theme.Colors.Text,
+        TextColor3 = color or Theme.Colors.Ink,
         TextSize = 15,
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -89,7 +89,7 @@ local function groupCard(sample, ids)
         Size = UDim2.new(1, -120, 0, 24),
         BackgroundTransparency = 1,
         Text = string.format("%s  %s  (x%d)", sample.Name, FusionConfig.Stars(star), #ids),
-        TextColor3 = Theme.Colors.Text,
+        TextColor3 = Theme.Colors.Ink,
         TextSize = 18,
         TextTruncate = Enum.TextTruncate.AtEnd,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -110,7 +110,7 @@ local function groupCard(sample, ids)
             math.floor(FusionConfig.CritChance * 100 + 0.5),
             math.floor(FusionConfig.SoftFailChance * 100 + 0.5)
         ),
-        TextColor3 = Theme.Colors.SubText,
+        TextColor3 = Theme.Colors.InkSoft,
         TextSize = 14,
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = card,
@@ -167,7 +167,7 @@ function Fusion.refresh()
     end
     label(
         "Fuse 3 of the SAME unit at the SAME star into one higher-star version. Stars boost income.",
-        Theme.Colors.SubText
+        Theme.Colors.InkSoft
     )
 
     local ok, owned = pcall(function()
@@ -208,7 +208,7 @@ function Fusion.refresh()
             "No fusable duplicates yet -- collect "
                 .. FusionConfig.SameSpeciesCount
                 .. " of the same unit at the same star.",
-            Theme.Colors.SubText
+            Theme.Colors.InkSoft
         )
     end
 end

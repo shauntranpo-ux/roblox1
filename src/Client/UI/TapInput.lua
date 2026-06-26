@@ -33,7 +33,7 @@ local remotes = nil
 local gui = nil
 local panel = nil -- the bottom tap UI (button + meter), shown only while a target is active
 local meterBg = nil
-local meterFill = nil
+local meterSet = nil -- progressBar setter: meterSet(cur, max, text)
 local tapButton = nil
 local promptLabel = nil
 
@@ -42,6 +42,7 @@ local pending = 0 -- taps accumulated since the last flush (optimistic)
 local serverCount = 0 -- last server-confirmed progress for `current`
 local sendAccum = 0
 local lastTapSfx = 0
+local lastTapBurst = 0 -- throttle the pooled tap particle pop
 
 -- Map a prompt to a (Kind, TargetId, Need). Returns nil for prompts we don't drive.
 local function targetForPrompt(prompt)
@@ -74,7 +75,7 @@ local function repaintMeter()
     meterBg.Visible = true
     -- optimistic: server-confirmed + locally-pending, but NEVER show full until the server completes.
     local shown = math.min(current.Need - 0.001, serverCount + pending)
-    meterFill.Size = UDim2.fromScale(math.clamp(shown / current.Need, 0, 1), 1)
+    meterSet(shown, current.Need, "") -- animated fill (fast tween) + gloss sweep; no x/y label
 end
 
 local function showPanel(on)
@@ -172,11 +173,15 @@ local function onTap()
         return
     end
     pending += 1
-    Effects.pop(tapButton, 0.12)
+    Effects.pop(tapButton, 0.14) -- quick per-tap squash/pulse on the button
     local now = os.clock()
     if now - lastTapSfx >= 0.04 then -- throttle the click sound (taps fire faster than this)
         lastTapSfx = now
         Effects.playSfx("click")
+    end
+    if now - lastTapBurst >= 0.08 then -- throttled pooled particle pop near the button (capped pool)
+        lastTapBurst = now
+        Effects.burst(UDim2.fromScale(0.5, 0.86), Theme.Colors.White, 5)
     end
     repaintMeter()
     -- IMMEDIATE FLUSH when this tap tips the optimistic total past the need: don't wait for the next
@@ -234,35 +239,29 @@ function TapInput.mount(context)
         Parent = gui,
     })
 
-    -- thin progress meter above the button (catch/steal; hidden for combat)
-    meterBg = Builder.create("Frame", {
+    -- rounded progress METER above the button (catch/steal; hidden for combat) -- the single
+    -- Builder.progressBar (animated fill + looping gloss sweep). Fast fill tween so it tracks each tap.
+    local catchMeter, catchSet = Builder.progressBar({
         AnchorPoint = Vector2.new(0.5, 0),
         Position = UDim2.fromScale(0.5, 0),
-        Size = UDim2.fromOffset(200, 16),
-        BackgroundColor3 = Theme.Colors.DarkPill,
-        BackgroundTransparency = 0.1,
-        Visible = false,
+        Size = UDim2.fromOffset(210, 18),
+        fillTop = Theme.Colors.HpFill,
+        fillBottom = Theme.Colors.HpFillDark,
+        label = false,
+        fillTween = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
         Parent = panel,
-    }, {
-        Builder.corner(UDim.new(1, 0)),
-        Builder.create(
-            "UIStroke",
-            { Color = Theme.Colors.White, Thickness = 2, Transparency = 0.3 }
-        ),
     })
-    meterFill = Builder.create("Frame", {
-        Size = UDim2.fromScale(0, 1),
-        BackgroundColor3 = Theme.Colors.Positive,
-        BorderSizePixel = 0,
-        Parent = meterBg,
-    }, { Builder.corner(UDim.new(1, 0)) })
+    catchMeter.Visible = false
+    meterBg = catchMeter
+    meterSet = catchSet
 
-    -- the big TAP button (mobile-first; also tap-anywhere works while a target is active)
+    -- the big bubbly glossy TAP button (mobile-first; also tap-anywhere works while a target is active):
+    -- candy gradient + top sheen + soft shadow + white glow rim + idle pulse + per-tap squash (onTap).
     tapButton = Builder.create("TextButton", {
         AnchorPoint = Vector2.new(0.5, 1),
         Position = UDim2.fromScale(0.5, 1),
         Size = UDim2.fromOffset(150, 150),
-        BackgroundColor3 = Theme.Colors.Accent,
+        BackgroundColor3 = Theme.accentColor("Default"),
         AutoButtonColor = false,
         Font = Theme.FontDisplay,
         Text = "TAP!",
@@ -271,13 +270,25 @@ function TapInput.mount(context)
         Parent = panel,
     }, {
         Builder.corner(UDim.new(1, 0)),
+        Theme.gradient("Default"), -- candy purple top->bottom gradient
         Builder.create(
             "UIStroke",
-            { Color = Theme.Colors.Outline, Thickness = 4, Transparency = 0.1 }
+            { Color = Theme.Colors.White, Thickness = 4, Transparency = 0.1 }
         ),
         Builder.create("UITextSizeConstraint", { MaxTextSize = 44 }),
         Builder.padding(8),
+        Builder.create("Frame", { -- top gloss sheen (non-interactive, behind the text)
+            Name = "Sheen",
+            Size = UDim2.fromScale(1, 0.5),
+            BackgroundColor3 = Theme.Colors.GlossTop,
+            BackgroundTransparency = 0.72,
+            BorderSizePixel = 0,
+            ZIndex = 0,
+        }, { Builder.corner(UDim.new(1, 0)) }),
     })
+    Builder.styleText(tapButton, { keepColor = true }) -- white "TAP!" with the dark rim
+    Builder.softShadow(tapButton, { radius = UDim.new(1, 0), spread = 16 })
+    Builder.pulse(tapButton) -- gentle idle breathing so it invites the tap
     promptLabel = Builder.create("TextLabel", {
         AnchorPoint = Vector2.new(0.5, 1),
         Position = UDim2.new(0.5, 0, 1, -158),
