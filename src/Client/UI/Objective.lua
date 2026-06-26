@@ -52,19 +52,19 @@ function Objective.mount(context)
     local gui = Builder.screenGui("Objective", player:WaitForChild("PlayerGui"), true)
     gui.DisplayOrder = 7 -- below the announce banner (8)
 
-    frame = Builder.create("Frame", {
+    -- Shared HUD "strip pill" look (DarkPill + soft white rim + Card radius) -> one family with the
+    -- biome label + boss HP bar.
+    frame = Builder.pill({
         AnchorPoint = Vector2.new(0.5, 0),
         Position = UDim2.fromScale(0.5, 0.06),
         Size = UDim2.fromScale(0.6, 0.05),
-        BackgroundColor3 = Theme.Colors.DarkPill,
-        BackgroundTransparency = 0.25,
-        Visible = false,
+        radius = Theme.Radius.Card,
+        transparency = 0.25,
         Parent = gui,
-    }, {
-        Builder.corner(UDim.new(0, 10)),
-        Builder.padding(6),
-        Builder.create("UISizeConstraint", { MaxSize = Vector2.new(700, 56) }),
     })
+    frame.Visible = false
+    Builder.padding(6).Parent = frame
+    Builder.create("UISizeConstraint", { MaxSize = Vector2.new(700, 56), Parent = frame })
 
     label = Builder.create("TextLabel", {
         Size = UDim2.fromScale(1, 1),
