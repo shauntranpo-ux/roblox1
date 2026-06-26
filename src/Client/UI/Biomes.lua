@@ -153,7 +153,7 @@ function Biomes.mount(context)
         AnchorPoint = Vector2.new(0, 0),
         Position = UDim2.fromScale(0.012, 0.03),
         Size = UDim2.fromScale(0.18, 0.05),
-        radius = UDim.new(0, 12),
+        radius = Theme.Radius.Card, -- one pill family with the objective strip + boss HP bar
         Parent = gui,
     })
     Builder.create(
