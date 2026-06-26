@@ -10,6 +10,7 @@
 
 local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
 local Format = require(ReplicatedStorage.Shared.Format)
 local Monetization = require(ReplicatedStorage.Shared.Monetization)
@@ -188,112 +189,135 @@ local function buildGeneratedStand(board, basePosition)
         Material = Enum.Material.SmoothPlastic,
     }, podiumFolder)
 
-    -- ── MAIN PILLAR (the adornee for the BillboardGui -- position/size unchanged) ──────────────
+    -- ── MAIN PILLAR (thin backing column connecting pedestal to wall base) ───────────────────────
     local pillar = Instance.new("Part")
     pillar.Name = "LeaderboardStand_" .. board.Key
     pillar.Anchored = true
     pillar.CanCollide = true
-    pillar.Size = Vector3.new(4, 14, 4)
-    pillar.Position = basePosition + Vector3.new(0, 7, 0)
+    pillar.Size = Vector3.new(4, 7, 4)
+    pillar.Position = basePosition + Vector3.new(0, 3.5 + 5.75, 0) -- sits on top of tier-3 (y=6.5)
     pillar.Color = COLORS.Pillar
     pillar.Material = Enum.Material.SmoothPlastic
     pillar.Parent = folder
 
-    -- ── SIDE POSTS framing the board (two wood columns flanking the billboard face) ────────────
+    -- ── 3-D SCROLLING WALL (replaces old floating BillboardGui; physical Part + SurfaceGui) ─────
+    -- Wall: Size(18,22,1), front face (+Z). Bottom sits on pillar top (pillar top = 6.5+7 = 13.5).
+    local wallH = 22
+    local wallW = 18
+    local wallCY = 13.5 + wallH / 2 -- wall centre Y
+    local wall = standPart({
+        Size = Vector3.new(wallW, wallH, 1),
+        Position = basePosition + Vector3.new(0, wallCY, 0),
+        Color = COLORS.Panel,
+        Material = Enum.Material.SmoothPlastic,
+    }, podiumFolder)
+    wall.Name = "LeaderboardWall_" .. board.Key
+
+    -- ── SIDE POSTS framing the wall (two wood columns flanking the wall face) ─────────────────
     for _, sx in ipairs({ -1, 1 }) do
         standPart({
-            Size = Vector3.new(1.5, 20, 1.5),
-            Position = basePosition + Vector3.new(sx * 6, 10, 0),
+            Size = Vector3.new(1.5, wallCY + wallH / 2 + 1, 1.5),
+            Position = basePosition
+                + Vector3.new(sx * (wallW / 2 + 1), (wallCY + wallH / 2 + 1) / 2, 0),
             Color = SP.Beam,
             Material = Enum.Material.Wood,
         }, podiumFolder)
     end
 
-    -- ── WOOD FRAME around the billboard face (4 thin P.Beam strips bordering the SurfaceGui area)
-    -- The BillboardGui sits at StudsOffset (0,11,0) from pillar centre; board face is at pillar +Z.
-    -- Frame centre matches the billboard visual centre: basePosition + (0, 7+11, 0) = (0, 18, 0).
+    -- ── WOOD FRAME around the wall face (4 thin P.Beam strips bordering the SurfaceGui area) ────
     local frameCX = basePosition.X
-    local frameCY = basePosition.Y + 18
-    local frameCZ = basePosition.Z + 2.5 -- just in front of the pillar front face
-    local frameW, frameH = 11, 14 -- slightly larger than the BillboardGui StudsOffset footprint
+    local frameCY = wallCY
+    local frameCZ = basePosition.Z + 1 -- just proud of the wall front face
+    local frameW, frameH = wallW + 1, wallH + 1
     standPart({
         Size = Vector3.new(frameW, 1, 1),
-        Position = Vector3.new(frameCX, frameCY + frameH / 2, frameCZ),
+        Position = Vector3.new(frameCX, frameCY + wallH / 2 + 0.5, frameCZ),
         Color = SP.Beam,
         Material = Enum.Material.Wood,
     }, podiumFolder) -- top bar
     standPart({
         Size = Vector3.new(frameW, 1, 1),
-        Position = Vector3.new(frameCX, frameCY - frameH / 2, frameCZ),
+        Position = Vector3.new(frameCX, frameCY - wallH / 2 - 0.5, frameCZ),
         Color = SP.Beam,
         Material = Enum.Material.Wood,
     }, podiumFolder) -- bottom bar
     for _, sx in ipairs({ -1, 1 }) do
         standPart({
             Size = Vector3.new(1, frameH, 1),
-            Position = Vector3.new(frameCX + sx * frameW / 2, frameCY, frameCZ),
+            Position = Vector3.new(frameCX + sx * (wallW / 2 + 0.5), frameCY, frameCZ),
             Color = SP.Beam,
             Material = Enum.Material.Wood,
         }, podiumFolder) -- side bars
     end
 
-    -- ── THEMED TOPPER above the board ────────────────────────────────────────────────────────────
-    -- topY = top of the board frame
-    buildTopper(board.Key, basePosition, frameCY + frameH / 2 + 0.5, podiumFolder)
+    -- ── THEMED TOPPER above the wall ─────────────────────────────────────────────────────────────
+    buildTopper(board.Key, basePosition, frameCY + wallH / 2 + 1, podiumFolder)
 
-    -- ── BILLBOARDGUI (adornee = pillar; position/size/StudsOffset UNCHANGED so live text binds) ─
-    local billboard = Instance.new("BillboardGui")
-    billboard.Name = "Board"
-    billboard.Size = UDim2.fromScale(10, 12)
-    billboard.StudsOffset = Vector3.new(0, 11, 0)
-    billboard.MaxDistance = 250
-    billboard.Adornee = pillar
-    billboard.Parent = pillar
+    -- ── SURFACEGUI on the wall's front face (physical, not camera-facing) ────────────────────────
+    -- CanvasSize is tall enough for the title + all TOP_N rows with room to scroll.
+    local ROW_PX = 48 -- pixels per row in the canvas
+    local TITLE_PX = 56
+    local canvasH = TITLE_PX + TOP_N * ROW_PX + 40 -- a bit of bottom padding
+    local sg = Instance.new("SurfaceGui")
+    sg.Name = "Board"
+    sg.Face = Enum.NormalId.Front
+    sg.CanvasSize = Vector2.new(480, canvasH)
+    sg.Adornee = wall
+    sg.Parent = wall
 
+    -- Dark panel background
     local panel = Instance.new("Frame")
+    panel.Name = "Panel"
     panel.Size = UDim2.fromScale(1, 1)
     panel.BackgroundColor3 = COLORS.Panel
-    panel.BackgroundTransparency = 0.2
+    panel.BackgroundTransparency = 0.1
     panel.BorderSizePixel = 0
-    panel.Parent = billboard
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 12)
-    corner.Parent = panel
-    local pad = Instance.new("UIPadding")
-    pad.PaddingTop = UDim.new(0, 8)
-    pad.PaddingBottom = UDim.new(0, 8)
-    pad.PaddingLeft = UDim.new(0, 10)
-    pad.PaddingRight = UDim.new(0, 10)
-    pad.Parent = panel
+    panel.Parent = sg
 
-    local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 2)
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Parent = panel
-
+    -- Title bar at the top of the panel (fixed, not scrolled)
     local title = Instance.new("TextLabel")
     title.Name = "Title"
-    title.Size = UDim2.new(1, 0, 0, 34)
-    title.BackgroundTransparency = 1
+    title.Size = UDim2.new(1, 0, 0, TITLE_PX)
+    title.Position = UDim2.fromOffset(0, 0)
+    title.BackgroundColor3 = COLORS.Pillar
+    title.BackgroundTransparency = 0
+    title.BorderSizePixel = 0
     title.Font = Enum.Font.GothamBold
     title.Text = board.Title
     title.TextColor3 = COLORS.Title
     title.TextScaled = true
-    title.LayoutOrder = 0
     title.Parent = panel
 
+    -- Rows container: a Frame that will be tweened to scroll upward.
+    -- Starts at the top (just below the title) and scrolls until all rows are off-screen,
+    -- then resets to the top and loops.
+    local rowContainer = Instance.new("Frame")
+    rowContainer.Name = "RowContainer"
+    rowContainer.Size = UDim2.new(1, 0, 0, TOP_N * ROW_PX)
+    rowContainer.Position = UDim2.fromOffset(0, TITLE_PX)
+    rowContainer.BackgroundTransparency = 1
+    rowContainer.ClipsDescendants = false
+    rowContainer.Parent = panel
+
+    local listLayout = Instance.new("UIListLayout")
+    listLayout.Padding = UDim.new(0, 2)
+    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    listLayout.Parent = rowContainer
+
+    -- Build row frames (same structure + names as old BillboardGui rows so Update binding is identical)
     local rowFrames = {}
     for i = 1, TOP_N do
         local row = Instance.new("Frame")
         row.Name = "Row" .. i
-        row.Size = UDim2.new(1, 0, 0, 24)
+        row.Size = UDim2.new(1, 0, 0, ROW_PX - 2)
         row.BackgroundTransparency = 1
         row.LayoutOrder = i
-        row.Parent = panel
+        row.Parent = rowContainer
 
         local left = Instance.new("TextLabel")
         left.Name = "Left"
-        left.Size = UDim2.fromScale(0.7, 1)
+        left.Size = UDim2.fromScale(0.68, 1)
+        left.Position = UDim2.fromOffset(8, 0)
         left.BackgroundTransparency = 1
         left.Font = Enum.Font.GothamMedium
         left.TextColor3 = COLORS.Name
@@ -305,7 +329,7 @@ local function buildGeneratedStand(board, basePosition)
         local right = Instance.new("TextLabel")
         right.Name = "Right"
         right.AnchorPoint = Vector2.new(1, 0)
-        right.Position = UDim2.fromScale(1, 0)
+        right.Position = UDim2.new(1, -8, 0, 0)
         right.Size = UDim2.fromScale(0.3, 1)
         right.BackgroundTransparency = 1
         right.Font = Enum.Font.GothamBold
@@ -318,6 +342,26 @@ local function buildGeneratedStand(board, basePosition)
         rowFrames[i] = { Frame = row, Left = left, Right = right }
     end
 
+    -- ── AUTO-SCROLL via TweenService: rows slide upward, then snap back to top and repeat ────────
+    -- Scroll distance = full height of the row container. Duration scales with row count.
+    local scrollDuration = TOP_N * 1.5
+    local scrollInfo =
+        TweenInfo.new(scrollDuration, Enum.EasingStyle.Linear, Enum.EasingDirection.In)
+    task.spawn(function()
+        while true do
+            -- Reset to top instantly, then tween upward
+            rowContainer.Position = UDim2.fromOffset(0, TITLE_PX)
+            local targetY = TITLE_PX - TOP_N * ROW_PX
+            local tween = TweenService:Create(rowContainer, scrollInfo, {
+                Position = UDim2.fromOffset(0, targetY),
+            })
+            tween:Play()
+            tween.Completed:Wait()
+            task.wait(0.5) -- brief pause at the bottom before looping
+        end
+    end)
+
+    -- ── UPDATE closure: same signature as before; rebuilds row text on each leaderboard refresh ──
     return function(rows)
         for i = 1, TOP_N do
             local slot = rowFrames[i]
