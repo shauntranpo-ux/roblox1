@@ -393,39 +393,80 @@ local function buildHub(folder)
     end
 end
 
--- A base ENCLOSURE around one plot: a raised floor pad + low walls (3 sides, open front) + corner posts +
--- a header beam. `center` = plot center on the ground, `face` = a CFrame whose -Z points at the open front.
+-- A cozy COTTAGE base around one plot: warm stone floor + cream plaster walls (3 sides + a flanked front
+-- DOORWAY) + wood corner beams + a clay eave trim around the OPEN top (top stays open so the player's
+-- brainrots are visible + stealable -- never roof it over). `center` = plot center, `face` -Z = open front.
 local function buildBaseEnclosure(folder, center, face)
-    local W, D, H = 52, 44, 14 -- interior footprint + wall height
+    local W, D, H = 54, 46, 15
     local cf = CFrame.new(center) * (face - face.Position)
-    part(
-        { Size = Vector3.new(W, 1.5, D), CFrame = cf * CFrame.new(0, 0.75, 0), Color = P.HubStone },
-        folder
-    )
+    -- raised warm-stone floor
+    part({
+        Size = Vector3.new(W, 2, D),
+        CFrame = cf * CFrame.new(0, 1, 0),
+        Color = P.Stone,
+        Material = Enum.Material.Slate,
+    }, folder)
+    -- cream plaster back + side walls
     part({
         Size = Vector3.new(W, H, 1.5),
-        CFrame = cf * CFrame.new(0, H / 2, -D / 2),
-        Color = P.ShieldCyan,
+        CFrame = cf * CFrame.new(0, H / 2 + 2, -D / 2),
+        Color = P.Plaster,
     }, folder)
     for _, sx in ipairs({ -1, 1 }) do
         part({
             Size = Vector3.new(1.5, H, D),
-            CFrame = cf * CFrame.new(sx * W / 2, H / 2, 0),
-            Color = P.ShieldCyan,
+            CFrame = cf * CFrame.new(sx * W / 2, H / 2 + 2, 0),
+            Color = P.Plaster,
         }, folder)
+    end
+    -- low FRONT walls flanking an open doorway (reads as an entrance, not a sealed box)
+    local doorHalf = 9
+    local segW = W / 2 - doorHalf
+    for _, sx in ipairs({ -1, 1 }) do
+        part({
+            Size = Vector3.new(segW, H * 0.55, 1.5),
+            CFrame = cf * CFrame.new(sx * (doorHalf + segW / 2), H * 0.275 + 2, D / 2),
+            Color = P.Plaster,
+        }, folder)
+    end
+    -- wood corner beams (the cottage frame)
+    for _, sx in ipairs({ -1, 1 }) do
         for _, sz in ipairs({ -1, 1 }) do
             part({
-                Size = Vector3.new(2.5, H + 4, 2.5),
-                CFrame = cf * CFrame.new(sx * W / 2, (H + 4) / 2, sz * D / 2),
-                Color = P.Gold,
+                Size = Vector3.new(2.5, H + 5, 2.5),
+                CFrame = cf * CFrame.new(sx * W / 2, (H + 5) / 2 + 2, sz * D / 2),
+                Color = P.Beam,
+                Material = Enum.Material.Wood,
             }, folder)
         end
     end
+    -- clay EAVE trim around the open top (a thin perimeter lip; center stays open)
+    local eaveY = H + 3
     part({
-        Size = Vector3.new(W + 5, 3, 3),
-        CFrame = cf * CFrame.new(0, H + 3, D / 2),
-        Color = P.Gold,
-        Glow = true,
+        Size = Vector3.new(W + 4, 2, 3),
+        CFrame = cf * CFrame.new(0, eaveY, -D / 2),
+        Color = P.Roof,
+        Material = Enum.Material.Slate,
+    }, folder)
+    part({
+        Size = Vector3.new(W + 4, 2, 3),
+        CFrame = cf * CFrame.new(0, eaveY, D / 2),
+        Color = P.Roof,
+        Material = Enum.Material.Slate,
+    }, folder)
+    for _, sx in ipairs({ -1, 1 }) do
+        part({
+            Size = Vector3.new(3, 2, D + 4),
+            CFrame = cf * CFrame.new(sx * W / 2, eaveY, 0),
+            Color = P.Roof,
+            Material = Enum.Material.Slate,
+        }, folder)
+    end
+    -- a warm doorway header banner (no glow)
+    part({
+        Size = Vector3.new(doorHalf * 2 + 4, 3, 2),
+        CFrame = cf * CFrame.new(0, H * 0.55 + 4, D / 2),
+        Color = P.Roof,
     }, folder)
 end
 
