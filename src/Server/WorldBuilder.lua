@@ -669,6 +669,189 @@ local function platformProps(folder, cfg)
     end
 end
 
+-- ── PLATFORM TERRAIN: seeded blocky hills / mounds / stepped blocks per biome style (PROBLEM 1 fix).
+-- Scatters capped, anchored, color-jittered mounds across each disc platform using WorldConfig.Terrain
+-- numbers. Kept clear of: disc center (hub/spawn), SpawnPoint arc (~90 deg), BossArena (~270 deg), and
+-- Elevator position. Uses polar scatter (inside disc edge inset). WALKABLE: blocks are short/stepped,
+-- no holes, the disc remains the floor. Every call draws from the module-level seeded `rng` in sequence
+-- (same seed -> same world). Tune height, density, and feel in WorldConfig.Terrain.
+local function platformTerrain(folder, cfg)
+    local T = WorldConfig.Terrain
+    local L = WorldConfig.Levels
+    local y = cfg.Y
+    local rad = cfg.Radius
+    local style = cfg.Style
+
+    -- Jitter a base color by +/- T.ColorJitter per channel (deterministic via seeded rng).
+    local function jitterColor(base)
+        local j = T.ColorJitter
+        return Color3.fromRGB(
+            math.clamp(math.round(base.R * 255 + rng:NextNumber(-j, j)), 0, 255),
+            math.clamp(math.round(base.G * 255 + rng:NextNumber(-j, j)), 0, 255),
+            math.clamp(math.round(base.B * 255 + rng:NextNumber(-j, j)), 0, 255)
+        )
+    end
+
+    -- Angles (radians) of the three clear zones.
+    local spawnAngle = math.rad(90) -- SpawnPoint arc is centered here (+/- ~30 deg cleared)
+    local arenaAngle = math.rad(270) -- BossArena centered here (+/- ~30 deg cleared)
+    local elevAngle = math.rad(L.ElevatorAngleDeg) -- Elevator spot (+/- ~20 deg + radius guard)
+    local elevR = L.ElevatorRadius
+    local clearR = T.ClearRadius -- radial distance from disc center to keep flat
+    -- PLOT FIX: on the BOTTOM platform (tier 1) the player bases ring at PlotRingRadius with enclosures
+    -- spanning out to ~r+26. Widen the centre clear zone past the whole base ring so mounds never clip
+    -- a base pad (Problem 2: bases sit on clean pads). Upper levels (no bases) keep the small 62 zone.
+    if cfg.Tier == 1 then
+        clearR = math.max(clearR, L.PlotRingRadius + 45)
+    end
+
+    -- Returns true if the polar position (a=angle rad, r=radius) is in a forbidden zone.
+    local function isForbidden(a, r)
+        -- inside the centre guard (hub / plot ring on level 1, or spawn corridor on all levels)
+        if r < clearR then
+            return true
+        end
+        -- angular guards: normalise angle difference into (-pi, pi] and check a 50-deg cone
+        local function angDiff(x, ref)
+            local d = (x - ref) % (math.pi * 2)
+            if d > math.pi then
+                d = d - math.pi * 2
+            end
+            return math.abs(d)
+        end
+        if angDiff(a, spawnAngle) < math.rad(50) then
+            return true
+        end -- spawn catchment arc
+        if angDiff(a, arenaAngle) < math.rad(35) then
+            return true
+        end -- boss arena
+        -- elevator: guard both the angular slot AND a circle around the car
+        if angDiff(a, elevAngle) < math.rad(22) then
+            return true
+        end
+        local ex = math.cos(elevAngle) * elevR
+        local ez = math.sin(elevAngle) * elevR
+        local px = math.cos(a) * r
+        local pz = math.sin(a) * r
+        if (px - ex) ^ 2 + (pz - ez) ^ 2 < 36 ^ 2 then
+            return true
+        end
+        return false
+    end
+
+    -- Per-style height/shape modifiers (feel tuned per biome identity).
+    local hillCount = T.HillCount
+    local hillMin = T.HillMinSize
+    local hillMax = T.HillMaxSize
+    local hMin, hMax = T.HillMinHeight, T.HillMaxHeight
+
+    if style == "meadow" then
+        -- gentle rolling mounds: short, wide, two-tier stacks
+        hMax = math.floor(hMax * 0.55)
+        hillMax = hillMax + 6
+    elseif style == "shores" then
+        -- low flat dunes: very shallow, wide
+        hMax = math.floor(hMax * 0.38)
+        hillMin = hillMin + 4
+    elseif style == "swamp" then
+        -- lumpy uneven ground: mixed small blocks, mid height
+        hMax = math.floor(hMax * 0.65)
+        hillMin = math.max(8, hillMin - 4)
+    elseif style == "magma" then
+        -- craggy crater feel: taller blocks concentrated toward one side, 2-tier
+        hMax = math.floor(hMax * 1.0) -- full height range
+        hillCount = hillCount + 2
+    elseif style == "rift" or style == "void" then
+        -- floating tiered cube clusters: some blocks lifted slightly above the disc
+        hMax = math.floor(hMax * 0.7)
+    end
+
+    -- Scatter `hillCount` mounds. Each mound = a base block + (if tall enough) a smaller top tier.
+    for _ = 1, hillCount do
+        -- try up to 8 placements per hill, drop if none valid (keeps loop bounded)
+        local placed = false
+        for _ = 1, 8 do
+            local a = rng:NextNumber(0, math.pi * 2)
+            local r = rng:NextNumber(clearR + 4, rad - 24)
+            if not isForbidden(a, r) then
+                local px = math.cos(a) * r
+                local pz = math.sin(a) * r
+                local baseW = rng:NextNumber(hillMin, hillMax)
+                local baseD = rng:NextNumber(hillMin, hillMax)
+                local h = rng:NextNumber(hMin, hMax)
+                local baseColor = jitterColor(cfg.GroundColor)
+                local accentColor = jitterColor(cfg.Accent)
+
+                -- Style-specific floating offset (rift/void cluster hovers slightly above disc).
+                local floatDy = (style == "rift" or style == "void") and rng:NextNumber(0, 6) or 0
+
+                -- Bottom tier: broad base mound sitting on the disc surface.
+                part({
+                    Size = Vector3.new(baseW, h, baseD),
+                    Position = Vector3.new(px, y + h / 2 + floatDy, pz),
+                    Color = baseColor,
+                    Material = cfg.GroundMaterial,
+                }, folder)
+
+                -- Top tier: a smaller accent block on mounds taller than ~8 studs (stepped look).
+                if h > 8 then
+                    local topW = baseW * rng:NextNumber(0.42, 0.65)
+                    local topD = baseD * rng:NextNumber(0.42, 0.65)
+                    local topH = rng:NextNumber(hMin, math.max(hMin + 1, h * 0.5))
+                    part({
+                        Size = Vector3.new(topW, topH, topD),
+                        Position = Vector3.new(
+                            px + rng:NextNumber(-3, 3),
+                            y + h + topH / 2 + floatDy,
+                            pz + rng:NextNumber(-3, 3)
+                        ),
+                        Color = (rng:NextNumber() > 0.5) and accentColor
+                            or jitterColor(cfg.GroundColor),
+                        Material = cfg.GroundMaterial,
+                    }, folder)
+                end
+
+                placed = true
+                break
+            end
+        end
+        if not placed then
+            -- consume the same number of rng calls as a skipped placement would have to keep the
+            -- remaining scatter deterministic (4 calls: angle, radius, baseW, baseD hidden from loop)
+            rng:NextNumber()
+            rng:NextNumber()
+            rng:NextNumber()
+            rng:NextNumber()
+        end
+    end
+
+    -- Scatter a handful of blocky accent rocks (smaller, rounder cubes, color-jittered).
+    -- Re-uses WorldConfig.Terrain.RockCount. Kept well within the same forbidden zones.
+    for _ = 1, T.RockCount do
+        local placed = false
+        for _ = 1, 6 do
+            local a = rng:NextNumber(0, math.pi * 2)
+            local r = rng:NextNumber(clearR + 4, rad - 18)
+            if not isForbidden(a, r) then
+                local s = rng:NextNumber(4, 10)
+                part({
+                    Size = Vector3.new(s, s * 0.7, s),
+                    Position = Vector3.new(math.cos(a) * r, y + s * 0.35, math.sin(a) * r),
+                    Color = jitterColor(cfg.Accent),
+                    Material = Enum.Material.Slate,
+                }, folder)
+                placed = true
+                break
+            end
+        end
+        if not placed then
+            rng:NextNumber()
+            rng:NextNumber()
+            rng:NextNumber()
+        end
+    end
+end
+
 -- ── ONE LEVEL PLATFORM: decoration + tagged spawn/boss + name sign + (upper levels) an ELEVATOR pad.
 -- The platform center is (0, cfg.Y, 0); spawn/boss/sign are forward-compat tags (gameplay spawns track
 -- the player). Level 1 (the bottom 'start' platform) is the hub/district ground, so it skips the scatter.
@@ -715,6 +898,10 @@ local function buildPlatform(folder, cfg)
         platformProps(folder, cfg) -- level 1 = the hub; upper levels get the biome flavor scatter
         buildElevatorCar(folder, cfg.Y)
     end
+    -- TERRAIN FIX: add blocky elevation + color-jittered ground to every platform (levels 1..N).
+    -- On level 1 the centre guard (clearR=62) naturally keeps hills away from the hub/plot ring.
+    -- On upper levels the guard keeps hills away from the spawn arc, boss arena, and elevator.
+    platformTerrain(folder, cfg)
 end
 
 -- ── Build all the stacked LEVEL platforms (floating discs at increasing height). Every level,
