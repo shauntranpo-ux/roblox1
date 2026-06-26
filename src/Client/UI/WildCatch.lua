@@ -38,7 +38,9 @@ local models = {} -- [id] = { part, target(Vector3), rarity, revealed, name, mar
 
 local catchCount = 0 -- client-local; incremented on each confirmed catch (despawn + Caught=true)
 local tutorialBubble = nil -- the ScreenGui bubble frame (created once in mount)
+local bubbleScale = nil -- UIScale inside tutorialBubble for pop-in/out animation
 local anyInRange = false -- true while at least one CatchPrompt is in range (drives bubble visibility)
+local activeChevronId = nil -- id of the model whose chevron is currently the active tap target
 
 -- ── Tutorial bubble construction (created once; shown/hidden based on range + catchCount) ──────
 local function makeTutorialBubble(parent)
@@ -59,6 +61,11 @@ local function makeTutorialBubble(parent)
         }),
     })
     Builder.glossify(frame, "Default")
+    -- UIScale drives the pop-in / pop-out; starts at 0.6 (will be snapped before show).
+    local uiScale = Instance.new("UIScale")
+    uiScale.Scale = 0.6
+    uiScale.Parent = frame
+    bubbleScale = uiScale
     local label = Builder.create("TextLabel", {
         Size = UDim2.fromScale(1, 1),
         BackgroundTransparency = 1,
@@ -74,15 +81,105 @@ local function makeTutorialBubble(parent)
     return frame
 end
 
+-- Animate the bubble in (Back ease, ~0.2s) or out (shrink + fade, ~0.15s).
+local function bubbleShow(on)
+    if tutorialBubble == nil or bubbleScale == nil then
+        return
+    end
+    if on then
+        tutorialBubble.Visible = true
+        tutorialBubble.BackgroundTransparency = 1
+        bubbleScale.Scale = 0.6
+        TweenService:Create(
+            bubbleScale,
+            TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+            { Scale = 1 }
+        ):Play()
+        TweenService:Create(
+            tutorialBubble,
+            TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            { BackgroundTransparency = 0.22 }
+        ):Play()
+    else
+        local scaleOut = TweenService:Create(
+            bubbleScale,
+            TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+            { Scale = 0.7 }
+        )
+        TweenService:Create(
+            tutorialBubble,
+            TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+            { BackgroundTransparency = 1 }
+        ):Play()
+        scaleOut:Play()
+        scaleOut.Completed:Connect(function()
+            if tutorialBubble ~= nil then
+                tutorialBubble.Visible = false
+                tutorialBubble.BackgroundTransparency = 0.22
+                bubbleScale.Scale = 0.6
+            end
+        end)
+    end
+end
+
 local function refreshTutorialBubble()
     if tutorialBubble == nil then
         return
     end
     local shouldShow = catchCount < TUTORIAL_CATCHES and anyInRange
-    if tutorialBubble.Visible == shouldShow then
+    -- Guard: only animate when the visible state actually changes.
+    local isVisible = tutorialBubble.Visible
+    if isVisible == shouldShow then
         return
     end
-    tutorialBubble.Visible = shouldShow
+    bubbleShow(shouldShow)
+end
+
+-- Pulse the bubble and/or chevron by scale 1 -> 1.15 -> 1 (~0.12s) to react to a tap.
+local function pulseTapReact()
+    if tutorialBubble ~= nil and tutorialBubble.Visible and bubbleScale ~= nil then
+        local t1 = TweenService:Create(
+            bubbleScale,
+            TweenInfo.new(0.06, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            { Scale = 1.15 }
+        )
+        t1:Play()
+        t1.Completed:Connect(function()
+            TweenService:Create(
+                bubbleScale,
+                TweenInfo.new(0.06, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+                { Scale = 1 }
+            ):Play()
+        end)
+    end
+    -- Pulse the active chevron's billboard if one is in range.
+    if activeChevronId ~= nil and models[activeChevronId] ~= nil then
+        local chevron = models[activeChevronId].chevron
+        if chevron ~= nil then
+            local label = chevron:FindFirstChildWhichIsA("TextLabel")
+            if label ~= nil then
+                local base = label.TextSize ~= 0 and label.TextSize or nil
+                local curSize = chevron.Size
+                local bigSize = UDim2.fromOffset(curSize.X.Offset * 1.15, curSize.Y.Offset * 1.15)
+                local t2 = TweenService:Create(
+                    chevron,
+                    TweenInfo.new(0.06, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+                    { Size = bigSize }
+                )
+                t2:Play()
+                t2.Completed:Connect(function()
+                    TweenService
+                        :Create(
+                            chevron,
+                            TweenInfo.new(0.06, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+                            { Size = curSize }
+                        )
+                        :Play()
+                end)
+                _ = base -- suppress unused warning
+            end
+        end
+    end
 end
 
 -- ── World-space chevron indicator above a creature (replaces the heavy [E] card) ───────────────
@@ -266,6 +363,26 @@ function WildCatch.onUpdate(payload)
                 -- Tutorial: increment client-local catch counter on each confirmed catch.
                 catchCount += 1
                 refreshTutorialBubble()
+                -- CHEVRON POP-OUT: quick scale-up + fade before the model is destroyed.
+                if model.chevron ~= nil then
+                    local chev = model.chevron
+                    local bigSize =
+                        UDim2.fromOffset(chev.Size.X.Offset * 1.5, chev.Size.Y.Offset * 1.5)
+                    TweenService
+                        :Create(
+                            chev,
+                            TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+                            { Size = bigSize }
+                        )
+                        :Play()
+                    TweenService
+                        :Create(
+                            chev,
+                            TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+                            { StudsOffsetWorldSpace = Vector3.new(0, 7, 0) }
+                        )
+                        :Play()
+                end
             elseif Rarity.Get(model.rarity).Order >= 4 then
                 -- FLEE cue: a rare that escaped uncaught gives a small "got away" sting.
                 Effects.playSfx("flee")
@@ -292,11 +409,14 @@ function WildCatch.mount(context)
     end)
 
     -- Track CatchPrompt in-range state for the tutorial bubble. PromptShown/Hidden fire on this client.
+    -- Also track which spawn is the active tap target so the chevron pulse knows which model to pulse.
     local inRangeCount = 0
     ProximityPromptService.PromptShown:Connect(function(prompt)
         if prompt.Name == "CatchPrompt" then
             inRangeCount += 1
             anyInRange = inRangeCount > 0
+            -- Last-shown prompt wins as the active chevron target (mirrors TapInput targeting).
+            activeChevronId = prompt:GetAttribute("SpawnId")
             refreshTutorialBubble()
         end
     end)
@@ -304,7 +424,17 @@ function WildCatch.mount(context)
         if prompt.Name == "CatchPrompt" then
             inRangeCount = math.max(0, inRangeCount - 1)
             anyInRange = inRangeCount > 0
+            if activeChevronId == prompt:GetAttribute("SpawnId") then
+                activeChevronId = nil
+            end
             refreshTutorialBubble()
+        end
+    end)
+
+    -- TAP REACT: pulse the bubble + active chevron on each registered catch tap.
+    ProximityPromptService.PromptTriggered:Connect(function(prompt)
+        if prompt.Name == "CatchPrompt" then
+            pulseTapReact()
         end
     end)
 

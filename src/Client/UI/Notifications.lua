@@ -75,18 +75,24 @@ function Notifications.show(kind, message)
             TextXAlignment = Enum.TextXAlignment.Left,
         }),
     })
+    -- Slide in from below + fade in (~0.18s).
+    toast.Position = UDim2.fromOffset(0, 20) -- start 20px below final resting position
+    toast.BackgroundTransparency = 1
     toast.Parent = container
-
-    -- Fade in, hold ~3s, fade out, destroy.
-    TweenService:Create(toast, TweenInfo.new(0.2), { BackgroundTransparency = 0.05 }):Play()
+    local inTi = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    TweenService:Create(toast, inTi, { BackgroundTransparency = 0.05 }):Play()
+    TweenService:Create(toast, inTi, { Position = UDim2.new(0, 0, 0, 0) }):Play()
 
     task.delay(3, function()
         if toast.Parent == nil then
             return
         end
-        local fade = TweenService:Create(toast, TweenInfo.new(0.3), { BackgroundTransparency = 1 })
-        fade:Play()
-        fade.Completed:Wait()
+        -- Slide down + fade out (~0.25s) then destroy.
+        local outTi = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+        TweenService:Create(toast, outTi, { BackgroundTransparency = 1 }):Play()
+        local slideOut = TweenService:Create(toast, outTi, { Position = UDim2.fromOffset(0, 20) })
+        slideOut:Play()
+        slideOut.Completed:Wait()
         toast:Destroy()
     end)
 end
