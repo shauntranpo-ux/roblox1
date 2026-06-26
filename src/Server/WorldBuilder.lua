@@ -121,19 +121,65 @@ local function bush(parent, pos, leafColor)
     }, parent)
 end
 
--- A Fredoka-One world sign (white fill + black stroke + soft shadow) on a posted board.
+-- A complete framed Fredoka-One world sign: backing board (boardColor) + 4 P.Beam border strips +
+-- two P.Beam wood posts reaching the ground + a SurfaceGui text label (white fill, dark stroke).
+-- Signature is UNCHANGED so all callers (`buildPlatform`, `fixture`, `buildStructure`) work as-is.
 local function worldSign(parent, pos, text, boardColor)
-    part({
-        Size = Vector3.new(2, 12, 2),
-        Position = pos + Vector3.new(0, 6, 0),
-        Color = P.Wood,
-        Material = Enum.Material.Wood,
-    }, parent)
+    -- Board dimensions
+    local boardW, boardH = 22, 9
+    local boardY = pos.Y + 16 -- board centre height above world origin
+
+    -- Solid backing board (the coloured face)
     local board = part({
-        Size = Vector3.new(22, 9, 1),
-        Position = pos + Vector3.new(0, 16, 0),
+        Size = Vector3.new(boardW, boardH, 1),
+        Position = Vector3.new(pos.X, boardY, pos.Z),
         Color = boardColor or P.RedTrim,
     }, parent)
+
+    -- 4 thin P.Beam frame strips around the board face (slightly proud of the board front)
+    local fZ = pos.Z + 0.7 -- frame sits 0.7 studs in front of board centre
+    -- Top bar
+    part({
+        Size = Vector3.new(boardW + 2, 1.2, 0.5),
+        Position = Vector3.new(pos.X, boardY + boardH / 2 + 0.6, fZ),
+        Color = P.Beam,
+        Material = Enum.Material.Wood,
+    }, parent)
+    -- Bottom bar
+    part({
+        Size = Vector3.new(boardW + 2, 1.2, 0.5),
+        Position = Vector3.new(pos.X, boardY - boardH / 2 - 0.6, fZ),
+        Color = P.Beam,
+        Material = Enum.Material.Wood,
+    }, parent)
+    -- Left bar
+    part({
+        Size = Vector3.new(1.2, boardH + 2, 0.5),
+        Position = Vector3.new(pos.X - boardW / 2 - 0.6, boardY, fZ),
+        Color = P.Beam,
+        Material = Enum.Material.Wood,
+    }, parent)
+    -- Right bar
+    part({
+        Size = Vector3.new(1.2, boardH + 2, 0.5),
+        Position = Vector3.new(pos.X + boardW / 2 + 0.6, boardY, fZ),
+        Color = P.Beam,
+        Material = Enum.Material.Wood,
+    }, parent)
+
+    -- Two P.Beam posts from y=0 up to the board bottom (board bottom = boardY - boardH/2)
+    local postH = math.max(1, boardY - boardH / 2) -- distance from ground to board bottom
+    local postCY = postH / 2 -- post centre
+    for _, sx in ipairs({ -1, 1 }) do
+        part({
+            Size = Vector3.new(2, postH, 2),
+            Position = Vector3.new(pos.X + sx * (boardW / 2 - 2), postCY, pos.Z),
+            Color = P.Beam,
+            Material = Enum.Material.Wood,
+        }, parent)
+    end
+
+    -- SurfaceGui text on the board front face (FredokaOne, white fill + dark stroke; unchanged)
     local sg = Instance.new("SurfaceGui")
     sg.Name = "Sign"
     sg.Face = Enum.NormalId.Front
