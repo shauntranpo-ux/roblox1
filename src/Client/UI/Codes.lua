@@ -21,14 +21,14 @@ local RESULT_COLORS = {
     Invalid = Theme.Colors.Danger,
     Expired = Theme.Colors.Danger,
     Inactive = Theme.Colors.Danger,
-    Error = Theme.Colors.SubText,
+    Error = Theme.Colors.InkSoft,
 }
 
 local function doRedeem()
     local raw = input.Text
     if raw == nil or raw == "" then
         resultLabel.Text = "Enter a code first."
-        resultLabel.TextColor3 = Theme.Colors.SubText
+        resultLabel.TextColor3 = Theme.Colors.InkSoft
         return
     end
     -- Debounce the button while the server answers (also rate-limited server-side).
@@ -42,7 +42,7 @@ local function doRedeem()
 
     if ok and type(result) == "table" and type(result.Message) == "string" then
         resultLabel.Text = result.Message
-        resultLabel.TextColor3 = RESULT_COLORS[result.Result] or Theme.Colors.Text
+        resultLabel.TextColor3 = RESULT_COLORS[result.Result] or Theme.Colors.Ink
         if result.Result == "Success" then
             input.Text = ""
         end
@@ -74,7 +74,7 @@ function Codes.mount(context)
         Size = UDim2.new(1, -4, 0, 26),
         Font = Theme.FontBold,
         Text = "Enter a code",
-        TextColor3 = Theme.Colors.Text,
+        TextColor3 = Theme.Colors.Ink,
         TextSize = 20,
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = card,
@@ -88,8 +88,8 @@ function Codes.mount(context)
         Font = Theme.Font,
         PlaceholderText = "e.g. LAUNCH",
         Text = "",
-        TextColor3 = Theme.Colors.Text,
-        PlaceholderColor3 = Theme.Colors.SubText,
+        TextColor3 = Theme.Colors.Ink,
+        PlaceholderColor3 = Theme.Colors.InkSoft,
         TextSize = 20,
         ClearTextOnFocus = false,
         Parent = card,
@@ -113,7 +113,7 @@ function Codes.mount(context)
         BackgroundTransparency = 1,
         Font = Theme.Font,
         Text = "",
-        TextColor3 = Theme.Colors.SubText,
+        TextColor3 = Theme.Colors.InkSoft,
         TextSize = 16,
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,

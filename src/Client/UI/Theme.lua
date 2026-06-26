@@ -18,49 +18,79 @@ Theme.FontBody = Theme.FontDisplay
 Theme.FontBold = Theme.FontDisplay
 Theme.Font = Theme.FontDisplay
 
--- ── Palette (grape glass base; kept keys so existing screens inherit) ──────────────────────
+-- ── Palette: SOFT / CLOUDY / BUBBLY (light airy cloud interiors; kept keys so screens inherit) ──
+-- TWO domains share this table:
+--   * PANEL interiors are LIGHT (Cloud body + white Card rows + Ink text) -- soft, pillowy, readable.
+--   * HUD / world billboards sit OVER the 3D world, so they keep the WHITE-fill + dark-Outline recipe
+--     and the bright voxel accents (DarkPill chips, Gold/HpFill/XpFill, ...). White-fill+dark-rim text
+--     reads on BOTH light and dark, so a panel label is legible even before it is upgraded to Ink.
 Theme.Colors = {
-    Background = Color3.fromRGB(48, 30, 92), -- cleaner indigo-grape (panel bodies glassed over this)
-    Panel = Color3.fromRGB(64, 42, 116),
-    Row = Color3.fromRGB(82, 58, 140), -- brighter card so rows pop on the translucent body
-    Accent = Color3.fromRGB(167, 99, 255), -- electric purple
+    -- ── Light cloud panel interiors ─────────────────────────────────────────────────────────
+    Background = Color3.fromRGB(245, 242, 255), -- panel BODY base (soft lavender-white cloud)
+    Cloud = Color3.fromRGB(245, 242, 255), -- alias of Background (the cloud body)
+    CloudTop = Color3.fromRGB(255, 254, 255), -- panel body gradient TOP (bright gloss)
+    Panel = Color3.fromRGB(236, 232, 252), -- a deeper cloud for sub-surfaces (dropdown lists, wells)
+    Card = Color3.fromRGB(255, 255, 255), -- near-white item/row card fill
+    CardTop = Color3.fromRGB(255, 255, 255), -- card gloss top
+    Row = Color3.fromRGB(226, 221, 247), -- soft periwinkle (idle pill tabs / secondary chips)
+    Ink = Color3.fromRGB(74, 58, 122), -- PRIMARY text on light interiors (deep indigo)
+    InkSoft = Color3.fromRGB(132, 118, 168), -- muted ink (subtext on light)
+    InkHalo = Color3.fromRGB(255, 255, 255), -- soft light halo behind ink text (separates on pastels)
+
+    Accent = Color3.fromRGB(167, 120, 255), -- candy purple (primary accent)
     Positive = Color3.fromRGB(74, 232, 150), -- income green
-    Danger = Color3.fromRGB(255, 84, 112), -- close-button pink
-    Text = Color3.fromRGB(248, 248, 255),
+    Danger = Color3.fromRGB(255, 104, 130), -- close-button pink (softened)
+    Text = Color3.fromRGB(248, 248, 255), -- WHITE fill (HUD / over-accent / over-world recipe)
     SubText = Color3.fromRGB(198, 190, 226),
-    Disabled = Color3.fromRGB(86, 72, 120),
-    Outline = Color3.fromRGB(24, 12, 44), -- the heavy dark text/border outline color
+    Disabled = Color3.fromRGB(196, 188, 214), -- grayed-out on light interiors
+    Outline = Color3.fromRGB(36, 22, 60), -- heavy dark rim for the WHITE-text / over-world recipe
     GlossTop = Color3.fromRGB(255, 255, 255), -- white sheen overlay top for the glossy look
 
-    -- ── VM-THEME reference palette (the bright voxel look; tune these to the screenshots) ──
-    -- Used by the HUD + world dressing. Panels keep the grape-glass keys above so existing screens
-    -- inherit unchanged; these add the kid-friendly saturated accents from the references.
-    Sky = Color3.fromRGB(120, 200, 255), -- bright sky blue
-    Grass = Color3.fromRGB(96, 200, 84), -- lush grass green
-    Sand = Color3.fromRGB(232, 204, 148), -- warm sand / tan
-    PathRed = Color3.fromRGB(228, 72, 72), -- RED path-trim accent
+    -- ── VM-THEME reference palette (the bright voxel HUD + world dressing) ──
+    -- Used by the HUD + world dressing (over the 3D world). Slightly brightened for the candy look.
+    Sky = Color3.fromRGB(150, 212, 255), -- bright sky blue
+    Grass = Color3.fromRGB(120, 214, 120), -- lush grass green
+    Sand = Color3.fromRGB(238, 214, 162), -- warm sand / tan
+    PathRed = Color3.fromRGB(232, 104, 112), -- soft red path-trim accent
     Gold = Color3.fromRGB(255, 206, 64), -- cash gold
-    HpFill = Color3.fromRGB(96, 226, 96), -- HP bar green (top of gradient)
-    HpFillDark = Color3.fromRGB(40, 168, 70), -- HP bar green (bottom of gradient)
-    XpFill = Color3.fromRGB(86, 200, 255), -- XP bar cyan/blue (top)
-    XpFillDark = Color3.fromRGB(40, 130, 232), -- XP bar cyan/blue (bottom)
+    HpFill = Color3.fromRGB(108, 232, 128), -- HP bar green (top of gradient)
+    HpFillDark = Color3.fromRGB(48, 184, 96), -- HP bar green (bottom of gradient)
+    XpFill = Color3.fromRGB(96, 206, 255), -- XP bar cyan/blue (top)
+    XpFillDark = Color3.fromRGB(48, 142, 240), -- XP bar cyan/blue (bottom)
     Clover = Color3.fromRGB(96, 220, 96), -- luck clover green
-    DarkPill = Color3.fromRGB(18, 16, 26), -- near-black translucent for HUD pills/slots
+    DarkPill = Color3.fromRGB(44, 38, 72), -- HUD chip base over the world (soft indigo, was near-black)
     White = Color3.fromRGB(255, 255, 255),
     Yellow = Color3.fromRGB(255, 222, 56), -- banner keyword highlight (<hl>) color
 }
 
--- ── Shape tokens ───────────────────────────────────────────────────────────────────────────
+-- ── Shape tokens (large, near-pill radii for the pillowy/bubbly look) ────────────────────────
 Theme.Radius = {
-    Panel = UDim.new(0, 28),
-    Card = UDim.new(0, 20),
-    Button = UDim.new(0, 18),
+    Panel = UDim.new(0, 32), -- big pillowy panel corners
+    Card = UDim.new(0, 22),
+    Button = UDim.new(0, 20),
+    Bubble = UDim.new(0, 18), -- the unified HUD squircle "bubble" chip radius
     Pill = UDim.new(1, 0), -- fully rounded pill
 }
-Theme.Stroke = { Width = 3, Color = Theme.Colors.Outline, Transparency = 0.1 }
-Theme.BodyTransparency = 0.82 -- panel body see-through (world shows through; no dim backdrop)
-Theme.RowTransparency = 0.7 -- translucent cards/rows
+Theme.Stroke = { Width = 3, Color = Theme.Colors.Outline, Transparency = 0.1 } -- WHITE-text/over-world rim
+Theme.BodyTransparency = 0.04 -- panel body is a near-opaque LIGHT cloud (was 0.82 see-through grape)
+Theme.RowTransparency = 0 -- crisp opaque white cards
 Theme.HeaderHeight = 54
+
+-- ── Soft drop shadow + glow rim (the cohesive depth treatment used by every panel/chip) ──────
+-- softShadow: an ImageLabel using Theme.Assets.ShadowImage (a 9-slice soft-shadow id) when supplied,
+-- else Builder falls back to a layered translucent rounded frame -- so it always works with no asset.
+Theme.Shadow = {
+    Offset = Vector2.new(0, 6), -- px down/right the shadow sits under the element
+    Spread = 16, -- px the shadow extends past the element on each side
+    Transparency = 0.55, -- 0 = solid black, 1 = invisible
+    Color = Color3.fromRGB(40, 26, 70), -- soft indigo shadow (not harsh black)
+}
+-- glowRim: a soft accent-colored outer glow ring around panels/CTAs.
+Theme.Rim = {
+    Thickness = 2.5,
+    Transparency = 0.35, -- the accent rim is soft, not a hard border
+    GlowTransparency = 0.78, -- the outer halo frame
+}
 
 -- ── Per-panel accent gradients (the glossy header bar color, top -> bottom) ─────────────────
 Theme.Accents = {
@@ -105,11 +135,26 @@ function Theme.accentColor(accentKey)
     return a.Bottom
 end
 
--- ── Tween presets ────────────────────────────────────────────────────────────────────────
+-- ── Tween presets (TUNE ANIMATION SPEEDS HERE) ──────────────────────────────────────────────
 Theme.Tween = {
     Open = TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+    OpenBouncy = TweenInfo.new(0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out), -- springier pop
+    Close = TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
     Squish = TweenInfo.new(0.16, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
     Fade = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+    BarFill = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), -- progress fill
+}
+
+-- ── Idle-life motion (looping, GPU-driven tweens; pooled, no per-frame Lua churn) ────────────
+-- Periods are seconds for one half-cycle (the tweens auto-reverse). Tune the "alive" feel here.
+Theme.Anim = {
+    PulsePeriod = 1.0, -- primary-CTA breathing pulse
+    PulseScale = 1.05, -- peak scale of the pulse
+    BobPeriod = 1.8, -- gentle float/bob on HUD icons
+    BobAmplitude = 5, -- px the bob travels
+    ShimmerPeriod = 1.4, -- soft sheen shimmer on important elements
+    GlossSweepPeriod = 1.6, -- the moving gloss sweep across progress bars
+    OverShoot = 0.86, -- start scale for the bouncy panel pop-in (lower = bouncier)
 }
 
 -- ── Click juice tuning ───────────────────────────────────────────────────────────────────
@@ -133,11 +178,26 @@ Theme.TextStyle = {
     ShadowTransparency = 0.1, -- tightened for legibility on near-transparent bubble panels
 }
 
+-- INK variant: dark indigo fill + a soft light halo (no heavy black rim). Use on LIGHT panel interiors
+-- (item names, descriptions, values) via Builder.styleText(label, { ink = true }).
+Theme.TextStyleInk = {
+    Font = Theme.FontDisplay,
+    Fill = Theme.Colors.Ink,
+    StrokeColor = Theme.Colors.InkHalo,
+    StrokeThickness = 1.5, -- soft light halo
+    StrokeTransparency = 0.55,
+    ShadowTransparency = 1, -- no dark drop shadow on light
+}
+
 -- ── VM-THEME asset slots (DEV SUPPLIES THESE IDS; everything falls back cleanly when 0/empty) ──
 Theme.Assets = {
     -- Sky: 6 face ids for a custom skybox. Leave all "" to use the bright-blue default Sky placeholder.
     SkyboxFaces = { Bk = "", Dn = "", Ft = "", Lf = "", Rt = "", Up = "" },
     HoneycombTexture = 0, -- decal/texture asset id for the hex shield wall (0 = skip the texture)
+    -- Soft drop-shadow image: a 9-slice (SliceCenter) soft-shadow PNG id. "" -> Builder.softShadow
+    -- falls back to a layered translucent rounded frame (works with zero assets). Paste an id to upgrade.
+    ShadowImage = "", -- e.g. "rbxassetid://1316045217" (a classic soft 9-slice shadow)
+    ShadowSlice = Rect.new(10, 10, 118, 118), -- SliceCenter rect for the supplied 9-slice image
     -- UI sounds route through Effects.playSfx / Shared.Audio.Sfx (paste ids there). Listed for clarity.
 }
 
@@ -174,7 +234,7 @@ Theme.Lighting = {
         Color = Color3.fromRGB(220, 235, 255),
         Decay = Color3.fromRGB(160, 190, 230),
     },
-    Bloom = { Intensity = 0.18, Size = 18, Threshold = 2.0 }, -- threshold raised: only truly bright things bloom
+    Bloom = { Intensity = 0.15, Size = 20, Threshold = 2.4 }, -- soft glow only on the very brightest; no white-out
     ColorCorrection = {
         Saturation = 0.08, -- was 0.16 -- less over-saturation
         Contrast = 0.03,

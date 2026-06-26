@@ -50,7 +50,7 @@ local function label(text, color, size, bold)
         BackgroundTransparency = 1,
         Font = bold and Theme.FontBold or Theme.Font,
         Text = text,
-        TextColor3 = color or Theme.Colors.Text,
+        TextColor3 = color or Theme.Colors.Ink,
         TextSize = 15,
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -69,7 +69,7 @@ function Seasons.refresh()
     clear()
     order = 0
     if not ok or type(state) ~= "table" then
-        label("Seasons unavailable right now.", Theme.Colors.SubText)
+        label("Seasons unavailable right now.", Theme.Colors.InkSoft)
         return
     end
 
@@ -87,18 +87,18 @@ function Seasons.refresh()
         true
     )
 
-    label("Leaderboard", Theme.Colors.Text, 22, true)
+    label("Leaderboard", Theme.Colors.Ink, 22, true)
     if #state.Top == 0 then
-        label("(no entries yet -- earn season points!)", Theme.Colors.SubText)
+        label("(no entries yet -- earn season points!)", Theme.Colors.InkSoft)
     end
     for _, row in ipairs(state.Top) do
         label(
             string.format("%d.  %s  —  %s pts", row.Rank, row.Name, Format.short(row.Value)),
-            Theme.Colors.Text
+            Theme.Colors.Ink
         )
     end
 
-    label("Track rewards (your score)", Theme.Colors.Text, 22, true)
+    label("Track rewards (your score)", Theme.Colors.Ink, 22, true)
     for _, tier in ipairs(state.Track) do
         local met = state.MyScore >= tier.Score
         label(
@@ -108,23 +108,23 @@ function Seasons.refresh()
                 Format.short(tier.Reward.Amount),
                 met and "✓" or ""
             ),
-            met and Theme.Colors.Positive or Theme.Colors.SubText
+            met and Theme.Colors.Positive or Theme.Colors.InkSoft
         )
     end
 
-    label("Ranked rewards (final rank)", Theme.Colors.Text, 22, true)
+    label("Ranked rewards (final rank)", Theme.Colors.Ink, 22, true)
     for _, tier in ipairs(state.Ranked) do
         local range = tier.Min == tier.Max and ("Rank " .. tier.Min)
             or ("Rank " .. tier.Min .. "-" .. tier.Max)
         label(
             string.format("%s  ->  $%s", range, Format.short(tier.Reward.Amount)),
-            Theme.Colors.SubText
+            Theme.Colors.InkSoft
         )
     end
 
     label(
         "Rewards are paid automatically on your next login after the season ends.",
-        Theme.Colors.SubText
+        Theme.Colors.InkSoft
     )
 end
 

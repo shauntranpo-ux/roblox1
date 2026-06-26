@@ -42,7 +42,7 @@ local function label(parent, text, color, size, font)
         BackgroundTransparency = 1,
         Font = font or Theme.FontBody,
         Text = text,
-        TextColor3 = color or Theme.Colors.Text,
+        TextColor3 = color or Theme.Colors.Ink,
         TextSize = 15,
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -204,7 +204,7 @@ local function renderActions(state)
 end
 
 local function renderOps(state)
-    label(adminList, "Server Ops", Theme.Colors.Text, 26, Theme.FontDisplay)
+    label(adminList, "Server Ops", Theme.Colors.Ink, 26, Theme.FontDisplay)
     if state.MockBans then
         label(
             adminList,
@@ -267,9 +267,9 @@ local function timeAgo(t)
 end
 
 local function renderLog(state)
-    label(adminList, "Recent Actions & Reports", Theme.Colors.Text, 26, Theme.FontDisplay)
+    label(adminList, "Recent Actions & Reports", Theme.Colors.Ink, 26, Theme.FontDisplay)
     if #state.Log == 0 then
-        label(adminList, "(nothing yet)", Theme.Colors.SubText, 30)
+        label(adminList, "(nothing yet)", Theme.Colors.InkSoft, 30)
         return
     end
     local shown = 0
@@ -279,7 +279,7 @@ local function renderLog(state)
         end
         shown += 1
         local color = entry.Type == "report" and Theme.Colors.Gold
-            or (entry.Type == "denied" and Theme.Colors.Danger or Theme.Colors.SubText)
+            or (entry.Type == "denied" and Theme.Colors.Danger or Theme.Colors.InkSoft)
         local line = string.format(
             "[%s] %s → %s : %s  (%s ago)",
             tostring(entry.Type),
@@ -317,7 +317,7 @@ function Admin.refreshAdmin()
         return
     end
 
-    label(adminList, "Players in server", Theme.Colors.Text, 26, Theme.FontDisplay)
+    label(adminList, "Players in server", Theme.Colors.Ink, 26, Theme.FontDisplay)
     for _, p in ipairs(state.Players) do
         local tag = p.Tier ~= nil and ("  [" .. p.Tier .. "]") or ""
         local mutedTag = p.Muted and "  🔇" or ""
@@ -368,7 +368,7 @@ function Admin.refreshReport()
     label(
         reportList,
         "Report a player to the game's admins. You can also use Roblox's own report via the ≡ menu → Report.",
-        Theme.Colors.SubText,
+        Theme.Colors.InkSoft,
         50
     )
 
@@ -391,7 +391,7 @@ function Admin.refreshReport()
         return
     end
 
-    label(reportList, "Pick a player", Theme.Colors.Text, 26, Theme.FontDisplay)
+    label(reportList, "Pick a player", Theme.Colors.Ink, 26, Theme.FontDisplay)
     local localPlayer = Players.LocalPlayer
     local any = false
     for _, other in ipairs(Players:GetPlayers()) do
@@ -410,7 +410,7 @@ function Admin.refreshReport()
         end
     end
     if not any then
-        label(reportList, "No other players in this server right now.", Theme.Colors.SubText, 34)
+        label(reportList, "No other players in this server right now.", Theme.Colors.InkSoft, 34)
     end
 end
 
@@ -433,7 +433,7 @@ local function buildConfirmModal(parent)
         BackgroundTransparency = 1,
         Font = Theme.FontBody,
         Text = "",
-        TextColor3 = Theme.Colors.White,
+        TextColor3 = Theme.Colors.Ink,
         TextSize = 16,
         TextWrapped = true,
         ZIndex = 21,
