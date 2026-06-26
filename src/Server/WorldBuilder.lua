@@ -333,10 +333,10 @@ local function buildHub(folder)
     -- COURTYARD: a warm cobblestone disc (radius 115) instead of a 360x360 white slab, so the
     -- green meadow disc shows as a ring around the plaza. The base ring (r=100) sits right at
     -- the courtyard edge -- deliberate town-square feel. A clay Roof border ring frames it.
-    disc(115, 0, S.GroundThickness, P.Stone, Enum.Material.Cobblestone, folder)
+    disc(115, 0.4, S.GroundThickness, P.Stone, Enum.Material.Cobblestone, folder)
     -- clay courtyard border ring (a slightly larger disc subtracted visually by the cobblestone -- two
     -- thin disc halves make a perimeter strip; one Cylinder ring at r=117, thickness=4)
-    disc(119, 0, 2, P.Roof, Enum.Material.Slate, folder)
+    disc(119, 0.5, 2, P.Roof, Enum.Material.Slate, folder)
 
     -- SpawnLocation (players spawn on the plaza; PlotService then moves them to their base).
     local spawn = Instance.new("SpawnLocation")
@@ -573,13 +573,14 @@ local function buildPlotTemplate()
     }, model)
     wall.Name = "ShieldWall"
     tag(wall, "ShieldWall")
-    part({
+    local rim = part({
         Size = Vector3.new(46, 1, 1.2),
         Position = Vector3.new(0, 17, 9),
         Color = P.ShieldRim,
         Glow = true, -- intentional accent: the shield-wall rim stays a subtle glow
         CanCollide = false,
     }, model)
+    rim.Transparency = 0.35
 
     local barAnchor = part({
         Size = Vector3.new(1, 1, 1),
@@ -605,6 +606,7 @@ local function buildPlotTemplate()
         Color = P.Gold,
         Glow = true, -- intentional accent: the mystery reward block stays a subtle glow
     }, model)
+    mystery.Transparency = 0.35
     mystery.Name = "MysteryBlock"
     tag(mystery, "MysteryBlock")
 
