@@ -104,6 +104,23 @@ local function tree(parent, pos, trunkColor, leafColor)
     }, parent)
 end
 
+-- A blocky BUSH: 2 stacked rounded green cubes (cheap; capped by the caller).
+local function bush(parent, pos, leafColor)
+    local base = leafColor or P.Grass
+    part({
+        Size = Vector3.new(5, 3, 5),
+        Position = pos + Vector3.new(0, 1.5, 0),
+        Color = base,
+        Material = Enum.Material.Grass,
+    }, parent)
+    part({
+        Size = Vector3.new(3.5, 2.5, 3.5),
+        Position = pos + Vector3.new(1, 3, -0.5),
+        Color = base:Lerp(Color3.new(0, 0, 0), 0.12),
+        Material = Enum.Material.Grass,
+    }, parent)
+end
+
 -- A Fredoka-One world sign (white fill + black stroke + soft shadow) on a posted board.
 local function worldSign(parent, pos, text, boardColor)
     part({
@@ -639,6 +656,12 @@ local function platformProps(folder, cfg)
     end
     for _ = 1, cfg.TreeCount do
         tree(folder, scatter(), P.Wood, cfg.Accent)
+    end
+    for _ = 1, cfg.TreeCount do
+        tree(folder, scatter(), P.Wood, cfg.Accent)
+    end
+    for _ = 1, math.floor(cfg.PropCount * 1.5) do
+        bush(folder, scatter(), cfg.GroundColor:Lerp(P.Grass, 0.5))
     end
     local style = cfg.Style
     if style == "meadow" then

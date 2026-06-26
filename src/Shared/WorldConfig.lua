@@ -131,8 +131,8 @@ local function biome(id, name, tier, ground, accent, material, style, open)
         GroundMaterial = material,
         Style = style,
         Open = open == true,
-        TreeCount = 12,
-        PropCount = 16,
+        TreeCount = 20,
+        PropCount = 22,
     }
 end
 
