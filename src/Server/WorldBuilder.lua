@@ -496,6 +496,7 @@ local function buildDistrict(folder)
         anchor:SetAttribute("PlotIndex", index)
         -- Wrap each plot in a 3-sided enclosure; open front faces the hub center.
         local faceCF = CFrame.lookAt(Vector3.new(pos.X, 0, pos.Z), WorldConfig.Center)
+            * CFrame.Angles(0, math.rad(180), 0)
         buildBaseEnclosure(folder, pos, faceCF)
     end
 end
