@@ -287,30 +287,36 @@ local function buildStructure(folder, pos, tagName, label, accent)
             Color = accent,
         }, folder)
     else
+        -- warm-wood counter (the stall front)
         part({
             Size = Vector3.new(12, 5, 4),
             Position = pos + Vector3.new(0, 4.5, 0),
-            Color = P.Wood,
+            Color = P.Beam,
             Material = Enum.Material.Wood,
         }, folder)
+        -- wood frame posts
         for _, sx in ipairs({ -1, 1 }) do
             for _, sz in ipairs({ -1, 1 }) do
                 part({
-                    Size = Vector3.new(1, 14, 1),
+                    Size = Vector3.new(1.5, 14, 1.5),
                     Position = pos + Vector3.new(sx * 6, 7, sz * 6),
-                    Color = P.HubStone,
+                    Color = P.Beam,
+                    Material = Enum.Material.Wood,
                 }, folder)
             end
         end
+        -- striped cloth canopy (accent color slab + Plaster stripe = awning look)
         part({
             Size = Vector3.new(15, 2, 15),
             Position = pos + Vector3.new(0, 15, 0),
             Color = accent,
+            Material = Enum.Material.Fabric,
         }, folder)
         part({
-            Size = Vector3.new(15, 1, 4),
-            Position = pos + Vector3.new(0, 14, 7),
-            Color = P.Roof,
+            Size = Vector3.new(15, 0.8, 3),
+            Position = pos + Vector3.new(0, 14.2, 7),
+            Color = P.Plaster,
+            Material = Enum.Material.Fabric,
         }, folder)
     end
     if label ~= nil then
@@ -327,7 +333,8 @@ local function buildHub(folder)
     part({
         Size = Vector3.new(hub.Size.X, S.GroundThickness, hub.Size.Z),
         Position = c + Vector3.new(0, -S.GroundThickness / 2, 0),
-        Color = P.HubStone,
+        Color = P.Stone,
+        Material = Enum.Material.Cobblestone,
     }, folder)
 
     -- SpawnLocation (players spawn on the plaza; PlotService then moves them to their base).
@@ -368,8 +375,8 @@ local function buildHub(folder)
     -- shop stalls + free-reward blocks (modeled structures), arranged around the plaza.
     buildStructure(folder, c + Vector3.new(-90, 0, -40), "NetShop", "NET SHOP", P.Grass)
     buildStructure(folder, c + Vector3.new(90, 0, -40), "PremiumShop", "PREMIUM", P.Gold)
-    buildStructure(folder, c + Vector3.new(-130, 0, 30), "DailyChest", "DAILY", P.RedTrim)
-    buildStructure(folder, c + Vector3.new(-110, 0, 50), "FreeGift", "GIFT", P.ShieldCyan)
+    buildStructure(folder, c + Vector3.new(-130, 0, 30), "DailyChest", "DAILY", P.Roof)
+    buildStructure(folder, c + Vector3.new(-110, 0, 50), "FreeGift", "GIFT", P.Grape)
     buildStructure(folder, c + Vector3.new(130, 0, 30), "SpinWheel", "SPIN", P.Gold)
 
     local boards = { "TopCash", "TopIncome", "RarestCollection" }
