@@ -43,6 +43,8 @@ function Minimap.mount(context)
         ),
     })
 
+    Builder.softShadow(frame, { radius = UDim.new(1, 0), spread = 10 }) -- soft depth under the circle
+
     dotsFolder = Builder.create("Folder", { Name = "Dots", Parent = frame })
 
     -- Center player arrow (points up = camera-forward; the world/compass rotates around it).
