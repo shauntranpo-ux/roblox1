@@ -488,13 +488,21 @@ local function buildPlotTemplate()
         Color = Color3.fromRGB(38, 41, 54),
     }, model)
 
+    -- GRID-FIT pads inside the base (40 x 30) so brainrots never overflow, however many unlock. ALL pads
+    -- (active + the 2 pre-built expansion pads) get a centered grid slot, so a newly unlocked pad auto-fits.
     local padCount = Config.Plots.PadsPerPlot
-    local spacing = Config.Plots.PadSpacing
+    local total = padCount + 2
+    local cols = math.min(total, 4)
+    local rows = math.ceil(total / cols)
+    local cell = 8 -- 6-stud pad + 2-stud gap
     local function makePad(i, expansion)
-        local x = (i - (padCount + 1) / 2) * spacing
+        local col = (i - 1) % cols
+        local row = math.floor((i - 1) / cols)
+        local x = (col - (cols - 1) / 2) * cell
+        local z = -2 - (row - (rows - 1) / 2) * cell
         local pad = part({
             Size = Vector3.new(6, 1, 6),
-            Position = Vector3.new(x, 1.5, -3),
+            Position = Vector3.new(x, 1.5, z),
             Color = expansion and Color3.fromRGB(90, 96, 110) or P.Grass,
             Transparency = expansion and 0.45 or 0,
         }, model)
@@ -509,7 +517,7 @@ local function buildPlotTemplate()
         makePad(i, false)
     end
     for i = padCount + 1, padCount + 2 do
-        makePad(i, true) -- hidden expansion pads (ready if PadsPerPlot grows later)
+        makePad(i, true)
     end
 
     -- translucent cyan SHIELD WALL (hex look + glowing rim) at the front; ShieldWall.lua dresses it
