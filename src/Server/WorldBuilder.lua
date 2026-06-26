@@ -211,7 +211,6 @@ local function buildElevatorCar(folder, y)
         Size = Vector3.new(4, 6, 0.4),
         CFrame = cf * CFrame.new(0, 9, -6.2),
         Color = P.ShieldCyan,
-        Glow = true,
     }, folder)
     return panel
 end
@@ -248,20 +247,17 @@ local function buildStructure(folder, pos, tagName, label, accent)
         part({
             Size = Vector3.new(8.4, 1.6, 1.6),
             Position = pos + Vector3.new(0, 8, 0),
-            Color = P.Gold,
-            Glow = true,
+            Color = P.Roof,
         }, folder)
         part({
             Size = Vector3.new(1.6, 1.6, 8.4),
             Position = pos + Vector3.new(0, 8, 0),
-            Color = P.Gold,
-            Glow = true,
+            Color = P.Roof,
         }, folder)
         part({
             Size = Vector3.new(3, 3, 3),
             Position = pos + Vector3.new(0, 12.5, 0),
             Color = P.Gold,
-            Glow = true,
         }, folder)
     elseif tagName == "DailyChest" then
         part({
@@ -278,7 +274,6 @@ local function buildStructure(folder, pos, tagName, label, accent)
             Size = Vector3.new(1.5, 3, 1.5),
             Position = pos + Vector3.new(0, 8.5, 3),
             Color = P.Gold,
-            Glow = true,
         }, folder)
     elseif tagName == "SpinWheel" then
         part({
@@ -290,7 +285,6 @@ local function buildStructure(folder, pos, tagName, label, accent)
             Size = Vector3.new(12, 12, 1),
             Position = pos + Vector3.new(0, 15, 0),
             Color = accent,
-            Glow = true,
         }, folder)
     else
         part({
@@ -316,8 +310,7 @@ local function buildStructure(folder, pos, tagName, label, accent)
         part({
             Size = Vector3.new(15, 1, 4),
             Position = pos + Vector3.new(0, 14, 7),
-            Color = P.RedTrim,
-            Glow = true,
+            Color = P.Roof,
         }, folder)
     end
     if label ~= nil then
