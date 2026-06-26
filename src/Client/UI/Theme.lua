@@ -52,14 +52,14 @@ Theme.Colors = {
 
 -- ── Shape tokens ───────────────────────────────────────────────────────────────────────────
 Theme.Radius = {
-    Panel = UDim.new(0, 20),
-    Card = UDim.new(0, 14),
-    Button = UDim.new(0, 12),
+    Panel = UDim.new(0, 28),
+    Card = UDim.new(0, 20),
+    Button = UDim.new(0, 18),
     Pill = UDim.new(1, 0), -- fully rounded pill
 }
 Theme.Stroke = { Width = 3, Color = Theme.Colors.Outline, Transparency = 0.1 }
-Theme.BodyTransparency = 0.5 -- panel body see-through (world shows through; no dim backdrop)
-Theme.RowTransparency = 0.34 -- translucent cards/rows
+Theme.BodyTransparency = 0.82 -- panel body see-through (world shows through; no dim backdrop)
+Theme.RowTransparency = 0.7 -- translucent cards/rows
 Theme.HeaderHeight = 54
 
 -- ── Per-panel accent gradients (the glossy header bar color, top -> bottom) ─────────────────
@@ -130,7 +130,7 @@ Theme.TextStyle = {
     StrokeColor = Theme.Colors.Outline,
     StrokeThickness = 2.5, -- scaled black rim
     StrokeTransparency = 0.1,
-    ShadowTransparency = 0.4, -- the soft built-in TextStrokeTransparency drop shadow
+    ShadowTransparency = 0.1, -- tightened for legibility on near-transparent bubble panels
 }
 
 -- ── VM-THEME asset slots (DEV SUPPLIES THESE IDS; everything falls back cleanly when 0/empty) ──

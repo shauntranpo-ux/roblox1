@@ -554,32 +554,32 @@ end
 -- accent gradient over a white base (so the gradient reads true), a top sheen, and the outline stroke.
 -- Only adds children it doesn't already have. `accentKey` is a Theme.Accents key.
 function Builder.glossify(obj, accentKey)
-    obj.BackgroundColor3 = Theme.Colors.White
-    obj.BackgroundTransparency = 0
+    obj.BackgroundColor3 = Theme.accentColor(accentKey)
+    obj.BackgroundTransparency = 0.78
     if obj:FindFirstChild("GlossGradient") == nil then
         local g = Theme.gradient(accentKey)
         g.Name = "GlossGradient"
+        g.Transparency = NumberSequence.new(0.6)
         g.Parent = obj
     end
     if obj:FindFirstChild("GlossSheen") == nil then
         Builder.create("Frame", {
             Name = "GlossSheen",
-            Size = UDim2.fromScale(1, 0.45),
-            BackgroundColor3 = Theme.Colors.GlossTop,
-            BackgroundTransparency = 0.78,
+            Size = UDim2.fromScale(1, 0.4),
+            BackgroundColor3 = Theme.Colors.White,
+            BackgroundTransparency = 0.9,
             BorderSizePixel = 0,
             ZIndex = 0,
             Parent = obj,
         }, { Builder.corner(Theme.Radius.Button) })
     end
-    if obj:FindFirstChildOfClass("UIStroke") == nil then
-        Builder.create("UIStroke", {
-            Color = Theme.Colors.Outline,
-            Thickness = 2.5,
-            Transparency = 0.15,
-            Parent = obj,
-        })
+    local stroke = obj:FindFirstChildOfClass("UIStroke")
+    if stroke == nil then
+        stroke = Builder.create("UIStroke", { Parent = obj })
     end
+    stroke.Color = Theme.accentColor(accentKey)
+    stroke.Thickness = 3
+    stroke.Transparency = 0
     return obj
 end
 
@@ -600,9 +600,9 @@ function Builder.panel(parent, title, onClose, accentKey)
     }, {
         Builder.corner(Theme.Radius.Panel),
         Builder.create("UIStroke", {
-            Color = Theme.Colors.Outline,
-            Thickness = Theme.Stroke.Width,
-            Transparency = 0.2,
+            Color = Theme.accentColor(accentKey),
+            Thickness = 3,
+            Transparency = 0,
         }),
         Builder.create("UISizeConstraint", { MaxSize = Vector2.new(580, 760) }),
         Builder.create("UIGradient", {
