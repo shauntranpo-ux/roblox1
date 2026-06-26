@@ -30,7 +30,7 @@ local function attach(targetPlayer, character, localPlayer)
         Name = "Nameplate",
         Size = UDim2.fromScale(4.2, 1.1),
         StudsOffsetWorldSpace = Vector3.new(0, 2.6, 0),
-        AlwaysOnTop = true,
+        AlwaysOnTop = false,
         MaxDistance = 120,
         Adornee = head,
         Parent = head,

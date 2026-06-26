@@ -56,7 +56,7 @@ local function makeModel(payload)
     local billboard = Instance.new("BillboardGui")
     billboard.Size = UDim2.fromScale(4, 1.1)
     billboard.StudsOffsetWorldSpace = Vector3.new(0, 3, 0)
-    billboard.AlwaysOnTop = true
+    billboard.AlwaysOnTop = false
     billboard.MaxDistance = 140
     billboard.Adornee = part
     billboard.Parent = part
