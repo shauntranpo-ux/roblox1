@@ -120,11 +120,16 @@ local function handleBatch(player, payload)
     cur.Count += taps
     if cur.Count >= need then
         progress[player] = nil
-        local done
+        local done, failReason
         if kind == "catch" then
-            done = WildSpawnService.TapComplete(player, targetId)
+            done, failReason = WildSpawnService.TapComplete(player, targetId)
         else
-            done = StealService.TapComplete(player, targetId)
+            done, failReason = StealService.TapComplete(player, targetId)
+        end
+        -- If completion failed (out of range, pad full, etc.) notify the player with a clear reason
+        -- instead of silently resetting to zero with a full-looking meter.
+        if not done and failReason ~= nil then
+            Remotes.NotifyPlayer(player, "error", failReason)
         end
         push(player, kind, targetId, need, need, done) -- server decides completion, not the client
     else

@@ -94,6 +94,19 @@ local function clearTarget()
     setTarget(nil)
 end
 
+-- Flush the accumulated taps to the server (the ONE client->server path). Server clamps + applies.
+local function flush()
+    if current == nil or pending <= 0 or remotes == nil then
+        return
+    end
+    remotes.TapBatch:FireServer({
+        Kind = current.Kind,
+        TargetId = current.TargetId,
+        Taps = pending,
+    })
+    pending = 0
+end
+
 -- Every tap: instant local feedback + accumulate. Juice is pooled/capped + throttled (never a spike).
 local function onTap()
     if current == nil then
@@ -107,19 +120,13 @@ local function onTap()
         Effects.playSfx("click")
     end
     repaintMeter()
-end
-
--- Flush the accumulated taps to the server (the ONE client->server path). Server clamps + applies.
-local function flush()
-    if current == nil or pending <= 0 or remotes == nil then
-        return
+    -- IMMEDIATE FLUSH when this tap tips the optimistic total past the need: don't wait for the next
+    -- scheduled batch interval. The debounce would swallow the final taps and the server would never
+    -- see enough to cross the threshold -> the meter reads full but completion never fires.
+    if current.Need ~= nil and (serverCount + pending) >= current.Need then
+        sendAccum = 0
+        flush()
     end
-    remotes.TapBatch:FireServer({
-        Kind = current.Kind,
-        TargetId = current.TargetId,
-        Taps = pending,
-    })
-    pending = 0
 end
 
 -- Server reconcile: the authoritative progress for our active interaction (or a completion).
@@ -139,6 +146,16 @@ local function onServerUpdate(payload)
         -- world updates; reset the optimistic state so nothing sticks.
         pending = 0
         serverCount = current.Need or serverCount
+    elseif payload.Count ~= nil and payload.Need ~= nil then
+        local count = tonumber(payload.Count) or 0
+        local need = tonumber(payload.Need) or 1
+        if count >= need and payload.Done == false then
+            -- Server filled the meter but completion failed (e.g. walked out of range). The server
+            -- cleared progress; reset client-side so future taps can restart rather than sticking.
+            pending = 0
+            serverCount = 0
+            current.Need = need
+        end
     end
     repaintMeter()
 end

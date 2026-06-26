@@ -237,17 +237,24 @@ function WildSpawnService.TapValidate(player, spawnId)
 end
 
 -- TAP-TO-PROGRESS completion: the tap meter filled -> re-validate range, then the EXISTING atomic
--- factory-catch fires EXACTLY ONCE (commitCatch's spawn.Caught guard). Returns true on a real catch.
+-- factory-catch fires EXACTLY ONCE (commitCatch's spawn.Caught guard). Returns (ok, reason) so
+-- TapService can notify the player when completion silently fails instead of being a no-op.
 function WildSpawnService.TapComplete(player, spawnId)
     local spawn = spawns[spawnId]
-    if spawn == nil or spawn.Owner ~= player or spawn.Caught then
-        return false
+    if spawn == nil or spawn.Owner ~= player then
+        return false, "That one got away!"
+    end
+    if spawn.Caught then
+        return false, nil -- already resolved (double-fire guard); silent, no toast
     end
     if not inCatchRange(player, spawn) then
-        return false
+        return false, "Too far away — get closer!"
     end
-    local ok = commitCatch(player, spawn)
-    return ok == true
+    local ok, nameOrReason = commitCatch(player, spawn)
+    if not ok then
+        return false, nameOrReason -- commitCatch gives the reason (pad full, etc.)
+    end
+    return true, nil
 end
 
 -- The old one-shot catch remote is RETIRED by the tap rework (a single call could bypass the human-max-
