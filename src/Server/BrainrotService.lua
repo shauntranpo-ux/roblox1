@@ -17,6 +17,7 @@ local StealConfig = require(ReplicatedStorage.Shared.StealConfig)
 local MutationConfig = require(ReplicatedStorage.Shared.MutationConfig)
 local UnitIncome = require(ReplicatedStorage.Shared.UnitIncome)
 local EvolutionConfig = require(ReplicatedStorage.Shared.EvolutionConfig)
+local BrainrotBillboard = require(ReplicatedStorage.Shared.BrainrotBillboard)
 local BrainrotFactory = require(script.Parent.BrainrotFactory)
 
 local BrainrotService = {}
@@ -98,39 +99,6 @@ local function addInfoLabel(part, def, unit)
     label.Parent = billboard
 end
 
--- True if a roster entry has a real 2D image to show.
-local function hasArt(def)
-    return def.IconId ~= nil and def.IconId ~= 0
-end
-
--- Adds the brainrot's 2D PICTURE: an ImageLabel on a BillboardGui, which always faces the camera,
--- so the unit reads as a flat "2D brainrot" rather than a 3D model. A mutated unit gets a colored
--- outline so Shiny/Rainbow/etc. still read at a glance. Only used when the entry has an IconId.
-local function addArtBillboard(part, def, mutation)
-    local billboard = Instance.new("BillboardGui")
-    billboard.Name = "Art"
-    billboard.Size = UDim2.fromScale(5.5, 6)
-    billboard.StudsOffsetWorldSpace = Vector3.new(0, 1.5, 0)
-    billboard.LightInfluence = 0
-    billboard.MaxDistance = 130
-    billboard.Adornee = part
-    billboard.Parent = part
-
-    local image = Instance.new("ImageLabel")
-    image.Size = UDim2.fromScale(1, 1)
-    image.BackgroundTransparency = 1
-    image.Image = "rbxassetid://" .. tostring(def.IconId)
-    image.ScaleType = Enum.ScaleType.Fit
-    image.Parent = billboard
-    if mutation ~= nil then
-        local stroke = Instance.new("UIStroke")
-        stroke.Color = mutation.Color
-        stroke.Thickness = 3
-        stroke.Transparency = 0.1
-        stroke.Parent = image
-    end
-end
-
 -- M11.2 placeholder evolved look: a stage-colored outline/glow on a unit past stage 1 (thicker +
 -- glowing at higher stages). Works for both the picture path and the placeholder path. Real evolved
 -- models are reserved (EvolutionConfig.Visual.ModelName) for a later art pass.
@@ -156,58 +124,6 @@ local function addEvolutionAura(part, brainrot)
     box.Parent = part
 end
 
--- Builds the on-pad visual for one brainrot: the 2D picture (if it has an IconId) or, until art is
--- added, a rarity-tinted placeholder cube. A mutated unit overrides the tint/accent so it reads.
--- A flat, CAMERA-FACING 2D card for a unit that has no picture (IconId): a rounded tinted card with the
--- name on a BillboardGui, so it always faces the camera and reads as a "2D brainrot" -- never a 3D cube.
-local function addCardBillboard(part, def, tint)
-    local billboard = Instance.new("BillboardGui")
-    billboard.Name = "Art"
-    billboard.Size = UDim2.fromScale(5, 6)
-    billboard.StudsOffsetWorldSpace = Vector3.new(0, 1.5, 0)
-    billboard.LightInfluence = 0
-    billboard.MaxDistance = 130
-    billboard.Adornee = part
-    billboard.Parent = part
-
-    local card = Instance.new("Frame")
-    card.Size = UDim2.fromScale(1, 1)
-    card.BackgroundColor3 = tint
-    card.BackgroundTransparency = 0.05
-    card.BorderSizePixel = 0
-    card.Parent = billboard
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, 16)
-    corner.Parent = card
-    local stroke = Instance.new("UIStroke")
-    stroke.Color = Color3.fromRGB(20, 16, 30)
-    stroke.Thickness = 3
-    stroke.Parent = card
-
-    local gloss = Instance.new("Frame")
-    gloss.Size = UDim2.fromScale(1, 0.42)
-    gloss.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    gloss.BackgroundTransparency = 0.78
-    gloss.BorderSizePixel = 0
-    gloss.ZIndex = 0
-    gloss.Parent = card
-    local glossCorner = Instance.new("UICorner")
-    glossCorner.CornerRadius = UDim.new(0, 16)
-    glossCorner.Parent = gloss
-
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.fromScale(0.86, 0.86)
-    label.Position = UDim2.fromScale(0.07, 0.07)
-    label.BackgroundTransparency = 1
-    label.Font = Enum.Font.FredokaOne
-    label.Text = def.DisplayName
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.TextStrokeColor3 = Color3.fromRGB(20, 16, 30)
-    label.TextStrokeTransparency = 0
-    label.TextScaled = true
-    label.Parent = card
-end
-
 local function makeBrainrotPart(def, brainrot, pad)
     local rarity = Rarity.Get(def.Rarity)
     local mutation = brainrot.Mutation ~= nil and MutationConfig.Get(brainrot.Mutation) or nil
@@ -226,14 +142,18 @@ local function makeBrainrotPart(def, brainrot, pad)
     part.Color = tint
     part.CFrame = placementCFrame(pad)
 
-    -- Either way the cube is an INVISIBLE anchor; a camera-facing 2D BILLBOARD is the unit's whole look
-    -- (a flat "2D brainrot", never a 3D block) -- the picture if it has one, else a tinted name card.
+    -- The cube is an INVISIBLE anchor; a camera-facing 2D BILLBOARD is the unit's whole look (a flat
+    -- "2D brainrot", never a 3D block) -- the species sprite if it has one, else a tinted name card.
+    -- Shared with the wild + shared-event billboards (one implementation, no fork).
     part.Transparency = 1
-    if hasArt(def) then
-        addArtBillboard(part, def, mutation)
-    else
-        addCardBillboard(part, def, tint)
-    end
+    BrainrotBillboard.attach(part, def, {
+        size = UDim2.fromScale(5.5, 6),
+        offset = Vector3.new(0, 1.5, 0),
+        maxDistance = 130,
+        tint = tint,
+        mutationColor = mutation ~= nil and mutation.Color or nil,
+        name = def.DisplayName,
+    })
 
     addInfoLabel(part, def, brainrot)
     return part
@@ -390,9 +310,16 @@ function BrainrotService.MakeCarriedModel(character, unit, stackIndex)
     part.Color = mutation ~= nil and mutation.Color or rarity.Color
     part.CFrame = hrp.CFrame * CFrame.new(0, height, 0)
 
-    if hasArt(def) then
+    -- Carried (stolen-on-back) units keep the 3D cube when there is no art; only swap to the flat
+    -- sprite when the species actually has one (unchanged behavior, now via the shared builder).
+    if BrainrotBillboard.spriteId(def) ~= 0 then
         part.Transparency = 1
-        addArtBillboard(part, def, mutation)
+        BrainrotBillboard.attach(part, def, {
+            size = UDim2.fromScale(5.5, 6),
+            offset = Vector3.new(0, 1.5, 0),
+            maxDistance = 130,
+            mutationColor = mutation ~= nil and mutation.Color or nil,
+        })
     end
 
     addInfoLabel(part, def, unit)
