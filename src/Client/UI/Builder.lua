@@ -550,6 +550,39 @@ function Builder.dropdown(props, options, current, onPick)
     return container
 end
 
+-- Apply the canonical GLOSSY chrome look to any frame/button so HUD elements match the panels: a vertical
+-- accent gradient over a white base (so the gradient reads true), a top sheen, and the outline stroke.
+-- Only adds children it doesn't already have. `accentKey` is a Theme.Accents key.
+function Builder.glossify(obj, accentKey)
+    obj.BackgroundColor3 = Theme.Colors.White
+    obj.BackgroundTransparency = 0
+    if obj:FindFirstChild("GlossGradient") == nil then
+        local g = Theme.gradient(accentKey)
+        g.Name = "GlossGradient"
+        g.Parent = obj
+    end
+    if obj:FindFirstChild("GlossSheen") == nil then
+        Builder.create("Frame", {
+            Name = "GlossSheen",
+            Size = UDim2.fromScale(1, 0.45),
+            BackgroundColor3 = Theme.Colors.GlossTop,
+            BackgroundTransparency = 0.78,
+            BorderSizePixel = 0,
+            ZIndex = 0,
+            Parent = obj,
+        }, { Builder.corner(Theme.Radius.Button) })
+    end
+    if obj:FindFirstChildOfClass("UIStroke") == nil then
+        Builder.create("UIStroke", {
+            Color = Theme.Colors.Outline,
+            Thickness = 2.5,
+            Transparency = 0.15,
+            Parent = obj,
+        })
+    end
+    return obj
+end
+
 -- Builds the standard centered modal panel: a translucent gradient body with a thick dark outline,
 -- a glossy accent header (icon-less title + round red X), and a styled scrolling content area.
 -- `accentKey` (optional) picks the header gradient from Theme.Accents. Returns the ScrollingFrame.
