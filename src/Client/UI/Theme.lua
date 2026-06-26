@@ -157,29 +157,29 @@ Theme.Hud = {
     BarTween = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 }
 
--- ── VM-THEME lighting / atmosphere / post-FX (the bright midday voxel mood) ──────────────────
+-- ── VM-THEME lighting / atmosphere / post-FX (soft warm midday -- no blow-out) ───────────────
 Theme.Lighting = {
     ClockTime = 14, -- bright early-afternoon sun
     GeographicLatitude = 12,
-    Brightness = 1.7,
-    ExposureCompensation = 0.0,
+    Brightness = 1.5, -- was 1.7 -- tamed so nothing over-exposes
+    ExposureCompensation = -0.05, -- slight pull-back to kill the haze
     Ambient = Color3.fromRGB(120, 130, 145),
     OutdoorAmbient = Color3.fromRGB(150, 162, 178),
     FogEnd = 100000,
     Atmosphere = {
         Density = 0.32,
         Offset = 0.1,
-        Haze = 1.6,
-        Glare = 0.2,
+        Haze = 0.9, -- was 1.6 -- clearer air, less white haze over distant parts
+        Glare = 0.1, -- was 0.2 -- glare was cooking the sky
         Color = Color3.fromRGB(220, 235, 255),
         Decay = Color3.fromRGB(160, 190, 230),
     },
-    Bloom = { Intensity = 0.3, Size = 24, Threshold = 1.6 },
+    Bloom = { Intensity = 0.18, Size = 18, Threshold = 2.0 }, -- threshold raised: only truly bright things bloom
     ColorCorrection = {
-        Saturation = 0.16,
-        Contrast = 0.04,
+        Saturation = 0.08, -- was 0.16 -- less over-saturation
+        Contrast = 0.03,
         Brightness = -0.02,
-        TintColor = Color3.fromRGB(255, 252, 245),
+        TintColor = Color3.fromRGB(255, 250, 240), -- warm tint
     },
     SunRays = { Intensity = 0.06, Spread = 0.4 },
     SkyDefault = Color3.fromRGB(120, 200, 255), -- placeholder bright-blue sky tint when no skybox ids

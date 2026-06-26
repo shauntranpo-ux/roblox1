@@ -17,8 +17,8 @@ local function applyBaseLighting()
         return
     end
     baseLightingApplied = true
-    Lighting.Brightness = 2.6
-    Lighting.ExposureCompensation = 0.1
+    Lighting.Brightness = 2.1 -- was 2.6 -- softer so cream/stone surfaces don't blow out
+    Lighting.ExposureCompensation = -0.05 -- slight pull-back
     Lighting.EnvironmentDiffuseScale = 0.55
     Lighting.EnvironmentSpecularScale = 0.4
     Lighting.OutdoorAmbient = Color3.fromRGB(140, 142, 150)
@@ -30,8 +30,8 @@ local function applyBaseLighting()
         local atmo = Instance.new("Atmosphere")
         atmo.Density = 0.32
         atmo.Offset = 0.1
-        atmo.Haze = 1.4
-        atmo.Glare = 0.2
+        atmo.Haze = 0.9 -- was 1.4 -- clearer
+        atmo.Glare = 0.1 -- was 0.2
         atmo.Color = Color3.fromRGB(199, 209, 224)
         atmo.Decay = Color3.fromRGB(106, 134, 168)
         atmo.Parent = Lighting
