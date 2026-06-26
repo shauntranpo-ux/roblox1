@@ -25,6 +25,11 @@
 --                 camera -- a "2D brainrot", not a 3D model). PASTE the decal/image asset NUMBER
 --                 here (the digits from "rbxassetid://12345"). 0 = no image yet -> a rarity-tinted
 --                 placeholder is shown instead, so the game is fully playable before you add art.
+--                 The SAME image is the world SPRITE for placed units, WILD roaming spawns, and
+--                 (when revealed) shared rare events -- one camera-facing 2D sprite per species.
+--   SpriteId      OPTIONAL per-species override for the in-WORLD sprite only (wild/placed/shared
+--                 billboards), when you want the roaming sprite to differ from the UI IconId. Resolve
+--                 order is SpriteId -> IconId -> 0 (placeholder card). 0/absent = just use IconId.
 --   SoundId       RESERVED: purchase/idle sound asset id (0 placeholder for now).
 --
 -- ECONOMY CURVE (retune the numbers, keep the SHAPE):
