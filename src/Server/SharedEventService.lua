@@ -34,6 +34,7 @@ local BiomeConfig = require(ReplicatedStorage.Shared.BiomeConfig)
 local WildConfig = require(ReplicatedStorage.Shared.WildConfig)
 local Catalog = require(ReplicatedStorage.Shared.Catalog)
 local Rarity = require(ReplicatedStorage.Shared.Rarity)
+local BrainrotBillboard = require(ReplicatedStorage.Shared.BrainrotBillboard)
 
 local ProfileManager = require(script.Parent.ProfileManager)
 local BrainrotFactory = require(script.Parent.BrainrotFactory)
@@ -87,9 +88,20 @@ local function makeModel(def, rarity, position)
     part.CanCollide = false
     part.Size = SharedEventConfig.ModelSize
     part.Color = Rarity.Get(rarity).Color
-    part.Material = Enum.Material.Neon
-    part.Transparency = 0.05
+    part.Transparency = 1 -- INVISIBLE anchor; the camera-facing 2D billboard is the whole look
     part.Position = position
+
+    -- Camera-facing 2D billboard (same flat "2D brainrot" look as wild/placed). Hidden-identity events
+    -- force the rarity-tinted MYSTERY card (no species reveal); a revealed event shows the species
+    -- sprite. The one-winner, dupe-safe catch (prompt + server validation + factory mint) is unchanged.
+    BrainrotBillboard.attach(part, def, {
+        size = UDim2.fromScale(8, 9),
+        offset = Vector3.new(0, 1, 0),
+        maxDistance = 240,
+        tint = Rarity.Get(rarity).Color,
+        forcePlaceholder = SharedEventConfig.HideIdentity == true,
+        name = SharedEventConfig.HideIdentity and "?" or def.DisplayName,
+    })
 
     local billboard = Instance.new("BillboardGui")
     billboard.Size = UDim2.fromScale(6, 1.6)
