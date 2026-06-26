@@ -34,14 +34,24 @@ function Announce.show(title, body)
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0.5, 0.5),
         Size = UDim2.fromScale(0.86, 0.6),
-        BackgroundColor3 = Theme.Colors.Background,
+        BackgroundColor3 = Theme.Colors.Cloud, -- light airy cloud body (matches the design system)
         BorderSizePixel = 0,
         Parent = gui,
     }, {
-        Builder.corner(UDim.new(0, 18)),
+        Builder.corner(Theme.Radius.Panel),
+        Builder.create("UIStroke", { -- soft accent glow rim
+            Color = Theme.accentColor("Default"),
+            Thickness = 3,
+            Transparency = 0.1,
+        }),
+        Builder.create("UIGradient", {
+            Rotation = 90,
+            Color = ColorSequence.new(Theme.Colors.CloudTop, Theme.Colors.Cloud),
+        }),
         Builder.create("UISizeConstraint", { MaxSize = Vector2.new(520, 620) }),
         Builder.padding(16),
     })
+    Builder.softShadow(panel, { radius = Theme.Radius.Panel })
 
     Builder.create("TextLabel", {
         Position = UDim2.fromOffset(0, 0),
@@ -49,7 +59,7 @@ function Announce.show(title, body)
         BackgroundTransparency = 1,
         Font = Theme.FontBold,
         Text = title,
-        TextColor3 = Theme.Colors.Accent,
+        TextColor3 = Theme.Colors.Ink, -- ink on the light body
         TextSize = 26,
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = panel,
@@ -71,7 +81,7 @@ function Announce.show(title, body)
             BackgroundTransparency = 1,
             Font = Theme.Font,
             Text = body,
-            TextColor3 = Theme.Colors.Text,
+            TextColor3 = Theme.Colors.Ink, -- ink on the light body
             TextSize = 18,
             TextWrapped = true,
             TextXAlignment = Enum.TextXAlignment.Left,
@@ -96,6 +106,7 @@ function Announce.show(title, body)
     end)
 
     gui.Enabled = true
+    Builder.popOpen(panel) -- bouncy scale-in to match the rest of the UI
 end
 
 -- Convenience: show the current build's changelog (used by the WhatsNew remote handler).

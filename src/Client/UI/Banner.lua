@@ -36,14 +36,25 @@ function Banner.mount(context)
     gui = Builder.screenGui("Banner", player:WaitForChild("PlayerGui"), true)
     gui.DisplayOrder = 8 -- above the HUD, below panels
 
+    -- Subtle soft dark pill behind the announce text -> cohesive with the HUD pill family + legible
+    -- over busy worlds (kept very translucent so big alerts stay light).
     frame = Builder.create("Frame", {
         AnchorPoint = Vector2.new(0.5, 0),
         Position = UDim2.fromScale(0.5, 0.03),
         Size = UDim2.fromScale(0.7, 0.09),
-        BackgroundTransparency = 1,
+        BackgroundColor3 = Theme.Colors.DarkPill,
+        BackgroundTransparency = 0.4,
         Visible = false,
         Parent = gui,
-    }, { Builder.create("UISizeConstraint", { MaxSize = Vector2.new(820, 96) }) })
+    }, {
+        Builder.corner(Theme.Radius.Card),
+        Builder.padding(8),
+        Builder.create(
+            "UIStroke",
+            { Color = Theme.Colors.White, Thickness = 2, Transparency = 0.55 }
+        ),
+        Builder.create("UISizeConstraint", { MaxSize = Vector2.new(820, 96) }),
+    })
 
     label = Builder.create("TextLabel", {
         Size = UDim2.fromScale(1, 1),
