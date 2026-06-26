@@ -6,14 +6,20 @@
 -- reconciles to the server's TapUpdate, so it never shows a false completion or sticks at 99%.
 --
 -- TAP SURFACES (all count once, never double): a big on-screen TAP button (mobile), tap-anywhere on the
--- screen (UserInputService, UI clicks are gameProcessed -> filtered), and the prompt's own keybind/touch
--- button (ProximityPromptService.PromptTriggered). Mash any of them as fast as you can.
+-- screen WHILE the tap lands on the target's hitbox (raycast-gated so random mis-taps don't progress),
+-- and the prompt's own keybind/touch button (ProximityPromptService.PromptTriggered). Mash any of them.
+--
+-- HITBOX GATING: screen taps (InputBegan) are raycast through tapTargetAt(screenPos). It walks the hit
+-- part's ancestry for a TapHitbox part (named "TapHitbox", carrying TapKind/TapTargetId attributes
+-- placed by WildSpawnService + BossService) OR a StealPrompt (steal units use the existing model part).
+-- Only fires onTap() when the raycast resolves to the CURRENT active target.
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local Builder = require(script.Parent.Builder)
 local Theme = require(script.Parent.Theme)
@@ -92,6 +98,59 @@ end
 
 local function clearTarget()
     setTarget(nil)
+end
+
+-- Raycast from a screen position into the world and walk the hit part's ancestry to find a tappable
+-- target. Returns { Kind, TargetId } matching the current active interaction, or nil if the tap missed.
+-- Three cases are recognized:
+--   (a) A "TapHitbox" part (CanQuery=true, CanCollide=false) with TapKind + TapTargetId attributes,
+--       placed by WildSpawnService (wild catch) and BossService (boss combat).
+--   (b) Any ancestor that holds a StealPrompt child (steal units use the existing on-pad model part).
+-- The TAP button always counts (it is already gated by `current ~= nil`); this gate is for raw
+-- InputBegan taps only, to prevent mashing the background from progressing.
+local function tapTargetAt(screenPos)
+    local camera = Workspace.CurrentCamera
+    if camera == nil or current == nil then
+        return nil
+    end
+    local ray = camera:ViewportPointToRay(screenPos.X, screenPos.Y)
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    raycastParams.FilterDescendantsInstances = { camera }
+    local result = Workspace:Raycast(ray.Origin, ray.Direction * 500, raycastParams)
+    if result == nil then
+        return nil
+    end
+
+    -- Walk the hit instance and its ancestors (up to 8 levels) looking for a hitbox or steal unit.
+    local inst = result.Instance
+    for _ = 1, 8 do
+        if inst == nil or not inst:IsA("Instance") then
+            break
+        end
+        -- (a) TapHitbox: named part with TapKind + TapTargetId attributes.
+        if inst.Name == "TapHitbox" then
+            local kind = inst:GetAttribute("TapKind")
+            local targetId = inst:GetAttribute("TapTargetId")
+            if kind == current.Kind and targetId == current.TargetId then
+                return { Kind = kind, TargetId = targetId }
+            end
+            return nil -- hitbox belongs to a different target
+        end
+        -- (b) StealPrompt on ancestor: steal unit model part.
+        if inst:IsA("BasePart") or inst:IsA("Model") then
+            local stealPrompt = inst:FindFirstChild("StealPrompt")
+            if stealPrompt ~= nil then
+                local brainrotId = stealPrompt:GetAttribute("BrainrotId")
+                if current.Kind == "steal" and brainrotId == current.TargetId then
+                    return { Kind = "steal", TargetId = brainrotId }
+                end
+                return nil
+            end
+        end
+        inst = inst.Parent
+    end
+    return nil
 end
 
 -- Flush the accumulated taps to the server (the ONE client->server path). Server clamps + applies.
@@ -259,16 +318,21 @@ function TapInput.mount(context)
         end
     end)
 
-    -- Tap-anywhere on the screen (mouse / touch) while a target is active. UI clicks are gameProcessed,
-    -- so the TAP button (and other GUI) never double-counts here.
+    -- Screen taps (mouse / touch): HITBOX-GATED. Only count when the tap lands on the active target's
+    -- model (via tapTargetAt raycast). UI clicks are gameProcessed -> already filtered. The on-screen
+    -- TAP button uses Activated (always counts once the panel is shown) and is not re-gated here.
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed or current == nil then
             return
         end
-        if
-            input.UserInputType == Enum.UserInputType.MouseButton1
+        local isPointer = input.UserInputType == Enum.UserInputType.MouseButton1
             or input.UserInputType == Enum.UserInputType.Touch
-        then
+        if not isPointer then
+            return
+        end
+        local screenPos = Vector2.new(input.Position.X, input.Position.Y)
+        -- Only register the tap when it lands on the active target's hitbox.
+        if tapTargetAt(screenPos) ~= nil then
             onTap()
         end
     end)

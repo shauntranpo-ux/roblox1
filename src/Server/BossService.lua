@@ -112,6 +112,22 @@ local function makeBossModel(def)
     prompt.RequiresLineOfSight = false
     prompt.Parent = part
 
+    -- Oversized invisible hitbox (1.5x the visual part bounds) so the boss is easy to tap from any
+    -- angle. TapInput.tapTargetAt() raycasts against this; TapKind="combat" + TapTargetId="boss"
+    -- matches the BossPrompt's target. CanQuery=true; CanCollide=false; Anchored to stay put.
+    local bossSize = def.ModelSize or Vector3.new(18, 26, 18)
+    local hitbox = Instance.new("Part")
+    hitbox.Name = "TapHitbox"
+    hitbox.Anchored = true
+    hitbox.CanCollide = false
+    hitbox.CanQuery = true
+    hitbox.Size = bossSize * 1.5
+    hitbox.Transparency = 1
+    hitbox.Position = part.Position
+    hitbox:SetAttribute("TapKind", "combat")
+    hitbox:SetAttribute("TapTargetId", "boss")
+    hitbox.Parent = part -- anchored under the boss part so it shares its CFrame/destroy lifecycle
+
     part.Parent = Workspace
     return part, prompt, fill
 end

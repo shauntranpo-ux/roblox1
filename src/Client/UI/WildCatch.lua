@@ -53,6 +53,23 @@ local function makeModel(payload)
     part.Transparency = 0.05
     part.CFrame = CFrame.new(payload.Pos)
 
+    -- Oversized invisible hitbox (1.5x the visual part) so small targets are easy to tap on both
+    -- PC and mobile. TapInput.tapTargetAt() raycasts against this and reads TapKind/TapTargetId
+    -- to confirm the tap hit THIS creature. CanQuery=true so the raycast finds it; CanCollide=false
+    -- so it never obstructs the player. Anchored alongside the visual part; both lerp each frame.
+    local hitbox = Instance.new("Part")
+    hitbox.Name = "TapHitbox"
+    hitbox.Anchored = true
+    hitbox.CanCollide = false
+    hitbox.CanQuery = true
+    hitbox.Size = Vector3.new(4.5, 4.5, 4.5) -- 1.5x the 3-stud visual part
+    hitbox.Transparency = 1
+    hitbox.CFrame = part.CFrame
+    hitbox:SetAttribute("TapKind", "catch")
+    hitbox:SetAttribute("TapTargetId", tostring(payload.Id))
+    hitbox.Parent = part -- parented to part so it moves with it; WildCatch lerps the part each frame
+
+    -- Subtle name label above the creature (replaced the heavy billboard card from earlier).
     local billboard = Instance.new("BillboardGui")
     billboard.Size = UDim2.fromScale(4, 1.1)
     billboard.StudsOffsetWorldSpace = Vector3.new(0, 3, 0)
