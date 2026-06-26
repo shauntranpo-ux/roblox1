@@ -129,8 +129,9 @@ local function worldSign(parent, pos, text, boardColor)
     local boardW, boardH = 22, 9
     local boardY = pos.Y + 16 -- board centre height above world origin
     -- Soft PASTEL accent board (was a garish fully-saturated slab) -> cohesive cream-accent sign; the
-    -- white Fredoka text + dark stroke reads on it, the wood frame + posts stay warm.
-    local boardCol = (boardColor or P.RedTrim):Lerp(P.Plaster, 0.5)
+    -- white Fredoka text + dark stroke reads on it, the accent-painted frame + wood posts finish it.
+    local accent = boardColor or P.RedTrim
+    local boardCol = accent:Lerp(P.Plaster, 0.5)
 
     -- Solid backing board (the coloured face)
     local board = part({
@@ -139,35 +140,35 @@ local function worldSign(parent, pos, text, boardColor)
         Color = boardCol,
     }, parent)
 
-    -- 4 thin P.Beam frame strips around the board face (slightly proud of the board front)
+    -- 4 accent-painted frame strips around the board face (slightly proud of the board front)
     local fZ = pos.Z + 0.7 -- frame sits 0.7 studs in front of board centre
     -- Top bar
     part({
         Size = Vector3.new(boardW + 2, 1.2, 0.5),
         Position = Vector3.new(pos.X, boardY + boardH / 2 + 0.6, fZ),
-        Color = P.Beam,
-        Material = Enum.Material.Wood,
+        Color = accent,
+        Material = Enum.Material.SmoothPlastic,
     }, parent)
     -- Bottom bar
     part({
         Size = Vector3.new(boardW + 2, 1.2, 0.5),
         Position = Vector3.new(pos.X, boardY - boardH / 2 - 0.6, fZ),
-        Color = P.Beam,
-        Material = Enum.Material.Wood,
+        Color = accent,
+        Material = Enum.Material.SmoothPlastic,
     }, parent)
     -- Left bar
     part({
         Size = Vector3.new(1.2, boardH + 2, 0.5),
         Position = Vector3.new(pos.X - boardW / 2 - 0.6, boardY, fZ),
-        Color = P.Beam,
-        Material = Enum.Material.Wood,
+        Color = accent,
+        Material = Enum.Material.SmoothPlastic,
     }, parent)
     -- Right bar
     part({
         Size = Vector3.new(1.2, boardH + 2, 0.5),
         Position = Vector3.new(pos.X + boardW / 2 + 0.6, boardY, fZ),
-        Color = P.Beam,
-        Material = Enum.Material.Wood,
+        Color = accent,
+        Material = Enum.Material.SmoothPlastic,
     }, parent)
 
     -- Two P.Beam posts from y=0 up to the board bottom (board bottom = boardY - boardH/2)
@@ -299,6 +300,14 @@ end
 -- A modeled hub STRUCTURE for a tagged interactable. Builds a unique look per `tagName`, tags the base
 -- block with `tagName` (the contract), floats a label, and returns the tagged block.
 local function buildStructure(folder, pos, tagName, label, accent)
+    -- Cobblestone grounding PAD so every stall reads as planted on a plaza pad (esp. the meadow-edge
+    -- ones); sits flush on the ground beneath the plinth.
+    part({
+        Size = Vector3.new(17, 0.5, 17),
+        Position = pos + Vector3.new(0, 0.25, 0),
+        Color = P.Stone,
+        Material = Enum.Material.Cobblestone,
+    }, folder)
     -- Stepped stone PEDESTAL base: 3 tiers so every fixture sits on a real plinth.
     -- Tier 1 (widest) = base, tagged with tagName so the game systems bind to it.
     local base = part({
@@ -627,17 +636,21 @@ local function buildHub(folder)
     buildStructure(folder, c + Vector3.new(-110, 0, 50), "FreeGift", "GIFT", P.Grape)
     buildStructure(folder, c + Vector3.new(130, 0, 30), "SpinWheel", "SPIN", P.Gold)
 
+    -- LeaderboardPillar anchors: INVISIBLE tagged markers (the dark slabs are retired). The VISIBLE
+    -- leaderboard displays are the soft scrolling boards built by LeaderboardBillboards as a tidy
+    -- grounded plaza row. Tag + "Board" attribute are preserved for the contract (nothing reads the
+    -- old slab's size/position, so shrinking it to an invisible anchor is a visual-only change).
     local boards = { "TopCash", "TopIncome", "RarestCollection" }
     for i, key in ipairs(boards) do
-        local pillar = fixture(
-            folder,
-            c + Vector3.new(-44 + (i - 1) * 44, 0, -110),
-            Vector3.new(8, 16, 8),
-            P.PlotBase,
-            "LeaderboardPillar",
-            nil
-        )
-        pillar:SetAttribute("Board", key)
+        local anchor = part({
+            Size = Vector3.new(4, 1, 4),
+            Position = c + Vector3.new(-44 + (i - 1) * 44, 0.5, -110),
+            Transparency = 1,
+            CanCollide = false,
+        }, folder)
+        anchor.Name = "LeaderboardPillar"
+        tag(anchor, "LeaderboardPillar")
+        anchor:SetAttribute("Board", key)
     end
 end
 
