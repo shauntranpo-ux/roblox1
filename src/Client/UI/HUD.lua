@@ -163,6 +163,16 @@ function HUD.mount(context, actions)
             { entry = entry, diamond = diamond, content = content, container = container }
         )
     end
+    for _, d in ipairs(railDiamonds) do
+        if d.diamond:FindFirstChildOfClass("UIStroke") == nil then
+            Builder.create("UIStroke", {
+                Color = Theme.Colors.Outline,
+                Thickness = 2.5,
+                Transparency = 0.15,
+                Parent = d.diamond,
+            })
+        end
+    end
 
     -- ===== BOTTOM-RIGHT LUCK =====
     local luckPill = Builder.pill({
@@ -172,6 +182,7 @@ function HUD.mount(context, actions)
         radius = UDim.new(0, 14),
         Parent = gui,
     })
+    Builder.glossify(luckPill, "Codes")
     Builder.create(
         "UISizeConstraint",
         { MinSize = Vector2.new(96, 40), MaxSize = Vector2.new(190, 70), Parent = luckPill }
@@ -192,12 +203,13 @@ function HUD.mount(context, actions)
         Size = UDim2.fromScale(0.6, 0.8),
         BackgroundTransparency = 1,
         Text = "x1",
-        TextColor3 = Theme.Colors.White,
+        TextColor3 = Theme.Colors.Outline,
         TextScaled = true,
         TextXAlignment = Enum.TextXAlignment.Right,
         Parent = luckPill,
     }, { Builder.create("UITextSizeConstraint", { MaxTextSize = 26 }) })
     Builder.styleText(luckLabel, { keepColor = true })
+    luckLabel.TextStrokeTransparency = 1
 
     -- ===== BOTTOM-RIGHT TEAM POWER (M11.3-combat: combat strength of the equipped team) =====
     local powerPill = Builder.pill({
@@ -207,6 +219,7 @@ function HUD.mount(context, actions)
         radius = UDim.new(0, 14),
         Parent = gui,
     })
+    Builder.glossify(powerPill, "Loadout")
     Builder.create(
         "UISizeConstraint",
         { MinSize = Vector2.new(96, 40), MaxSize = Vector2.new(190, 70), Parent = powerPill }
@@ -227,12 +240,13 @@ function HUD.mount(context, actions)
         Size = UDim2.fromScale(0.6, 0.8),
         BackgroundTransparency = 1,
         Text = "0",
-        TextColor3 = Theme.Colors.White,
+        TextColor3 = Theme.Colors.Outline,
         TextScaled = true,
         TextXAlignment = Enum.TextXAlignment.Right,
         Parent = powerPill,
     }, { Builder.create("UITextSizeConstraint", { MaxTextSize = 26 }) })
     Builder.styleText(powerLabel, { keepColor = true })
+    powerLabel.TextStrokeTransparency = 1
 
     -- ===== BOTTOM-RIGHT INVITE BOOST (M13.1: "+X% Invite Friends") =====
     local invitePill = Builder.pill({
@@ -242,6 +256,7 @@ function HUD.mount(context, actions)
         radius = UDim.new(0, 14),
         Parent = gui,
     })
+    Builder.glossify(invitePill, "Referral")
     Builder.create(
         "UISizeConstraint",
         { MinSize = Vector2.new(96, 40), MaxSize = Vector2.new(190, 70), Parent = invitePill }
@@ -262,12 +277,13 @@ function HUD.mount(context, actions)
         Size = UDim2.fromScale(0.6, 0.8),
         BackgroundTransparency = 1,
         Text = "+0%",
-        TextColor3 = Theme.Colors.White,
+        TextColor3 = Theme.Colors.Outline,
         TextScaled = true,
         TextXAlignment = Enum.TextXAlignment.Right,
         Parent = invitePill,
     }, { Builder.create("UITextSizeConstraint", { MaxTextSize = 26 }) })
     Builder.styleText(inviteLabel, { keepColor = true })
+    inviteLabel.TextStrokeTransparency = 1
 
     -- ===== BOTTOM-CENTER NAV BAR (panel access -- kept; restyled as the hotbar) =====
     local bar = Builder.create("Frame", {
@@ -315,13 +331,17 @@ function HUD.mount(context, actions)
             }, def.click)
             button:SetAttribute("Accent", def.accent)
             navButtons[def.key] = button
+            Builder.glossify(button, def.accent)
         end
     end
     PanelManager.onChange(function(active)
         for key, button in pairs(navButtons) do
-            button.BackgroundColor3 = key == active
-                    and Theme.accentColor(button:GetAttribute("Accent"))
-                or Theme.Colors.DarkPill
+            local on = key == active
+            button.BackgroundTransparency = on and 0 or 0.28
+            local stroke = button:FindFirstChildOfClass("UIStroke")
+            if stroke ~= nil then
+                stroke.Transparency = on and 0 or 0.4
+            end
         end
     end)
 
