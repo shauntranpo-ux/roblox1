@@ -133,8 +133,9 @@ function HUD.mount(context, actions)
             { MinSize = Vector2.new(56, 0), MaxSize = Vector2.new(76, 520) }
         ),
     })
-    -- Top glossy CYAN "+" diamond -> open the Shop (via the panel manager, if wired).
-    Builder.diamond({
+    -- Top glossy CYAN "+" BUBBLE -> open the Shop (via the panel manager, if wired). The rail + the
+    -- edge icon columns now share ONE shape language (Builder.iconBubble squircle), not diamonds.
+    local _, _, plusContent = Builder.iconBubble({
         size = 60,
         LayoutOrder = 1,
         color = Theme.Colors.XpFill,
@@ -142,9 +143,10 @@ function HUD.mount(context, actions)
         maxText = 34,
         Parent = rail,
     }, actions ~= nil and actions.onShop or nil)
-    -- Level-gated diamonds (data-driven from Theme.DiamondRail).
+    Builder.bob(plusContent) -- gentle idle life on the icon glyph
+    -- Level-gated bubbles (data-driven from Theme.DiamondRail).
     for i, entry in ipairs(Theme.DiamondRail) do
-        local container, diamond, content = Builder.diamond({
+        local container, bubble, content = Builder.iconBubble({
             size = 58,
             LayoutOrder = i + 1,
             color = Theme.Colors.DarkPill,
@@ -160,18 +162,8 @@ function HUD.mount(context, actions)
         end)
         table.insert(
             railDiamonds,
-            { entry = entry, diamond = diamond, content = content, container = container }
+            { entry = entry, frame = bubble, content = content, container = container }
         )
-    end
-    for _, d in ipairs(railDiamonds) do
-        if d.diamond:FindFirstChildOfClass("UIStroke") == nil then
-            Builder.create("UIStroke", {
-                Color = Theme.Colors.Outline,
-                Thickness = 2.5,
-                Transparency = 0.15,
-                Parent = d.diamond,
-            })
-        end
     end
 
     -- ===== BOTTOM-RIGHT LUCK =====
@@ -179,7 +171,7 @@ function HUD.mount(context, actions)
         AnchorPoint = Vector2.new(1, 1),
         Position = UDim2.fromScale(0.988, 0.86),
         Size = UDim2.fromScale(0.16, 0.07),
-        radius = UDim.new(0, 14),
+        radius = Theme.Radius.Bubble,
         Parent = gui,
     })
     Builder.glossify(luckPill, "Codes")
@@ -216,7 +208,7 @@ function HUD.mount(context, actions)
         AnchorPoint = Vector2.new(1, 1),
         Position = UDim2.fromScale(0.988, 0.78),
         Size = UDim2.fromScale(0.16, 0.07),
-        radius = UDim.new(0, 14),
+        radius = Theme.Radius.Bubble,
         Parent = gui,
     })
     Builder.glossify(powerPill, "Loadout")
@@ -253,7 +245,7 @@ function HUD.mount(context, actions)
         AnchorPoint = Vector2.new(1, 1),
         Position = UDim2.fromScale(0.988, 0.70),
         Size = UDim2.fromScale(0.16, 0.07),
-        radius = UDim.new(0, 14),
+        radius = Theme.Radius.Bubble,
         Parent = gui,
     })
     Builder.glossify(invitePill, "Referral")
@@ -325,7 +317,7 @@ function HUD.mount(context, actions)
                 Size = UDim2.fromScale(widthScale, 1),
                 color = Theme.Colors.DarkPill,
                 Text = def.label,
-                radius = UDim.new(0, 14),
+                radius = Theme.Radius.Bubble,
                 maxText = 22,
                 Parent = bar,
             }, def.click)
@@ -351,8 +343,8 @@ function HUD.mount(context, actions)
         for _, d in ipairs(railDiamonds) do
             local locked = level < d.entry.UnlockLevel
             d.content.Text = locked and ("🔒\nLv." .. d.entry.UnlockLevel) or d.entry.Label
-            d.diamond.BackgroundColor3 = locked and Theme.Colors.DarkPill or Theme.Colors.XpFill
-            d.diamond.BackgroundTransparency = locked and 0.25 or 0.1
+            d.frame.BackgroundColor3 = locked and Theme.Colors.DarkPill or Theme.Colors.XpFill
+            d.frame.BackgroundTransparency = locked and 0.25 or 0.05
         end
     end
     local function refreshShield()
