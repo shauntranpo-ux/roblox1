@@ -115,7 +115,7 @@ local function start()
         Size = UDim2.fromScale(1, 0.6),
         Font = Theme.FontBold,
         Text = "Your money goes up on its own. Tap Shop and buy your first brainrot!",
-        TextColor3 = Theme.Colors.Text,
+        TextColor3 = Theme.Colors.Ink,
         TextScaled = true,
         TextWrapped = true,
         Parent = card,
