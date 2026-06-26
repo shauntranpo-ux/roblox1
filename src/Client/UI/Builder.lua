@@ -481,6 +481,29 @@ function Builder.popOpen(frame)
     TweenService:Create(frame, Theme.Tween.Open, { Size = target }):Play()
 end
 
+-- Pop-OUT: scale the panel down + run onDone (gui.Enabled=false). Mirrors popOpen; resets size for next open.
+function Builder.popClose(frame, onDone)
+    local target = frame:GetAttribute("PopTarget") or frame.Size
+    local small = UDim2.new(
+        target.X.Scale * 0.82,
+        target.X.Offset * 0.82,
+        target.Y.Scale * 0.82,
+        target.Y.Offset * 0.82
+    )
+    local tween = TweenService:Create(
+        frame,
+        TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+        { Size = small }
+    )
+    tween:Play()
+    tween.Completed:Connect(function()
+        frame.Size = target
+        if onDone ~= nil then
+            onDone()
+        end
+    end)
+end
+
 -- A mini DROPDOWN: a compact gloss button showing "Label: current"; clicking toggles a small option list
 -- below it. `options` = array of strings, `current` = selected string, `onPick(value)` fires on choose.
 function Builder.dropdown(props, options, current, onPick)

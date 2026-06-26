@@ -21,6 +21,7 @@ local TweenService = game:GetService("TweenService")
 local UIStyle = require(script.Parent.UIStyle)
 local Theme = require(script.Parent.Theme)
 local Effects = require(script.Parent.Effects)
+local Builder = require(script.Parent.Builder)
 
 local PanelManager = {}
 
@@ -33,6 +34,7 @@ local listeners = {} -- active-panel-change subscribers (e.g. HUD highlight)
 local current = nil -- name of the open panel, or nil
 local lastToggle = 0
 local openTween = nil
+local closing = {} -- [name] = true while a pop-close tween is in flight (guard against double-fire)
 
 local function notify(activeName)
     for _, fn in ipairs(listeners) do
@@ -43,6 +45,28 @@ end
 -- Subscribe to "which panel is open" changes (passed the panel name, or nil when nothing is open).
 function PanelManager.onChange(fn)
     table.insert(listeners, fn)
+end
+
+-- Pop-close a panel's gui: find its main frame, run Builder.popClose, then disable. Falls back to
+-- instant disable if no frame is found or a close is already in flight for this panel.
+local function disableWithPop(name)
+    local entry = panels[name]
+    if entry == nil then
+        return
+    end
+    if closing[name] then
+        return
+    end
+    local frame = entry.frame or entry.gui:FindFirstChildWhichIsA("Frame")
+    if frame ~= nil then
+        closing[name] = true
+        Builder.popClose(frame, function()
+            closing[name] = nil
+            entry.gui.Enabled = false
+        end)
+    else
+        entry.gui.Enabled = false
+    end
 end
 
 -- Quick scale 0.85 -> 1.0 pop (Back/Out) on the panel's main frame.
@@ -89,7 +113,7 @@ local function onEnabledChanged(name)
         local prev = current
         current = name -- set first so the prev's own change handler no-ops
         if prev ~= nil and panels[prev] ~= nil and panels[prev].gui.Enabled then
-            panels[prev].gui.Enabled = false
+            disableWithPop(prev)
         end
         animateIn(entry.frame)
         Effects.playSfx("open")
@@ -103,10 +127,10 @@ local function onEnabledChanged(name)
     end
 end
 
--- Closes whatever is open (nothing if already closed).
+-- Closes whatever is open (nothing if already closed). Plays a pop-out before disabling.
 function PanelManager.close()
     if current ~= nil and panels[current] ~= nil then
-        panels[current].gui.Enabled = false
+        disableWithPop(current)
     end
 end
 
