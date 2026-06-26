@@ -54,7 +54,7 @@ function Objective.mount(context)
 
     frame = Builder.create("Frame", {
         AnchorPoint = Vector2.new(0.5, 0),
-        Position = UDim2.fromScale(0.5, 0.135),
+        Position = UDim2.fromScale(0.5, 0.06),
         Size = UDim2.fromScale(0.6, 0.05),
         BackgroundColor3 = Theme.Colors.DarkPill,
         BackgroundTransparency = 0.25,

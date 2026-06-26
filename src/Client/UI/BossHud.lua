@@ -222,7 +222,7 @@ function BossHud.mount(context)
 
     alertLabel = Builder.create("TextLabel", {
         AnchorPoint = Vector2.new(0.5, 0),
-        Position = UDim2.new(0.5, 0, 0, 8),
+        Position = UDim2.new(0.5, 0, 0, 6),
         Size = UDim2.fromOffset(720, 44),
         BackgroundColor3 = Color3.fromRGB(150, 30, 50),
         BackgroundTransparency = 0.1,
@@ -236,7 +236,7 @@ function BossHud.mount(context)
 
     barFrame = Builder.create("Frame", {
         AnchorPoint = Vector2.new(0.5, 0),
-        Position = UDim2.new(0.5, 0, 0, 58),
+        Position = UDim2.new(0.5, 0, 0, 34),
         Size = UDim2.fromOffset(420, 40),
         BackgroundColor3 = Color3.fromRGB(20, 14, 30),
         BackgroundTransparency = 0.2,
