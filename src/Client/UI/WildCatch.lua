@@ -27,9 +27,12 @@ local Effects = require(script.Parent.Effects)
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Rarity = require(Shared:WaitForChild("Rarity"))
+local Catalog = require(Shared:WaitForChild("Catalog"))
+local BrainrotBillboard = require(Shared:WaitForChild("BrainrotBillboard"))
 
 local WildCatch = {}
 
+local SPRITE_OFFSET_Y = 2.2 -- world-space Y of the wild sprite billboard (idle bob oscillates around this)
 local TUTORIAL_CATCHES = 3
 
 local remotes = nil
@@ -188,7 +191,7 @@ local function makeChevron(part, rarityColor)
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "CatchChevron"
     billboard.Size = UDim2.fromOffset(44, 32)
-    billboard.StudsOffsetWorldSpace = Vector3.new(0, 4.2, 0)
+    billboard.StudsOffsetWorldSpace = Vector3.new(0, 7.2, 0) -- above the sprite + name label
     billboard.AlwaysOnTop = false
     billboard.MaxDistance = 60
     billboard.Adornee = part
@@ -208,7 +211,7 @@ local function makeChevron(part, rarityColor)
     TweenService:Create(
         billboard,
         TweenInfo.new(0.7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-        { StudsOffsetWorldSpace = Vector3.new(0, 5.0, 0) }
+        { StudsOffsetWorldSpace = Vector3.new(0, 8.0, 0) }
     ):Play()
 
     return billboard
@@ -232,15 +235,29 @@ local function captureAnchor(model)
 end
 
 local function makeModel(payload)
+    -- The visual is now a flat, camera-facing 2D SPRITE (the classic "brainrot" look). The part is an
+    -- INVISIBLE anchor that the server-driven position lerps; the sprite billboard (Adornee = part)
+    -- follows it automatically, exactly like the name label + chevron already do. The hitbox + catch
+    -- prompt + all server logic are untouched -- this is a pure visual swap (cube -> sprite).
     local part = Instance.new("Part")
     part.Name = "Wild_" .. tostring(payload.Id)
     part.Anchored = true
     part.CanCollide = false
     part.Size = Vector3.new(3, 3, 3)
     part.Color = Rarity.Get(payload.Rarity).Color
-    part.Material = Enum.Material.Neon
-    part.Transparency = 0.05
+    part.Material = Enum.Material.SmoothPlastic
+    part.Transparency = 1
     part.CFrame = CFrame.new(payload.Pos)
+
+    -- The species 2D sprite (or a clean rarity-tinted placeholder card if the asset id is missing).
+    local def = Catalog.Get(payload.Type)
+    local sprite = BrainrotBillboard.attach(part, def, {
+        size = UDim2.fromScale(5, 5.5),
+        offset = Vector3.new(0, SPRITE_OFFSET_Y, 0),
+        maxDistance = 140,
+        tint = Rarity.Get(payload.Rarity).Color,
+        -- no `name`: the separate name label below sits above the sprite, so the card stays clean.
+    })
 
     -- Oversized invisible hitbox (1.5x the visual part) so small targets are easy to tap on both
     -- PC and mobile. TapInput.tapTargetAt() raycasts against this and reads TapKind/TapTargetId
@@ -258,10 +275,10 @@ local function makeModel(payload)
     hitbox:SetAttribute("TapTargetId", tostring(payload.Id))
     hitbox.Parent = part -- parented to part so it moves with it; WildCatch lerps the part each frame
 
-    -- Subtle name label above the creature.
+    -- Subtle name label above the sprite.
     local billboard = Instance.new("BillboardGui")
     billboard.Size = UDim2.fromScale(4, 1.1)
-    billboard.StudsOffsetWorldSpace = Vector3.new(0, 3, 0)
+    billboard.StudsOffsetWorldSpace = Vector3.new(0, 6, 0)
     billboard.AlwaysOnTop = false
     billboard.MaxDistance = 140
     billboard.Adornee = part
@@ -312,6 +329,8 @@ local function makeModel(payload)
 
     return {
         part = part,
+        sprite = sprite,
+        bobPhase = math.random() * math.pi * 2, -- per-spawn phase so they don't all bob in lockstep
         target = payload.Pos,
         rarity = payload.Rarity,
         revealed = payload.Revealed,
@@ -441,10 +460,19 @@ function WildCatch.mount(context)
     -- Lerp models toward their server position + keep reveal markers pointing at them (screen-edge).
     RunService.RenderStepped:Connect(function(dt)
         local camera = Workspace.CurrentCamera
+        local bobT = os.clock()
         for _, model in pairs(models) do
             if model.part ~= nil and model.target ~= nil then
                 model.part.CFrame =
                     model.part.CFrame:Lerp(CFrame.new(model.target), math.min(1, dt * 10))
+            end
+            -- Subtle idle bob on the sprite (cheap; just an offset tweak on the existing loop).
+            if model.sprite ~= nil then
+                model.sprite.StudsOffsetWorldSpace = Vector3.new(
+                    0,
+                    SPRITE_OFFSET_Y + math.sin(bobT * 2.4 + (model.bobPhase or 0)) * 0.3,
+                    0
+                )
             end
             if model.marker ~= nil and camera ~= nil and model.part ~= nil then
                 local screen = camera:WorldToViewportPoint(model.part.Position)
