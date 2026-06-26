@@ -39,7 +39,7 @@ local function label(text, color, size, font)
         BackgroundTransparency = 1,
         Font = font or Theme.FontBody,
         Text = text,
-        TextColor3 = color or Theme.Colors.Text,
+        TextColor3 = color or Theme.Colors.Ink,
         TextSize = 15,
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
@@ -108,7 +108,7 @@ function Referral.refresh()
             .. " qualified friend(s)  —  +"
             .. tostring(state.PerPct)
             .. "% each",
-        Theme.Colors.Text
+        Theme.Colors.Ink
     )
     label(
         "A friend QUALIFIES when they "
@@ -116,15 +116,15 @@ function Referral.refresh()
             .. ". They also get a $"
             .. Format.short(state.Welcome)
             .. " welcome bonus.",
-        Theme.Colors.SubText,
+        Theme.Colors.InkSoft,
         40
     )
 
     -- Tier ladder.
-    label("Reward Tiers", Theme.Colors.Text, 26, Theme.FontDisplay)
+    label("Reward Tiers", Theme.Colors.Ink, 26, Theme.FontDisplay)
     for _, tier in ipairs(state.Tiers) do
         local statusColor = tier.Claimed and Theme.Colors.Positive
-            or (tier.Reached and Theme.Colors.Gold or Theme.Colors.SubText)
+            or (tier.Reached and Theme.Colors.Gold or Theme.Colors.InkSoft)
         local status = tier.Claimed and "✓ claimed" or (tier.Reached and "reached" or "locked")
         label(
             tier.Count
@@ -151,7 +151,7 @@ function Referral.refresh()
     }, doInvite)
 
     if state.WasReferred then
-        label("You joined via an invite — thanks!", Theme.Colors.SubText, 22)
+        label("You joined via an invite — thanks!", Theme.Colors.InkSoft, 22)
     end
 end
 

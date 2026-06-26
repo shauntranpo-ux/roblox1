@@ -27,7 +27,6 @@ local PanelManager = {}
 
 local PANEL_ORDER = 10 -- every primary panel renders above the HUD
 local DEBOUNCE = 0.12 -- s between accepted toggles
-local OPEN_TIME = 0.2 -- s open animation
 
 local panels = {} -- [name] = { gui, toggle, frame }
 local listeners = {} -- active-panel-change subscribers (e.g. HUD highlight)
@@ -69,7 +68,8 @@ local function disableWithPop(name)
     end
 end
 
--- Quick scale 0.85 -> 1.0 pop (Back/Out) on the panel's main frame.
+-- Bouncy squash-and-stretch pop-in (overshoot Back/Out) + fade on the panel's main frame. Any in-flight
+-- open tween is cancelled first so spamming toggles never leaves a panel stuck mid-tween.
 local function animateIn(frame)
     if frame == nil then
         return
@@ -82,12 +82,9 @@ local function animateIn(frame)
     if openTween ~= nil then
         openTween:Cancel()
     end
-    frame.Size = UDim2.new(base.X.Scale * 0.85, base.X.Offset, base.Y.Scale * 0.85, base.Y.Offset)
-    openTween = TweenService:Create(
-        frame,
-        TweenInfo.new(OPEN_TIME, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-        { Size = base }
-    )
+    local k = Theme.Anim.OverShoot
+    frame.Size = UDim2.new(base.X.Scale * k, base.X.Offset * k, base.Y.Scale * k, base.Y.Offset * k)
+    openTween = TweenService:Create(frame, Theme.Tween.OpenBouncy, { Size = base })
     openTween:Play()
 
     -- Quick fade-in alongside the scale pop.
@@ -96,7 +93,7 @@ local function animateIn(frame)
         target = frame.BackgroundTransparency
         frame:SetAttribute("PMBaseTransparency", target)
     end
-    frame.BackgroundTransparency = math.min(1, target + 0.35)
+    frame.BackgroundTransparency = math.min(1, target + 0.3)
     TweenService:Create(frame, Theme.Tween.Fade, { BackgroundTransparency = target }):Play()
 end
 
@@ -178,6 +175,10 @@ function PanelManager.register(name, toggleFn)
     gui.DisplayOrder = PANEL_ORDER
     local frame = gui:FindFirstChildWhichIsA("Frame")
     if frame ~= nil then
+        -- This panel's open/close animation is owned by the manager; tell Builder.panel to skip its
+        -- own pop-open so there is no double animation. applyGlass is a no-op on Builder panels
+        -- (already marked Glassed) and only styles any legacy non-Builder panel frame.
+        frame:SetAttribute("PMManaged", true)
         UIStyle.applyGlass(frame)
     end
     panels[name] = { gui = gui, toggle = toggleFn, frame = frame }
