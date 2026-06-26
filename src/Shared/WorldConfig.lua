@@ -13,21 +13,29 @@ local function rgb(r, g, b)
     return Color3.fromRGB(r, g, b)
 end
 
--- ── Palette (bright/glossy/kid-friendly; the reference hexes) ────────────────────────────────
+-- ── Palette (warm, cohesive, kid-friendly but NOT garish) ────────────────────────────────────
 WorldConfig.Palette = {
-    Sky = rgb(41, 182, 246), -- #29B6F6
-    Grass = rgb(139, 195, 74), -- #8BC34A
-    Dirt = rgb(141, 110, 99), -- #8D6E63
-    Sand = rgb(230, 198, 138), -- #E6C68A
-    RedTrim = rgb(239, 83, 80), -- #EF5350 path trim
-    Water = rgb(41, 182, 246), -- #29B6F6
-    Foam = rgb(245, 250, 255),
-    ShieldCyan = rgb(79, 195, 247), -- #4FC3F7
-    ShieldRim = rgb(255, 255, 255),
-    Gold = rgb(255, 193, 7), -- #FFC107
-    HubStone = rgb(225, 232, 240),
-    PlotBase = rgb(54, 58, 74),
-    Wood = rgb(120, 85, 60),
+    -- environment (softened so nothing is electric)
+    Sky = rgb(126, 198, 234),
+    Grass = rgb(124, 182, 96), -- natural meadow green
+    Dirt = rgb(138, 108, 92),
+    Sand = rgb(226, 202, 150),
+    RedTrim = rgb(206, 102, 88), -- muted terracotta (was harsh #EF5350)
+    Water = rgb(102, 180, 220),
+    Foam = rgb(226, 236, 242), -- soft, not pure white
+    -- cozy-base materials (replace the bright-cyan box look with a warm cottage)
+    Plaster = rgb(236, 224, 198), -- warm cream walls
+    Beam = rgb(120, 86, 58), -- wood frame/beams
+    Roof = rgb(178, 98, 84), -- muted clay-red trim/eaves
+    Stone = rgb(198, 192, 178), -- warm light stone (plaza + floors), replaces stark white
+    -- accents (toned down)
+    ShieldCyan = rgb(124, 196, 222), -- softer cyan (shield glass only)
+    ShieldRim = rgb(168, 214, 230), -- soft cyan rim (was pure white)
+    Gold = rgb(236, 196, 104), -- warm honey gold (was neon #FFC107)
+    HubStone = rgb(198, 192, 178), -- warm light stone (was near-white #E1E8F0)
+    PlotBase = rgb(62, 60, 76),
+    Wood = rgb(120, 86, 58),
+    Grape = rgb(150, 120, 205), -- soft purple tying world accents to the UI theme
 }
 
 -- ── Scale constants (avatar ~5-6 studs) ─────────────────────────────────────────────────────
