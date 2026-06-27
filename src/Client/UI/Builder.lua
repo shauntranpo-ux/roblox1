@@ -154,8 +154,8 @@ function Builder.glossButton(props, onClick)
         Builder.corner(radius),
         Builder.create("UIStroke", {
             Color = Theme.Colors.Outline,
-            Thickness = 2.5,
-            Transparency = 0.15,
+            Thickness = 3,
+            Transparency = 0.1,
         }),
         Builder.create("UITextSizeConstraint", { MaxTextSize = props.maxText or 22 }),
     })
@@ -213,15 +213,15 @@ function Builder.glossHeader(parent, title, accentKey, onClose)
     }, {
         Builder.corner(Theme.Radius.Card),
         Theme.gradient(accentKey),
-        Builder.create("UIStroke", {
-            Color = Theme.Colors.Outline,
-            Thickness = 2,
-            Transparency = 0.25,
+        Builder.create("UIStroke", { -- bright thick header rim (matches the panel border)
+            Color = Theme.Border.Color,
+            Thickness = 3,
+            Transparency = 0.2,
         }),
-        Builder.create("Frame", { -- top gloss sheen
+        Builder.create("Frame", { -- glossy top sheen (stronger -> the vibrant glossy header look)
             Size = UDim2.fromScale(1, 0.5),
             BackgroundColor3 = Theme.Colors.GlossTop,
-            BackgroundTransparency = 0.78,
+            BackgroundTransparency = 0.55,
             BorderSizePixel = 0,
             ZIndex = 0,
         }, { Builder.corner(Theme.Radius.Card) }),
@@ -270,9 +270,9 @@ function Builder.pillTab(parent, text, order, onClick)
     }, {
         Builder.corner(Theme.Radius.Pill),
         Builder.create("UIStroke", {
-            Color = Theme.Colors.Accent,
-            Thickness = 2,
-            Transparency = 0.55, -- soft accent rim instead of a hard dark border
+            Color = Theme.Border.Color,
+            Thickness = 2.5,
+            Transparency = 0.3, -- brighter, chunkier pill rim
         }),
     })
     if onClick ~= nil then
@@ -302,11 +302,11 @@ function Builder.rarityCard(frame, rarityColor)
     end
     Builder.create("UIStroke", {
         Color = rarityColor,
-        Thickness = 3,
+        Thickness = 4, -- chunkier rarity rim around the dark card (the bubbly look)
         Transparency = 0.05,
         Parent = frame,
     })
-    -- Subtle pillowy shade on the white card (no sheen -- keep ink text crisp).
+    -- Subtle pillowy shade on the dark card (no sheen -- keep ink text crisp).
     Builder.applyDepth(frame, { radius = Theme.Radius.Card, noSheen = true })
     return frame
 end
@@ -1011,18 +1011,18 @@ function Builder.panel(parent, title, onClose, accentKey)
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0.5, 0.5),
         Size = UDim2.fromScale(0.86, 0.74),
-        BackgroundColor3 = Theme.Colors.Cloud, -- LIGHT airy cloud body (was dark grape)
+        BackgroundColor3 = Theme.Colors.Cloud, -- DARK navy body (bubbly reference look)
         BackgroundTransparency = Theme.BodyTransparency,
         BorderSizePixel = 0,
     }, {
         Builder.corner(Theme.Radius.Panel),
-        Builder.create("UIStroke", { -- soft accent glow rim
-            Color = Theme.accentColor(accentKey),
-            Thickness = 3,
-            Transparency = 0.1,
+        Builder.create("UIStroke", { -- THICK bright border (the bubbly hallmark), not a soft glow
+            Color = Theme.Border.Color,
+            Thickness = Theme.Border.Width,
+            Transparency = Theme.Border.Transparency,
         }),
         Builder.create("UISizeConstraint", { MaxSize = Vector2.new(580, 760) }),
-        Builder.create("UIGradient", { -- bright-gloss top -> soft cloud body
+        Builder.create("UIGradient", { -- lighter navy gloss top -> deep navy body
             Rotation = 90,
             Color = ColorSequence.new(Theme.Colors.CloudTop, Theme.Colors.Cloud),
         }),
