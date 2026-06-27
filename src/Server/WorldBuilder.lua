@@ -778,6 +778,118 @@ local function buildHub(folder)
     end
 end
 
+-- ── DEDICATED LEADERBOARD PLAZA: a raised stone dais in its own alcove off the hub's -X edge, with a
+-- stone path leading to it from the plaza. The board STANDS themselves are placed + oriented by
+-- LeaderboardBillboards from the SAME WorldConfig.Leaderboard anchor (facing back down the path); this
+-- builds the dais, backdrop, banner, and path around them. The corridor is reserved in the foliage +
+-- terrain guards so nothing overgrows it. Built axis-via-basis so changing AngleDeg just rotates it.
+local function buildLeaderboardPlaza(folder)
+    local LB = WorldConfig.Leaderboard
+    local a = math.rad(LB.AngleDeg)
+    local center = Vector3.new(math.cos(a) * LB.Radius, LB.BaseY, math.sin(a) * LB.Radius)
+    -- local basis: +X = along the dais row (tangent); +Z = forward (toward the player / world center).
+    local yaw = math.atan2(-math.cos(a), -math.sin(a))
+    local baseCF = CFrame.new(center) * CFrame.Angles(0, yaw, 0)
+    local function at(lx, ly, lz)
+        return baseCF * CFrame.new(lx, ly, lz)
+    end
+    local L = LB.DaisLength
+    local D = LB.DaisDepth
+
+    -- Stepped stone dais (two tiers) -- the raised special platform.
+    part({
+        Size = Vector3.new(L + 16, 2, D + 12),
+        CFrame = at(0, 1, 0),
+        Color = P.Stone,
+        Material = Enum.Material.Slate,
+    }, folder)
+    part({
+        Size = Vector3.new(L, 2.5, D),
+        CFrame = at(0, 3, 0),
+        Color = P.Stone:Lerp(P.Plaster, 0.3),
+        Material = Enum.Material.SmoothPlastic,
+    }, folder)
+
+    -- Tall "hall of fame" BACKDROP behind the boards (far -forward edge) + an eave cap + corner posts.
+    part({
+        Size = Vector3.new(L + 8, 42, 2),
+        CFrame = at(0, 21, -D / 2 - 1),
+        Color = P.Plaster,
+        Material = Enum.Material.SmoothPlastic,
+    }, folder)
+    part({
+        Size = Vector3.new(L + 12, 2.5, 4),
+        CFrame = at(0, 42.5, -D / 2 - 1),
+        Color = P.Roof,
+        Material = Enum.Material.Slate,
+    }, folder)
+    for _, sx in ipairs({ -1, 1 }) do
+        part({
+            Size = Vector3.new(3.5, 46, 3.5),
+            CFrame = at(sx * (L / 2 + 3), 23, -D / 2 - 1),
+            Color = P.Beam,
+            Material = Enum.Material.Wood,
+        }, folder)
+    end
+
+    -- "LEADERBOARDS" banner near the top of the backdrop, facing FORWARD (toward the player).
+    local banner = part({
+        Size = Vector3.new(L * 0.5, 10, 1),
+        CFrame = at(0, 38, -D / 2 + 0.2),
+        Color = P.Grape:Lerp(P.Plaster, 0.35),
+    }, folder)
+    local bsg = Instance.new("SurfaceGui")
+    bsg.Name = "Banner"
+    bsg.Face = Enum.NormalId.Front
+    bsg.CanvasSize = Vector2.new(520, 96)
+    bsg.Adornee = banner
+    bsg.Parent = banner
+    local btl = Instance.new("TextLabel")
+    btl.Size = UDim2.fromScale(1, 1)
+    btl.BackgroundTransparency = 1
+    btl.Font = Enum.Font.FredokaOne
+    btl.Text = "🏆 LEADERBOARDS"
+    btl.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btl.TextStrokeColor3 = Color3.fromRGB(36, 22, 60)
+    btl.TextStrokeTransparency = 0.2
+    btl.TextScaled = true
+    btl.Parent = bsg
+
+    -- Stone PATH from the dais front toward the plaza (tiles overlay the floor; lamp posts every 2nd tile).
+    local pw = LB.PathHalfWidth
+    local zStart = D / 2 + 6
+    local zEnd = LB.Radius - LB.PathReachRadius
+    local tile = 16
+    local zi = zStart
+    local flip = false
+    while zi < zEnd do
+        part({
+            Size = Vector3.new(pw * 2, 0.6, tile - 2),
+            CFrame = at(0, 0.5, zi + tile / 2),
+            Color = flip and P.Stone or P.Stone:Lerp(P.Beam, 0.35),
+            Material = Enum.Material.Slate,
+        }, folder)
+        if flip then
+            for _, sx in ipairs({ -1, 1 }) do
+                part({
+                    Size = Vector3.new(1, 7, 1),
+                    CFrame = at(sx * (pw + 1.5), 3.5, zi + tile / 2),
+                    Color = P.Beam,
+                    Material = Enum.Material.Wood,
+                }, folder)
+                part({
+                    Size = Vector3.new(2, 2, 2),
+                    CFrame = at(sx * (pw + 1.5), 7.5, zi + tile / 2),
+                    Color = P.Gold,
+                    Glow = true,
+                }, folder)
+            end
+        end
+        flip = not flip
+        zi = zi + tile
+    end
+end
+
 -- A cozy COTTAGE base around one plot: warm stone floor + cream plaster walls (3 sides + a flanked front
 -- DOORWAY) + wood corner beams + a clay eave trim around the OPEN top (top stays open so the player's
 -- brainrots are visible + stealable -- never roof it over). `center` = plot center, `face` -Z = open front.
@@ -1150,7 +1262,17 @@ local function meadowFoliage(folder, cfg)
         end
         local ex, ez = math.cos(elevA) * elevR, math.sin(elevA) * elevR
         local px, pz = math.cos(a) * r, math.sin(a) * r
-        return (px - ex) ^ 2 + (pz - ez) ^ 2 < 40 ^ 2
+        if (px - ex) ^ 2 + (pz - ez) ^ 2 < 40 ^ 2 then
+            return true
+        end
+        -- Reserve the dedicated leaderboard alcove + its path corridor (no trees/rocks overgrow it).
+        local LB = WorldConfig.Leaderboard
+        local lbA = math.rad(LB.AngleDeg)
+        if angDiff(a, lbA) < math.rad(LB.ClearHalfAngleDeg) then
+            return true
+        end
+        local lx, lz = math.cos(lbA) * LB.Radius, math.sin(lbA) * LB.Radius
+        return (px - lx) ^ 2 + (pz - lz) ^ 2 < LB.ClearRadius ^ 2
     end
     -- A polar point in the meadow ring [innerR, rad-12]; `towardSpawn` biases it to the spawn side.
     local function pick(towardSpawn)
@@ -1367,6 +1489,26 @@ local function platformTerrain(folder, cfg)
         local pz = math.sin(a) * r
         if (px - ex) ^ 2 + (pz - ez) ^ 2 < 36 ^ 2 then
             return true
+        end
+        -- Keep mounds out of the dedicated leaderboard alcove + path (tier-1 meadow only).
+        if cfg.Tier == 1 then
+            local LB = WorldConfig.Leaderboard
+            local lbAngle = math.rad(LB.AngleDeg)
+            local function angDiff2(x, ref)
+                local d = (x - ref) % (math.pi * 2)
+                if d > math.pi then
+                    d = d - math.pi * 2
+                end
+                return math.abs(d)
+            end
+            if angDiff2(a, lbAngle) < math.rad(LB.ClearHalfAngleDeg) then
+                return true
+            end
+            local lx = math.cos(lbAngle) * LB.Radius
+            local lz = math.sin(lbAngle) * LB.Radius
+            if (px - lx) ^ 2 + (pz - lz) ^ 2 < LB.ClearRadius ^ 2 then
+                return true
+            end
         end
         return false
     end
@@ -1620,6 +1762,7 @@ function WorldBuilder.Init()
     buildPlotTemplate() -- into ServerStorage/Assets BEFORE PlotService.Init clones it
     buildDistrict(worldFolder) -- the bottom 'start' platform ground + plot ring (level 1, the meadow)
     buildHub(worldFolder) -- central plaza + fixtures + the bottom-level ELEVATOR on level 1
+    buildLeaderboardPlaza(worldFolder) -- the dedicated leaderboard dais + path in its own -X alcove
     buildPlatforms(worldFolder) -- the stacked floating biome platforms (levels 2..N) + per-level decor
     buildElevatorShaft(worldFolder)
     buildIslands(worldFolder)
