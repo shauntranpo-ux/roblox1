@@ -91,23 +91,27 @@ WorldConfig.Terrain = {
 -- this richer, capped cover instead: tall grass + bushes + hedges + voxel tree clusters + rocks, giving
 -- wild brainrots places to roam + hide. Grass/bushes/hedges are CanCollide=false (walk-through cover, so
 -- the spawn area stays walkable); tree clusters + rocks collide but avoid the spawn cone. Capped for perf.
--- DENSE FOREST cover (Sunny Meadow = tier 1). All anchored/static (no scripts); colliding props
--- (tree clusters, pines, stumps, rocks) avoid the spawn cone / boss arena / elevator, while the
--- non-colliding floor cover (grass, ferns, bushes, hedges, logs, mushrooms, flowers) packs the whole
--- ring -- incl. near spawn -- so it reads as a real forest. Counts tuned to stay ~900 parts for perf.
+-- DENSE FOREST cover (Sunny Meadow = tier 1). All anchored/static (no scripts). The non-colliding
+-- floor cover (grass, ferns, bushes, hedges, logs, mushrooms, flowers) packs the ring from just outside
+-- the plaza (CoverInnerRadius) so the area AROUND the bases is lush; colliding props (tree clusters,
+-- pines, stumps, rocks) start past the base/shop footprints (ColliderInnerRadius) and skip the spawn
+-- cone / boss arena / elevator / leaderboard alcove AND every player base (BaseClearRadius), so they
+-- never block a doorway, the plaza, or a stall. Counts tuned to ~1,650 anchored parts.
 WorldConfig.MeadowFoliage = {
-    InnerRadius = 150, -- foliage starts just OUTSIDE the base plot ring (keeps the plaza/bases clear)
-    GrassTufts = 120, -- cheap non-colliding tall-grass blades (dense ground cover, incl. near spawn)
-    Bushes = 60, -- rounded non-colliding bushes (cover to hide near/behind)
-    Hedges = 12, -- low non-colliding hedge rows (cover lines to weave around)
-    TreeClusters = 22, -- small voxel "forests" (2-4 round trees each), colliding, away from spawn cone
-    PineTrees = 26, -- tall colliding conifers that thicken the canopy, away from the spawn cone
-    Rocks = 20, -- mossy colliding rocks (accents), away from the spawn cone
-    Stumps = 10, -- low colliding cut stumps among the trees, away from the spawn cone
-    FallenLogs = 10, -- non-colliding mossy logs lying on the floor (walk-through detail)
-    Ferns = 50, -- non-colliding fern fronds blanketing the forest floor
-    Mushrooms = 30, -- non-colliding mushroom accents on the floor
-    FlowerPatches = 22, -- non-colliding color speckle (small bloom clusters)
+    CoverInnerRadius = 118, -- non-colliding cover starts just outside the cobblestone plaza (r115/rim 119)
+    ColliderInnerRadius = 138, -- colliding props start just past the base (~r135) + shop (~r133) footprints
+    BaseClearRadius = 38, -- per-base exclusion circle (covers the ~35-stud base footprint + a margin)
+    GrassTufts = 240, -- cheap non-colliding tall-grass blades (dense ground cover, incl. near spawn)
+    Bushes = 120, -- rounded non-colliding bushes (cover to hide near/behind)
+    Hedges = 18, -- low non-colliding hedge rows (cover lines to weave around)
+    TreeClusters = 34, -- small voxel "forests" (2-4 round trees each), colliding, away from spawn cone
+    PineTrees = 42, -- tall colliding conifers that thicken the canopy, away from the spawn cone
+    Rocks = 30, -- mossy colliding rocks (accents), away from the spawn cone
+    Stumps = 16, -- low colliding cut stumps among the trees, away from the spawn cone
+    FallenLogs = 20, -- non-colliding mossy logs lying on the floor (walk-through detail)
+    Ferns = 110, -- non-colliding fern fronds blanketing the forest floor
+    Mushrooms = 60, -- non-colliding mushroom accents on the floor
+    FlowerPatches = 38, -- non-colliding color speckle (small bloom clusters)
 }
 -- ── STACKED-LEVEL LAYOUT (a vertical TOWER: bases on the bottom 'start' platform; each biome a floating
 -- disc platform stacked ABOVE the previous with a big height gap; ride the ELEVATOR up to the next level.
