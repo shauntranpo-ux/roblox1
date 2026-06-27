@@ -40,7 +40,7 @@ function Banner.mount(context)
     -- over busy worlds (kept very translucent so big alerts stay light).
     frame = Builder.create("Frame", {
         AnchorPoint = Vector2.new(0.5, 0),
-        Position = UDim2.fromScale(0.5, 0.03),
+        Position = UDim2.fromScale(0.5, 0.075), -- below the boss-alert band (top) so they never overlap
         Size = UDim2.fromScale(0.7, 0.09),
         BackgroundColor3 = Theme.Colors.DarkPill,
         BackgroundTransparency = 0.4,

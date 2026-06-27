@@ -269,11 +269,14 @@ local function buildShell()
         BorderSizePixel = 0,
     }, {
         Builder.corner(Theme.Radius.Panel),
-        Builder.create("UIStroke", { -- soft accent glow rim
-            Color = Theme.accentColor("Shop"),
-            Thickness = Theme.Stroke.Width,
-            Transparency = 0.1,
-        }),
+        Builder.create(
+            "UIStroke",
+            { -- standard thick bright panel border (matches every other panel)
+                Color = Theme.Border.Color,
+                Thickness = Theme.Border.Width,
+                Transparency = Theme.Border.Transparency,
+            }
+        ),
         Builder.create("UISizeConstraint", { MaxSize = Vector2.new(520, 720) }),
         Builder.create("UIGradient", { -- bright gloss top -> soft cloud body
             Rotation = 90,

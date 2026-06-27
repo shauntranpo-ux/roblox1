@@ -27,6 +27,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local WildConfig = require(ReplicatedStorage.Shared.WildConfig)
 local WorldConfig = require(ReplicatedStorage.Shared.WorldConfig)
+local ObstacleField = require(ReplicatedStorage.Shared.ObstacleField) -- keep-out discs for buildings/trees
 local Catalog = require(ReplicatedStorage.Shared.Catalog)
 local Rarity = require(ReplicatedStorage.Shared.Rarity)
 local TapConfig = require(ReplicatedStorage.Shared.TapConfig) -- tap-to-progress: per-rarity taps-to-catch
@@ -92,6 +93,15 @@ local function confine(pos, root)
     end
     local refY = root ~= nil and root.Position.Y or pos.Y
     local floorY = math.floor(refY / LEVEL_HEIGHT + 0.5) * LEVEL_HEIGHT
+    -- Push the spawn OUT of any building/tree/bush footprint on this level so it never clips through solid
+    -- world geometry (these are data-only spawns with no physics body, so they need this explicit guard).
+    hx, hz = ObstacleField.Resolve(hx, hz, floorY)
+    -- A push can shove the point back over the platform edge; re-clamp the radius once after resolving.
+    local horiz2 = math.sqrt(hx * hx + hz * hz)
+    if horiz2 > maxR and horiz2 > 0 then
+        local s = maxR / horiz2
+        hx, hz = hx * s, hz * s
+    end
     return Vector3.new(hx, floorY + WildConfig.GroundOffset, hz)
 end
 

@@ -30,78 +30,35 @@ function Announce.show(title, body)
         child:Destroy()
     end
 
-    local panel = Builder.create("Frame", {
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromScale(0.86, 0.6),
-        BackgroundColor3 = Theme.Colors.Cloud, -- light airy cloud body (matches the design system)
-        BorderSizePixel = 0,
-        Parent = gui,
-    }, {
-        Builder.corner(Theme.Radius.Panel),
-        Builder.create("UIStroke", { -- soft accent glow rim
-            Color = Theme.accentColor("Default"),
-            Thickness = 3,
-            Transparency = 0.1,
-        }),
-        Builder.create("UIGradient", {
-            Rotation = 90,
-            Color = ColorSequence.new(Theme.Colors.CloudTop, Theme.Colors.Cloud),
-        }),
-        Builder.create("UISizeConstraint", { MaxSize = Vector2.new(520, 620) }),
-        Builder.padding(16),
-    })
-    Builder.softShadow(panel, { radius = Theme.Radius.Panel })
+    -- Built on the SHARED panel kit (glossy thick-bordered header + dark navy body) so it matches every
+    -- other modal in the game instead of being a one-off flat panel with its own glow rim.
+    local list = Builder.panel(gui, title, function()
+        gui.Enabled = false
+    end, "Default")
+    local panel = list.Parent
 
     Builder.create("TextLabel", {
-        Position = UDim2.fromOffset(0, 0),
-        Size = UDim2.new(1, 0, 0, 40),
+        Size = UDim2.new(1, -8, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundTransparency = 1,
-        Font = Theme.FontBold,
-        Text = title,
-        TextColor3 = Theme.Colors.Ink, -- ink on the light body
-        TextSize = 26,
+        Font = Theme.Font,
+        Text = body,
+        TextColor3 = Theme.Colors.Ink, -- light ink on the dark navy body
+        TextSize = 18,
+        TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
-        Parent = panel,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        LayoutOrder = 1,
+        Parent = list,
     })
 
-    Builder.create("ScrollingFrame", {
-        Position = UDim2.fromOffset(0, 48),
-        Size = UDim2.new(1, 0, 1, -110),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        ScrollBarThickness = 4,
-        CanvasSize = UDim2.new(),
-        AutomaticCanvasSize = Enum.AutomaticSize.Y,
-        Parent = panel,
-    }, {
-        Builder.create("TextLabel", {
-            Size = UDim2.fromScale(1, 0),
-            AutomaticSize = Enum.AutomaticSize.Y,
-            BackgroundTransparency = 1,
-            Font = Theme.Font,
-            Text = body,
-            TextColor3 = Theme.Colors.Ink, -- ink on the light body
-            TextSize = 18,
-            TextWrapped = true,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            TextYAlignment = Enum.TextYAlignment.Top,
-        }),
-    })
-
-    local ok = Builder.create("TextButton", {
-        AnchorPoint = Vector2.new(0.5, 1),
-        Position = UDim2.fromScale(0.5, 1),
-        Size = UDim2.new(1, 0, 0, 50),
-        BackgroundColor3 = Theme.Colors.Positive,
-        BorderSizePixel = 0,
-        Font = Theme.FontBold,
+    Builder.glossButton({
+        Size = UDim2.new(1, -8, 0, 52),
         Text = "Let's go!",
-        TextColor3 = Theme.Colors.Text,
-        TextSize = 20,
-        Parent = panel,
-    }, { Builder.corner(UDim.new(0, 10)) })
-    ok.Activated:Connect(function()
+        color = Theme.Colors.Positive,
+        LayoutOrder = 2,
+        Parent = list,
+    }, function()
         gui.Enabled = false
     end)
 
