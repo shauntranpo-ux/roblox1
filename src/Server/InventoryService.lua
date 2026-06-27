@@ -13,6 +13,7 @@ local Remotes = require(script.Parent.Remotes)
 local ProfileManager = require(script.Parent.ProfileManager)
 local RateLimiter = require(script.Parent.RateLimiter)
 local Analytics = require(script.Parent.Analytics)
+local DeploymentService = require(script.Parent.DeploymentService) -- M10 deploy/undeploy/swap
 
 local InventoryService = {}
 
@@ -67,6 +68,7 @@ local function getInventory(player)
             Favorited = brainrot.Favorited == true, -- M12.3 soft flag (bulk-excluded, filterable)
             Locked = locked, -- M12.3 hard flag (protected from ALL sell/fuse/trade)
             Value = sellValue, -- alias for sorting by value (= sell value)
+            PadIndex = brainrot.PadIndex, -- M10: nil = in the BAG (storage); set = DEPLOYED (earning)
         })
     end
     return owned
@@ -111,6 +113,12 @@ function InventoryService.Init()
             return toggleFlag(player, unitId, "Locked", value)
         elseif action == "favorite" then
             return toggleFlag(player, unitId, "Favorited", value)
+        elseif action == "deploy" then
+            return DeploymentService.Deploy(player, unitId)
+        elseif action == "undeploy" then
+            return DeploymentService.Undeploy(player, unitId)
+        elseif action == "swap" then
+            return DeploymentService.Swap(player, unitId, value) -- value = the placed unit to swap out
         end
         return { Result = "Error", Message = "Unknown action." }
     end
