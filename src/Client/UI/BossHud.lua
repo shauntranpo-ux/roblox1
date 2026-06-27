@@ -213,6 +213,7 @@ end
 function BossHud.mount(context)
     local player = context.player
     gui = Builder.screenGui("BossHud", player:WaitForChild("PlayerGui"), true)
+    gui.DisplayOrder = 8 -- above the HUD (7), below panels (10); was unset/0
 
     -- Spawn alert: a soft dark "bubble" banner over the world with a Danger glow rim (one pill family
     -- with the quest banner + biome label). White-fill text recipe (reads over the 3D world).

@@ -333,7 +333,7 @@ local function buildToolbar()
         {
             Parent = toolbar,
             label = "Sort",
-            color = Theme.Colors.Accent,
+            color = Theme.Colors.DarkPill, -- neutral utility toggle (reserve bright accents for actions)
             Size = UDim2.fromOffset(160, 34),
         },
         SORTS,
@@ -349,7 +349,7 @@ local function buildToolbar()
         {
             Parent = toolbar,
             label = "Filter",
-            color = Theme.Colors.Accent,
+            color = Theme.Colors.DarkPill, -- neutral utility toggle (reserve bright accents for actions)
             Size = UDim2.fromOffset(160, 34),
         },
         FILTERS,
@@ -395,7 +395,7 @@ local function buildToolbar()
     bulkBtn("Sell Dupes", Theme.Colors.Danger, function()
         sellFilter("Duplicates", { Keep = 1 })
     end)
-    bulkBtn("Fuse Eligible", Theme.Colors.Accent, massFuse)
+    bulkBtn("Fuse Eligible", Theme.Colors.DarkPill, massFuse)
     bulkBtn("Lock Sel", Theme.Colors.DarkPill, function()
         flagSelected("Locked", true)
     end)
