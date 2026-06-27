@@ -274,23 +274,32 @@ function HUD.mount(context, actions)
     Builder.styleText(inviteLabel, { keepColor = true })
     inviteLabel.TextStrokeTransparency = 1
 
-    -- ===== BOTTOM-CENTER NAV BAR (panel access -- kept; restyled as the hotbar) =====
+    -- ===== BOTTOM-CENTER NAV BAR (a SOLID hotbar so the labels read clearly over the world) =====
     local bar = Builder.create("Frame", {
         AnchorPoint = Vector2.new(0.5, 1),
         Position = UDim2.new(0.5, 0, 1, -12), -- fixed 12px off the bottom (top sits ~90px up, predictable)
         Size = UDim2.fromScale(0.62, 0.1),
-        BackgroundTransparency = 1,
+        BackgroundColor3 = Theme.Colors.DarkPill, -- solid dark hotbar (was transparent -> unreadable)
+        BackgroundTransparency = 0.12,
+        BorderSizePixel = 0,
         Parent = gui,
     }, {
+        Builder.corner(Theme.Radius.Card),
+        Builder.create(
+            "UIStroke",
+            { Color = Theme.Colors.White, Thickness = 2, Transparency = 0.4 }
+        ),
+        Builder.padding(7),
         Builder.create("UIListLayout", {
             FillDirection = Enum.FillDirection.Horizontal,
             HorizontalAlignment = Enum.HorizontalAlignment.Center,
             VerticalAlignment = Enum.VerticalAlignment.Center,
-            Padding = UDim.new(0, 10),
+            Padding = UDim.new(0, 8),
             SortOrder = Enum.SortOrder.LayoutOrder,
         }),
-        Builder.create("UISizeConstraint", { MaxSize = Vector2.new(520, 78) }),
+        Builder.create("UISizeConstraint", { MaxSize = Vector2.new(540, 84) }),
     })
+    Builder.softShadow(bar, { radius = Theme.Radius.Card, spread = 12 }) -- depth so it reads as a hotbar
     local navDefs = {
         { key = "Shop", label = "Shop", accent = "Shop", click = actions.onShop },
         { key = "Inventory", label = "Items", accent = "Inventory", click = actions.onInventory },
@@ -309,27 +318,30 @@ function HUD.mount(context, actions)
     for _, def in ipairs(navDefs) do
         if def.click ~= nil then
             order += 1
+            -- SOLID accent button (opaque; was glossify'd translucent -> unreadable). White Fredoka
+            -- + outline reads clearly on the bright fill; the open panel's button brightens.
             local button = Builder.glossButton({
                 LayoutOrder = order,
                 Size = UDim2.fromScale(widthScale, 1),
-                color = Theme.Colors.DarkPill,
+                color = Theme.accentColor(def.accent),
                 Text = def.label,
                 radius = Theme.Radius.Bubble,
                 maxText = 22,
                 Parent = bar,
             }, def.click)
             button:SetAttribute("Accent", def.accent)
+            button.BackgroundTransparency = 0.35 -- idle: muted (the dark bar shows through a touch)
             navButtons[def.key] = button
-            Builder.glossify(button, def.accent)
         end
     end
     PanelManager.onChange(function(active)
         for key, button in pairs(navButtons) do
             local on = key == active
-            button.BackgroundTransparency = on and 0 or 0.28
+            button.BackgroundColor3 = Theme.accentColor(button:GetAttribute("Accent"))
+            button.BackgroundTransparency = on and 0 or 0.35 -- open panel's button = full bright accent
             local stroke = button:FindFirstChildOfClass("UIStroke")
             if stroke ~= nil then
-                stroke.Transparency = on and 0 or 0.4
+                stroke.Transparency = on and 0 or 0.35
             end
         end
     end)
