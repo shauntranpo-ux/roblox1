@@ -198,7 +198,10 @@ function PlotService.FindFreePad(player, profile)
 
     local used = {}
     for _, brainrot in ipairs(profile.Data.OwnedBrainrots) do
-        used[brainrot.PadIndex] = true
+        -- M9: bagged units have PadIndex == nil; skip them (a nil table key would also error on write).
+        if brainrot.PadIndex ~= nil then
+            used[brainrot.PadIndex] = true
+        end
     end
     local heldPads = reserved[player]
     if heldPads ~= nil then
@@ -226,7 +229,10 @@ function PlotService.CountFreePads(player, profile)
     end
     local used = {}
     for _, brainrot in ipairs(profile.Data.OwnedBrainrots) do
-        used[brainrot.PadIndex] = true
+        -- M9: skip bagged units (PadIndex == nil) -- they hold no pad (and a nil key would error).
+        if brainrot.PadIndex ~= nil then
+            used[brainrot.PadIndex] = true
+        end
     end
     local heldPads = reserved[player]
     if heldPads ~= nil then
