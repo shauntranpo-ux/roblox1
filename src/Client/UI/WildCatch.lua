@@ -260,21 +260,28 @@ local function makeModel(payload)
         -- no `name`: the separate name label below sits above the sprite, so the card stays clean.
     })
 
-    -- Oversized invisible hitbox (1.5x the visual part) so small targets are easy to tap on both
-    -- PC and mobile. TapInput.tapTargetAt() raycasts against this and reads TapKind/TapTargetId
-    -- to confirm the tap hit THIS creature. CanQuery=true so the raycast finds it; CanCollide=false
-    -- so it never obstructs the player. Anchored alongside the visual part; both lerp each frame.
+    -- Invisible hitbox sized + RAISED to cover the floating 2D sprite (M8 hitbox fix): the sprite sits
+    -- ~SPRITE_OFFSET_Y studs above the ground anchor, so a ground-centred box missed most taps. This box
+    -- is centred on the sprite and tall enough to also reach the ground, so taps anywhere on the creature
+    -- land. It is WELDED to the anchor part (not a loose anchored sibling, which would NOT follow the
+    -- lerped part) so it tracks the creature every frame. TapInput.tapTargetAt() raycasts it and reads
+    -- TapKind/TapTargetId; CanQuery=true so the ray finds it; CanCollide=false so it never obstructs.
     local hitbox = Instance.new("Part")
     hitbox.Name = "TapHitbox"
-    hitbox.Anchored = true
+    hitbox.Anchored = false
     hitbox.CanCollide = false
     hitbox.CanQuery = true
-    hitbox.Size = Vector3.new(4.5, 4.5, 4.5) -- 1.5x the 3-stud visual part
+    hitbox.Massless = true
+    hitbox.Size = Vector3.new(6, 9, 6) -- wide + tall: covers the floating sprite down to the ground
     hitbox.Transparency = 1
-    hitbox.CFrame = part.CFrame
+    hitbox.CFrame = part.CFrame * CFrame.new(0, SPRITE_OFFSET_Y, 0)
     hitbox:SetAttribute("TapKind", "catch")
     hitbox:SetAttribute("TapTargetId", tostring(payload.Id))
-    hitbox.Parent = part -- parented to part so it moves with it; WildCatch lerps the part each frame
+    hitbox.Parent = part
+    local hitWeld = Instance.new("WeldConstraint")
+    hitWeld.Part0 = part
+    hitWeld.Part1 = hitbox
+    hitWeld.Parent = hitbox
 
     -- Subtle name label above the sprite.
     local billboard = Instance.new("BillboardGui")

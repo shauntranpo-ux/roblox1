@@ -26,6 +26,7 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local WildConfig = require(ReplicatedStorage.Shared.WildConfig)
+local WorldConfig = require(ReplicatedStorage.Shared.WorldConfig)
 local Catalog = require(ReplicatedStorage.Shared.Catalog)
 local Rarity = require(ReplicatedStorage.Shared.Rarity)
 local TapConfig = require(ReplicatedStorage.Shared.TapConfig) -- tap-to-progress: per-rarity taps-to-catch
@@ -75,6 +76,26 @@ end
 local function rootOf(player)
     local character = player.Character
     return character and character:FindFirstChild("HumanoidRootPart") or nil
+end
+
+-- ── CONFINEMENT (M8): keep wild spawns ON the player's level platform ────────────────────────
+-- The level platforms are concentric discs centred on the world Y axis, so confinement is: (1) clamp
+-- the X-Z radius into the platform annulus (inside PlatformRadius - EdgeMargin, off the very edge), and
+-- (2) pin Y to the player's current level floor (+ a small ground offset) so nothing drifts off-plane or
+-- wanders/flees over the edge into the void. Server-authoritative; inCatchRange uses spawn.Position.
+local LEVEL_HEIGHT = WorldConfig.Levels.LevelHeight
+local PLATFORM_RADIUS = WorldConfig.Levels.PlatformRadius
+local function confine(pos, root)
+    local maxR = PLATFORM_RADIUS - WildConfig.EdgeMargin
+    local hx, hz = pos.X, pos.Z
+    local horiz = math.sqrt(hx * hx + hz * hz)
+    if horiz > maxR and horiz > 0 then
+        local s = maxR / horiz
+        hx, hz = hx * s, hz * s
+    end
+    local refY = root ~= nil and root.Position.Y or pos.Y
+    local floorY = math.floor(refY / LEVEL_HEIGHT + 0.5) * LEVEL_HEIGHT
+    return Vector3.new(hx, floorY + WildConfig.GroundOffset, hz)
 end
 
 -- ── Replication (owner-only) ────────────────────────────────────────────────────────────────
@@ -138,6 +159,7 @@ local function spawnFor(player)
         + math.random() * (WildConfig.SpawnRadiusMax - WildConfig.SpawnRadiusMin)
     local position = root.Position
         + Vector3.new(math.cos(angle) * dist, -1.5, math.sin(angle) * dist)
+    position = confine(position, root) -- M8: spawn ON the platform (never off the edge / off-plane)
 
     nextId += 1
     local spawnId = "w" .. nextId
@@ -316,6 +338,9 @@ local function step(dt)
                     commitCatch(owner, spawn)
                 end
             end
+
+            -- M8: re-confine after every wander/flee move so a spawn can never leave its level platform.
+            spawn.Position = confine(spawn.Position, root)
 
             if spawns[spawnId] ~= nil and not spawn.Caught and owner.Parent == Players then
                 Remotes.WildUpdate:FireClient(owner, {
