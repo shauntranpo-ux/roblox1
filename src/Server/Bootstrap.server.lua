@@ -39,6 +39,7 @@ local SeasonRewardService = require(script.Parent.SeasonRewardService)
 local ExclusivesService = require(script.Parent.ExclusivesService)
 -- M10.4: net tool -- catch-param bonuses + upgrade cash sink (required before the catch services).
 local NetService = require(script.Parent.NetService)
+local UpgradeService = require(script.Parent.UpgradeService)
 -- M10.2: biome zones + per-biome rarity routing + unlock gates (required before WildSpawnService).
 local BiomeService = require(script.Parent.BiomeService)
 -- M10.1: wild-catch spawn engine + catch mechanic (the acquisition pivot).
@@ -134,6 +135,8 @@ start("SeasonRewardService", SeasonRewardService.Init)
 start("ExclusivesService", ExclusivesService.Init)
 -- M10.4: bind the net upgrade remote.
 start("NetService", NetService.Init)
+-- Upgrades cash-sink: bind GetUpgrades/UpgradeAction.
+start("UpgradeService", UpgradeService.Init)
 -- M10.2: biome detection loop + unlock handler (server-authoritative zones; before spawning).
 start("BiomeService", BiomeService.Init)
 -- M10.1: wild-catch spawn loop + catch handler (server-authoritative registry).
@@ -252,6 +255,8 @@ local function onPlayerAdded(player)
     BiomeService.SetupPlayer(player, profile)
     -- M10.4: reconcile the player's net tier to the base tier (existing saves default cleanly).
     NetService.SetupPlayer(player, profile)
+    -- Apply persisted upgrade boosts (income/luck/catch) + republish the income readout.
+    UpgradeService.SetupPlayer(player, profile)
     -- M12.1: reset stale daily/weekly periods, sync reached-quests, publish the objective banner.
     QuestService.SetupPlayer(player, profile)
     -- M12.2: seed starter spins on first contact + accrue banked spins from server time.

@@ -120,6 +120,9 @@ local PROFILE_TEMPLATE = {
     -- M10.4 NET: the player's owned net tier (the catching tool). Reconciles to the base tier (1) for
     -- existing saves. Upgrades deduct earned cash once + persist; the net adjusts catch PARAMETERS only.
     NetTier = 1,
+    -- UPGRADES: the cash-sink progression. [upgradeKey] = integer level (see Shared/UpgradeConfig). Each
+    -- level deducts cash once + persists; effects flow through the existing income/luck/catch channels.
+    Upgrades = {},
     -- M12.1 QUESTS + TUTORIAL (server-authoritative; progress tracked by observing gameplay signals).
     -- Tutorial is ordered + one-shot (TutorialStep advances; claimed steps never re-run). Daily/weekly
     -- progress + claims reset deterministically at the server-time period boundary. All reconcile empty.
