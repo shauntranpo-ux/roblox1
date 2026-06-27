@@ -173,7 +173,7 @@ local function slotCard(entry, equippedIds)
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = card,
     })
-    Builder.applyChrome(title, { stroke = 2 })
+    Builder.styleText(title, { ink = true, keepColor = true })
 
     Builder.create("TextLabel", {
         Position = UDim2.fromOffset(2, 28),

@@ -103,7 +103,7 @@ local function unitCard(unit)
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = card,
     })
-    Builder.applyChrome(title, { stroke = 2 })
+    Builder.styleText(title, { ink = true, keepColor = true })
 
     -- Income now -> next stage (the income jump).
     local incomeText = "+$" .. Format.short(unit.IncomePerSec) .. "/s"
