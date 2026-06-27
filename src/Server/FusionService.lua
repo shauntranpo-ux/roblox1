@@ -155,10 +155,14 @@ local function fuseStarUp(player, profile, fodder, silent)
     if plot == nil then
         return { Result = "Error", Message = "Your base isn't ready." }
     end
-    -- The result reuses a fodder's pad (free the instant the fodder is removed) -> never no-pad.
-    local resultPad = fodder[1].PadIndex
-    if resultPad == nil then
-        return { Result = "Error", Message = "No pad for the result." } -- safe no-op (fodder kept)
+    -- The result reuses a PLACED fodder's pad (free the instant that fodder is removed). M9: if every
+    -- fodder was bagged, the result just goes to the bag too (PadIndex = nil) instead of being blocked.
+    local resultPad = nil
+    for _, unit in ipairs(fodder) do
+        if unit.PadIndex ~= nil then
+            resultPad = unit.PadIndex
+            break
+        end
     end
 
     -- ----- roll the outcome (server-side) -----
@@ -333,9 +337,13 @@ local function fuseTierUp(player, profile, fodder)
     if plot == nil then
         return { Result = "Error", Message = "Your base isn't ready." }
     end
-    local resultPad = fodder[1].PadIndex
-    if resultPad == nil then
-        return { Result = "Error", Message = "No pad for the result." }
+    -- M9: reuse a PLACED fodder's pad; if all fodder were bagged, the result goes to the bag too.
+    local resultPad = nil
+    for _, unit in ipairs(fodder) do
+        if unit.PadIndex ~= nil then
+            resultPad = unit.PadIndex
+            break
+        end
     end
 
     -- M11.1 ECON perk (Cosmic Forge): the holder's FusionFailMult lowers the fail chance.
