@@ -41,7 +41,11 @@ local nameCache = {} -- [userId] = displayName
 local function incomeValue(player, profile)
     local sum = 0
     for _, brainrot in ipairs(profile.Data.OwnedBrainrots) do
-        sum += UnitIncome.effective(brainrot)
+        -- M9: only DEPLOYED (on-pad) units earn, so the income board counts only them -- matching the
+        -- income loop exactly (a bagged unit contributes nothing here, just like it earns nothing).
+        if brainrot.PadIndex ~= nil then
+            sum += UnitIncome.effective(brainrot)
+        end
     end
     return sum * Benefits.GetIncomeMultiplier(player) * (profile.Data.PrestigeMultiplier or 1)
 end
