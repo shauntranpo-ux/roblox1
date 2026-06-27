@@ -65,6 +65,51 @@ end
 -- Themed component kit (chunky font + dark outline + gloss; reads Theme)
 -- ===========================================================================================
 
+-- Gives a SOLID-color frame/button pillowy DEPTH: a vertical multiply-gradient (top bright -> bottom
+-- shaded, from Theme.Gloss) so flat color reads as a rounded 3D pillow, PLUS a glossy top sheen that
+-- fades to nothing by mid-height and a thin lit top-edge highlight. Idempotent (guarded by the "Depth"
+-- gradient + "Sheen" child). Do NOT call on objects that already carry an accent/body UIGradient
+-- (glossHeader / panel) -- a second UIGradient would fight it; those already read deep.
+-- opts: { radius, sheenZIndex }.
+function Builder.applyDepth(obj, opts)
+    opts = opts or {}
+    local radius = opts.radius or Theme.Radius.Button
+    local g = Theme.Gloss
+    if obj:FindFirstChild("Depth") == nil and obj:FindFirstChildOfClass("UIGradient") == nil then
+        Builder.create("UIGradient", {
+            Name = "Depth",
+            Rotation = 90,
+            Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, g.TopTint),
+                ColorSequenceKeypoint.new(0.55, g.MidTint),
+                ColorSequenceKeypoint.new(1, g.BottomTint),
+            }),
+            Parent = obj,
+        })
+    end
+    if not opts.noSheen and obj:FindFirstChild("Sheen") == nil then
+        Builder.create("Frame", {
+            Name = "Sheen",
+            Size = UDim2.fromScale(1, g.SheenHeight),
+            BackgroundColor3 = Theme.Colors.White,
+            BackgroundTransparency = 0,
+            BorderSizePixel = 0,
+            ZIndex = opts.sheenZIndex or 0,
+            Parent = obj,
+        }, {
+            Builder.corner(radius),
+            Builder.create("UIGradient", { -- the highlight fades downward into nothing
+                Rotation = 90,
+                Transparency = NumberSequence.new({
+                    NumberSequenceKeypoint.new(0, g.SheenTop),
+                    NumberSequenceKeypoint.new(1, 1),
+                }),
+            }),
+        })
+    end
+    return obj
+end
+
 -- Applies the signature recipe to a text label: chunky display font + a heavy dark glyph outline +
 -- a soft built-in text shadow. opts: { font, stroke, softShadow }.
 function Builder.applyChrome(label, opts)
@@ -108,15 +153,9 @@ function Builder.glossButton(props, onClick)
             Transparency = 0.15,
         }),
         Builder.create("UITextSizeConstraint", { MaxTextSize = props.maxText or 22 }),
-        -- Glossy top sheen (non-interactive; sits behind the text).
-        Builder.create("Frame", {
-            Size = UDim2.fromScale(1, 0.45),
-            BackgroundColor3 = Theme.Colors.GlossTop,
-            BackgroundTransparency = 0.8,
-            BorderSizePixel = 0,
-            ZIndex = 0,
-        }, { Builder.corner(radius) }),
     })
+    -- Pillowy depth: multiply-shade gradient + glossy top sheen (behind the text).
+    Builder.applyDepth(button, { radius = radius, sheenZIndex = 0 })
     button.TextStrokeColor3 = Theme.Colors.Outline
     button.TextStrokeTransparency = 0.4
 
@@ -261,6 +300,8 @@ function Builder.rarityCard(frame, rarityColor)
         Transparency = 0.05,
         Parent = frame,
     })
+    -- Subtle pillowy shade on the white card (no sheen -- keep ink text crisp).
+    Builder.applyDepth(frame, { radius = Theme.Radius.Card, noSheen = true })
     return frame
 end
 
@@ -324,13 +365,8 @@ function Builder.diamond(props, onClick)
             Thickness = 2.5,
             Transparency = 0.1,
         }),
-        Builder.create("Frame", {
-            Size = UDim2.fromScale(1, 0.5),
-            BackgroundColor3 = Theme.Colors.GlossTop,
-            BackgroundTransparency = 0.82,
-            BorderSizePixel = 0,
-        }, { Builder.corner(UDim.new(0, 8)) }),
     })
+    Builder.applyDepth(diamond, { radius = UDim.new(0, 8), sheenZIndex = 1 })
     local content = Builder.create("TextLabel", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0.5, 0.5),
@@ -360,7 +396,8 @@ end
 -- A rounded dark-translucent PILL frame (HUD chips / slots). Returns the frame.
 function Builder.pill(props)
     props = props or {}
-    return Builder.create("Frame", {
+    local radius = props.radius or Theme.Radius.Pill
+    local frame = Builder.create("Frame", {
         Size = props.Size,
         Position = props.Position,
         AnchorPoint = props.AnchorPoint,
@@ -370,13 +407,16 @@ function Builder.pill(props)
         BorderSizePixel = 0,
         Parent = props.Parent,
     }, {
-        Builder.corner(props.radius or Theme.Radius.Pill),
+        Builder.corner(radius),
         Builder.create("UIStroke", {
             Color = props.stroke or Theme.Colors.White,
             Thickness = 2,
             Transparency = 0.2,
         }),
     })
+    -- Pillowy depth shade + a faint top gloss (chips read as rounded, not flat).
+    Builder.applyDepth(frame, { radius = radius, sheenZIndex = 1 })
+    return frame
 end
 
 -- A glossy gradient STAT BAR (HP green / XP cyan). Back-compat alias that routes through the single
@@ -554,14 +594,8 @@ function Builder.iconBubble(props, onClick)
             Thickness = 2.5,
             Transparency = 0.2,
         }),
-        Builder.create("Frame", { -- top gloss sheen
-            Size = UDim2.fromScale(1, 0.46),
-            BackgroundColor3 = Theme.Colors.GlossTop,
-            BackgroundTransparency = 0.78,
-            BorderSizePixel = 0,
-            ZIndex = 2,
-        }, { Builder.corner(radius) }),
     })
+    Builder.applyDepth(bubble, { radius = radius, sheenZIndex = 2 })
     local content = Builder.create("TextLabel", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0.5, 0.5),
