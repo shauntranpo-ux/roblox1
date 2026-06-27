@@ -17,7 +17,7 @@ end
 WorldConfig.Palette = {
     -- environment (softened so nothing is electric)
     Sky = rgb(126, 198, 234),
-    Grass = rgb(124, 182, 96), -- natural meadow green
+    Grass = rgb(110, 204, 82), -- vivid meadow green (bubbly voxel-forest reference)
     Dirt = rgb(138, 108, 92),
     Sand = rgb(226, 202, 150),
     RedTrim = rgb(206, 102, 88), -- muted terracotta (was harsh #EF5350)
