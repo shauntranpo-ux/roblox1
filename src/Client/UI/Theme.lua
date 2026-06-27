@@ -126,6 +126,7 @@ Theme.Accents = {
     Evolution = { Top = Color3.fromRGB(150, 245, 130), Bottom = Color3.fromRGB(60, 190, 90) }, -- bio green
     Exclusives = { Top = Color3.fromRGB(120, 200, 255), Bottom = Color3.fromRGB(60, 110, 230) }, -- frost blue
     NetShop = { Top = Color3.fromRGB(120, 230, 200), Bottom = Color3.fromRGB(40, 170, 150) }, -- net teal
+    Upgrades = { Top = Color3.fromRGB(150, 240, 150), Bottom = Color3.fromRGB(60, 190, 96) }, -- boost green
     Quests = { Top = Color3.fromRGB(255, 220, 130), Bottom = Color3.fromRGB(220, 160, 50) }, -- quest gold
     Rewards = { Top = Color3.fromRGB(255, 180, 120), Bottom = Color3.fromRGB(230, 110, 60) }, -- reward orange
     Referral = { Top = Color3.fromRGB(255, 215, 120), Bottom = Color3.fromRGB(235, 165, 40) }, -- invite gold
@@ -219,13 +220,11 @@ Theme.Assets = {
 }
 
 -- ── VM-THEME HUD config ─────────────────────────────────────────────────────────────────────
--- The left diamond rail's level-gated entries (edit freely). Level source = the player's RebirthCount
--- (the real progression stat). Unlocked entries are tappable (stub action); locked show a padlock + Lv.
+-- The top-left quick-rail entries: each opens a REAL panel (no dead placeholders). `Icon` is the bubble
+-- glyph; `Panel` is the PanelManager panel name the bubble opens.
 Theme.DiamondRail = {
-    { Label = "Upgrades", UnlockLevel = 5 },
-    { Label = "Pets", UnlockLevel = 10 },
-    { Label = "Zones", UnlockLevel = 15 },
-    { Label = "Prestige", UnlockLevel = 20 },
+    { Label = "Upgrades", Icon = "⬆", Panel = "UpgradesShop" },
+    { Label = "Rebirth", Icon = "⭐", Panel = "Rebirth" },
 }
 -- Display max for the protection/shield bar (seconds) + the XP bar fallback max, when no real value.
 Theme.Hud = {

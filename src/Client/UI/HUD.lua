@@ -25,7 +25,6 @@ local hpSet = nil
 local luckLabel = nil
 local powerLabel = nil
 local inviteLabel = nil
-local railDiamonds = {} -- { entry, diamondFrame, contentLabel } for live lock updates
 local displayedCash = 0
 local targetCash = 0
 
@@ -36,10 +35,6 @@ local function attr(name, default)
         return v
     end
     return default
-end
-
-local function readLevel()
-    return math.floor(attr("RebirthCount", 0))
 end
 
 -- ── stat-stack row builder (an icon chip + content, in a dark pill) ─────────────────────────
@@ -157,26 +152,18 @@ function HUD.mount(context, actions)
         Parent = rail,
     }, actions ~= nil and actions.onShop or nil)
     Builder.bob(plusContent) -- gentle idle life on the icon glyph
-    -- Level-gated bubbles (data-driven from Theme.DiamondRail).
+    -- Quick-rail bubbles -> open a REAL panel (data-driven from Theme.DiamondRail; no dead placeholders).
     for i, entry in ipairs(Theme.DiamondRail) do
-        local container, bubble, content = Builder.iconBubble({
+        Builder.iconBubble({
             size = 58,
             LayoutOrder = i + 1,
-            color = Theme.Colors.DarkPill,
-            Text = "",
-            maxText = 18,
+            color = Theme.Colors.XpFill,
+            Text = entry.Icon or "",
+            maxText = 30,
             Parent = rail,
         }, function()
-            -- Unlocked entries are tappable; placeholder action opens the shop until a dedicated panel
-            -- is wired here. Locked entries do nothing (global ClickFX still plays the click sound).
-            if readLevel() >= entry.UnlockLevel and actions ~= nil and actions.onShop ~= nil then
-                actions.onShop()
-            end
+            PanelManager.open(entry.Panel)
         end)
-        table.insert(
-            railDiamonds,
-            { entry = entry, frame = bubble, content = content, container = container }
-        )
     end
 
     -- ===== BOTTOM-RIGHT INFO PANEL (luck / power / invite -- grouped on ONE backing, inset clear of
@@ -319,15 +306,6 @@ function HUD.mount(context, actions)
     end)
 
     -- ===== bindings =====
-    local function refreshLevel()
-        local level = readLevel()
-        for _, d in ipairs(railDiamonds) do
-            local locked = level < d.entry.UnlockLevel
-            d.content.Text = locked and ("🔒\nLv." .. d.entry.UnlockLevel) or d.entry.Label
-            d.frame.BackgroundColor3 = locked and Theme.Colors.DarkPill or Theme.Colors.XpFill
-            d.frame.BackgroundTransparency = locked and 0.25 or 0.05
-        end
-    end
     local function refreshShield()
         hpSet(
             attr("ShieldSeconds", 0),
@@ -350,7 +328,6 @@ function HUD.mount(context, actions)
     targetCash = attr("Cash", 0)
     displayedCash = targetCash
     cashLabel.Text = "$" .. Format.full(displayedCash)
-    refreshLevel()
     refreshShield()
     refreshLuck()
     refreshPower()
@@ -359,7 +336,6 @@ function HUD.mount(context, actions)
     player:GetAttributeChangedSignal("Cash"):Connect(function()
         targetCash = attr("Cash", 0)
     end)
-    player:GetAttributeChangedSignal("RebirthCount"):Connect(refreshLevel)
     player:GetAttributeChangedSignal("ShieldSeconds"):Connect(refreshShield)
     player:GetAttributeChangedSignal("ShieldMax"):Connect(refreshShield)
     player:GetAttributeChangedSignal("Luck"):Connect(refreshLuck)
