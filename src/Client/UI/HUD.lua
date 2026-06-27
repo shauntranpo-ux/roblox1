@@ -69,24 +69,33 @@ function HUD.mount(context, actions)
     local gui = Builder.screenGui("HUD", player:WaitForChild("PlayerGui"), true)
     gui.DisplayOrder = 7 -- below panels (10) so an open panel layers above
 
-    -- ===== BOTTOM-LEFT STAT STACK (cash / HP-shield) =====
+    -- ===== BOTTOM-LEFT STAT PANEL (cash / HP-shield, grouped on a soft dark backing) =====
     local stack = Builder.create("Frame", {
         AnchorPoint = Vector2.new(0, 1),
         Position = UDim2.fromScale(0.012, 0.86),
         Size = UDim2.fromScale(0.3, 0.2),
-        BackgroundTransparency = 1,
+        BackgroundColor3 = Theme.Colors.DarkPill, -- grouped panel backing (was floating text)
+        BackgroundTransparency = 0.22,
+        BorderSizePixel = 0,
         Parent = gui,
     }, {
+        Builder.corner(Theme.Radius.Card),
+        Builder.create(
+            "UIStroke",
+            { Color = Theme.Colors.White, Thickness = 2, Transparency = 0.45 }
+        ),
+        Builder.padding(8),
         Builder.create("UIListLayout", {
             Padding = UDim.new(0, 6),
             SortOrder = Enum.SortOrder.LayoutOrder,
             VerticalAlignment = Enum.VerticalAlignment.Bottom,
         }),
         Builder.create("UISizeConstraint", {
-            MinSize = Vector2.new(190, 110),
-            MaxSize = Vector2.new(330, 190),
+            MinSize = Vector2.new(200, 96),
+            MaxSize = Vector2.new(330, 150),
         }),
     })
+    Builder.softShadow(stack, { radius = Theme.Radius.Card, spread = 10 })
 
     -- (a) CASH -- gold coin + bold gold "$<amount>".
     cashRow = statRow(stack, 1, "🪙", 40)
@@ -115,22 +124,24 @@ function HUD.mount(context, actions)
     })
     hpSet = hpSetFn
 
-    -- ===== LEFT DIAMOND RAIL (shop + level-gated entries) =====
+    -- ===== TOP-LEFT QUICK RAIL (shop + level-gated entries) -- distinct zone under the biome label,
+    -- so it no longer collides with the centre-left EdgeTabs feature rail =====
     local rail = Builder.create("Frame", {
-        AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.fromScale(0.012, 0.46),
-        Size = UDim2.fromScale(0.08, 0.5),
+        AnchorPoint = Vector2.new(0, 0),
+        Position = UDim2.fromScale(0.012, 0.12),
+        Size = UDim2.fromScale(0.34, 0.08),
         BackgroundTransparency = 1,
         Parent = gui,
     }, {
         Builder.create("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal,
             Padding = UDim.new(0, 8),
             SortOrder = Enum.SortOrder.LayoutOrder,
-            HorizontalAlignment = Enum.HorizontalAlignment.Center,
+            VerticalAlignment = Enum.VerticalAlignment.Center,
         }),
         Builder.create(
             "UISizeConstraint",
-            { MinSize = Vector2.new(56, 0), MaxSize = Vector2.new(76, 520) }
+            { MinSize = Vector2.new(280, 52), MaxSize = Vector2.new(440, 74) }
         ),
     })
     -- Top glossy CYAN "+" BUBBLE -> open the Shop (via the panel manager, if wired). The rail + the
@@ -166,113 +177,70 @@ function HUD.mount(context, actions)
         )
     end
 
-    -- ===== BOTTOM-RIGHT LUCK =====
-    local luckPill = Builder.pill({
+    -- ===== BOTTOM-RIGHT INFO PANEL (luck / power / invite -- grouped on ONE backing, inset clear of
+    -- the edge rail; was three separate floating pills) =====
+    local rightInfo = Builder.create("Frame", {
         AnchorPoint = Vector2.new(1, 1),
-        Position = UDim2.new(1, -76, 0.86, 0), -- inset 76px from the right edge -> clear of the edge rail
-        Size = UDim2.fromScale(0.16, 0.07),
-        radius = Theme.Radius.Bubble,
+        Position = UDim2.new(1, -76, 0.88, 0),
+        Size = UDim2.fromScale(0.17, 0.22),
+        BackgroundColor3 = Theme.Colors.DarkPill,
+        BackgroundTransparency = 0.22,
+        BorderSizePixel = 0,
         Parent = gui,
+    }, {
+        Builder.corner(Theme.Radius.Card),
+        Builder.create(
+            "UIStroke",
+            { Color = Theme.Colors.White, Thickness = 2, Transparency = 0.45 }
+        ),
+        Builder.padding(6),
+        Builder.create("UIListLayout", {
+            Padding = UDim.new(0, 5),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            VerticalAlignment = Enum.VerticalAlignment.Center,
+        }),
+        Builder.create(
+            "UISizeConstraint",
+            { MinSize = Vector2.new(126, 120), MaxSize = Vector2.new(200, 196) }
+        ),
     })
-    Builder.create(
-        "UISizeConstraint",
-        { MinSize = Vector2.new(96, 40), MaxSize = Vector2.new(190, 70), Parent = luckPill }
-    )
-    Builder.create("TextLabel", {
-        AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.fromScale(0.04, 0.5),
-        Size = UDim2.fromScale(0.34, 0.8),
-        BackgroundTransparency = 1,
-        Text = "🍀",
-        TextColor3 = Theme.Colors.Clover,
-        TextScaled = true,
-        Parent = luckPill,
-    })
-    luckLabel = Builder.create("TextLabel", {
-        AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.fromScale(0.96, 0.5),
-        Size = UDim2.fromScale(0.6, 0.8),
-        BackgroundTransparency = 1,
-        Text = "x1",
-        TextColor3 = Theme.Colors.White,
-        TextScaled = true,
-        TextXAlignment = Enum.TextXAlignment.Right,
-        Parent = luckPill,
-    }, { Builder.create("UITextSizeConstraint", { MaxTextSize = 26 }) })
-    Builder.styleText(luckLabel, { keepColor = true })
-    luckLabel.TextStrokeTransparency = 1
+    Builder.softShadow(rightInfo, { radius = Theme.Radius.Card, spread = 10 })
 
-    -- ===== BOTTOM-RIGHT TEAM POWER (M11.3-combat: combat strength of the equipped team) =====
-    local powerPill = Builder.pill({
-        AnchorPoint = Vector2.new(1, 1),
-        Position = UDim2.new(1, -76, 0.78, 0),
-        Size = UDim2.fromScale(0.16, 0.07),
-        radius = Theme.Radius.Bubble,
-        Parent = gui,
-    })
-    Builder.create(
-        "UISizeConstraint",
-        { MinSize = Vector2.new(96, 40), MaxSize = Vector2.new(190, 70), Parent = powerPill }
-    )
-    Builder.create("TextLabel", {
-        AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.fromScale(0.04, 0.5),
-        Size = UDim2.fromScale(0.34, 0.8),
-        BackgroundTransparency = 1,
-        Text = "⚔️",
-        TextColor3 = Theme.Colors.PathRed,
-        TextScaled = true,
-        Parent = powerPill,
-    })
-    powerLabel = Builder.create("TextLabel", {
-        AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.fromScale(0.96, 0.5),
-        Size = UDim2.fromScale(0.6, 0.8),
-        BackgroundTransparency = 1,
-        Text = "0",
-        TextColor3 = Theme.Colors.White,
-        TextScaled = true,
-        TextXAlignment = Enum.TextXAlignment.Right,
-        Parent = powerPill,
-    }, { Builder.create("UITextSizeConstraint", { MaxTextSize = 26 }) })
-    Builder.styleText(powerLabel, { keepColor = true })
-    powerLabel.TextStrokeTransparency = 1
-
-    -- ===== BOTTOM-RIGHT INVITE BOOST (M13.1: "+X% Invite Friends") =====
-    local invitePill = Builder.pill({
-        AnchorPoint = Vector2.new(1, 1),
-        Position = UDim2.new(1, -76, 0.70, 0),
-        Size = UDim2.fromScale(0.16, 0.07),
-        radius = Theme.Radius.Bubble,
-        Parent = gui,
-    })
-    Builder.create(
-        "UISizeConstraint",
-        { MinSize = Vector2.new(96, 40), MaxSize = Vector2.new(190, 70), Parent = invitePill }
-    )
-    Builder.create("TextLabel", {
-        AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.fromScale(0.04, 0.5),
-        Size = UDim2.fromScale(0.34, 0.8),
-        BackgroundTransparency = 1,
-        Text = "📨",
-        TextColor3 = Theme.Colors.Gold,
-        TextScaled = true,
-        Parent = invitePill,
-    })
-    inviteLabel = Builder.create("TextLabel", {
-        AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.fromScale(0.96, 0.5),
-        Size = UDim2.fromScale(0.6, 0.8),
-        BackgroundTransparency = 1,
-        Text = "+0%",
-        TextColor3 = Theme.Colors.White,
-        TextScaled = true,
-        TextXAlignment = Enum.TextXAlignment.Right,
-        Parent = invitePill,
-    }, { Builder.create("UITextSizeConstraint", { MaxTextSize = 26 }) })
-    Builder.styleText(inviteLabel, { keepColor = true })
-    inviteLabel.TextStrokeTransparency = 1
+    -- One info row: an icon on the left + a right-aligned white value. Returns the value label.
+    local function infoRow(order, icon, iconColor, initial)
+        local row = Builder.create("Frame", {
+            Size = UDim2.new(1, 0, 0, 32),
+            BackgroundTransparency = 1,
+            LayoutOrder = order,
+            Parent = rightInfo,
+        })
+        Builder.create("TextLabel", {
+            AnchorPoint = Vector2.new(0, 0.5),
+            Position = UDim2.fromScale(0.02, 0.5),
+            Size = UDim2.fromScale(0.3, 0.92),
+            BackgroundTransparency = 1,
+            Text = icon,
+            TextColor3 = iconColor,
+            TextScaled = true,
+            Parent = row,
+        })
+        local value = Builder.create("TextLabel", {
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.fromScale(0.98, 0.5),
+            Size = UDim2.fromScale(0.64, 0.92),
+            BackgroundTransparency = 1,
+            Text = initial,
+            TextColor3 = Theme.Colors.White,
+            TextScaled = true,
+            TextXAlignment = Enum.TextXAlignment.Right,
+            Parent = row,
+        }, { Builder.create("UITextSizeConstraint", { MaxTextSize = 24 }) })
+        Builder.styleText(value, { keepColor = true })
+        return value
+    end
+    luckLabel = infoRow(1, "🍀", Theme.Colors.Clover, "x1")
+    powerLabel = infoRow(2, "⚔️", Theme.Colors.PathRed, "0")
+    inviteLabel = infoRow(3, "📨", Theme.Colors.Gold, "+0%")
 
     -- ===== BOTTOM-CENTER NAV BAR (a SOLID hotbar so the labels read clearly over the world) =====
     local bar = Builder.create("Frame", {
