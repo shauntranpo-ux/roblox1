@@ -1,0 +1,15 @@
+# Enforce LF line endings everywhere. This is a Rojo/Luau repo whose CI + cloud agents run on Linux;
+# forcing LF stops the Windows autocrlf CRLF<->LF churn that made StyLua + VS Code show phantom diffs.
+* text=auto eol=lf
+
+# Binary assets — never normalize.
+*.rbxl   binary
+*.rbxlx  binary
+*.rbxm   binary
+*.rbxmx  binary
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.pyc    binary
