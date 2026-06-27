@@ -122,6 +122,25 @@ WorldConfig.Levels = {
     ElevatorRadius = 250, -- how far from the platform center the elevator sits
 }
 
+-- ── DEDICATED LEADERBOARD PLAZA ───────────────────────────────────────────────────────────────
+-- The leaderboards get their OWN raised stone dais off the -X edge of the hub -- clear of the spawn
+-- cone (+Z), the boss arena (-Z), and the elevator (+X) -- reached by a stone path from the plaza.
+-- The boards face back ALONG the path (toward the approaching player), so you always read their fronts.
+-- LeaderboardBillboards reads this to position + orient the stands; WorldBuilder builds the dais + path
+-- and reserves the corridor so foliage/terrain never blocks it.
+WorldConfig.Leaderboard = {
+    AngleDeg = 180, -- -X side of the hub (its own alcove)
+    Radius = 210, -- distance from world center to the dais centre
+    BaseY = 0, -- meadow (tier-1) floor height
+    StandSpacing = 40, -- studs between stands along the dais (the tangent direction)
+    DaisLength = 210, -- dais size along the stand row (tangent); fits the 4-stand row + margin
+    DaisDepth = 66, -- dais size along the approach (forward)
+    PathHalfWidth = 8, -- the walkway half-width
+    PathReachRadius = 135, -- the path runs inward to about this radius (just clear of the base ring)
+    ClearHalfAngleDeg = 20, -- foliage/terrain corridor kept clear around the dais + path
+    ClearRadius = 56, -- + a clear circle of this radius around the dais centre
+}
+
 -- ── HUB (central plaza at the world origin; holds the slingshot + fixtures) ───────────────────
 WorldConfig.Hub = {
     Center = Vector3.new(0, 0, 0),

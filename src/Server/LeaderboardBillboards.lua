@@ -14,6 +14,7 @@ local TweenService = game:GetService("TweenService")
 
 local Format = require(ReplicatedStorage.Shared.Format)
 local Monetization = require(ReplicatedStorage.Shared.Monetization)
+local WorldConfig = require(ReplicatedStorage.Shared.WorldConfig)
 
 local LeaderboardService = require(script.Parent.LeaderboardService)
 local SeasonService = require(script.Parent.SeasonService)
@@ -22,8 +23,6 @@ local LeaderboardBillboards = {}
 
 local TOP_N = Monetization.Leaderboard.TopN
 local REFRESH = 5 -- s between (cheap, in-memory) billboard redraws
-local FIRST_STAND = Vector3.new(80, 0, -40) -- base of the left-most stand
-local STAND_SPACING = 44 -- studs between stands
 
 -- Soft / bubbly leaderboard palette (cohesive with the UI design system): a LIGHT cream board with
 -- INK names + a bright per-board accent title bar, on a warm wood pillar (was near-black slabs).
@@ -169,12 +168,16 @@ local function buildTopper(key, basePosition, topY, podiumFolder)
 end
 
 -- Builds the generated pillar + BillboardGui for one board and returns an Update(rows) closure.
-local function buildGeneratedStand(board, basePosition)
+local function buildGeneratedStand(board, basePosition, yaw)
     -- ── PODIUM GEOMETRY ─────────────────────────────────────────────────────────────────────────
-    -- Stepped stone pedestal: 3 tiers beneath the pillar.
+    -- Stepped stone pedestal: 3 tiers beneath the pillar. ALL parts live under ONE Model so the whole
+    -- stand can be pivoted about `basePosition` to face down the path (yaw), boards toward the player.
+    local standModel = Instance.new("Model")
+    standModel.Name = "Leaderboard_" .. board.Key
+    standModel.Parent = folder
     local podiumFolder = Instance.new("Folder")
     podiumFolder.Name = "Podium_" .. board.Key
-    podiumFolder.Parent = folder
+    podiumFolder.Parent = standModel
 
     -- Tier 1 (widest, ground level)
     standPart({
@@ -207,7 +210,7 @@ local function buildGeneratedStand(board, basePosition)
     pillar.Position = basePosition + Vector3.new(0, 3.5 + 5.75, 0) -- sits on top of tier-3 (y=6.5)
     pillar.Color = COLORS.Pillar
     pillar.Material = Enum.Material.SmoothPlastic
-    pillar.Parent = folder
+    pillar.Parent = standModel
 
     -- ── 3-D SCROLLING WALL (replaces old floating BillboardGui; physical Part + SurfaceGui) ─────
     -- Wall: Size(18,22,1), front face (+Z). Bottom sits on pillar top (pillar top = 6.5+7 = 13.5).
@@ -386,6 +389,12 @@ local function buildGeneratedStand(board, basePosition)
         end
     end)
 
+    -- ── FACE THE PATH: pivot the whole assembly about its base so the board front (+Z) faces forward ──
+    if yaw ~= nil and math.abs(yaw) > 1e-4 then
+        standModel.WorldPivot = CFrame.new(basePosition)
+        standModel:PivotTo(CFrame.new(basePosition) * CFrame.Angles(0, yaw, 0))
+    end
+
     -- ── UPDATE closure: same signature as before; rebuilds row text on each leaderboard refresh ──
     return function(rows)
         for i = 1, TOP_N do
@@ -410,11 +419,13 @@ end
 
 -- Clones a real LeaderboardStand art model and returns an Update(rows) closure that fills its
 -- "Title" + "Row1".."RowN" TextLabels. Falls back gracefully if a label is missing.
-local function buildTemplateStand(template, board, basePosition)
+local function buildTemplateStand(template, board, basePosition, yaw)
     local model = template:Clone()
     model.Name = "LeaderboardStand_" .. board.Key
     if model:IsA("Model") then
-        model:PivotTo(CFrame.new(basePosition + Vector3.new(0, 7, 0)))
+        model:PivotTo(
+            CFrame.new(basePosition + Vector3.new(0, 7, 0)) * CFrame.Angles(0, yaw or 0, 0)
+        )
     end
     model.Parent = folder
 
@@ -457,32 +468,43 @@ function LeaderboardBillboards.Init()
 
     local template = getTemplate()
     local boards = LeaderboardService.GetBoardList()
-    -- Center the (#boards + 1 Season) stands as a tidy GROUNDED row on the plaza (was scattered out
-    -- past the courtyard edge onto the meadow / the new foliage ring). Stands fan out from `base`.
-    local base = Vector3.new(-(#boards * STAND_SPACING) / 2, FIRST_STAND.Y, FIRST_STAND.Z)
-    for index, board in ipairs(boards) do
-        local basePosition = base + Vector3.new((index - 1) * STAND_SPACING, 0, 0)
+
+    -- Assemble the full ordered list (the 3 boards + the Season board) so the row can be centered on
+    -- the dedicated leaderboard DAIS (WorldConfig.Leaderboard), then placed + oriented to face the path.
+    local defs = {}
+    for _, board in ipairs(boards) do
         local boardKey = board.Key
-        local update
-        if template ~= nil then
-            update = buildTemplateStand(template, board, basePosition)
-        else
-            update = buildGeneratedStand(board, basePosition)
-        end
-        table.insert(stands, {
-            Update = update,
+        table.insert(defs, {
+            Board = board,
             Source = function()
                 return LeaderboardService.GetBoard(boardKey)
             end,
         })
     end
+    -- M8.5: a 4th board for the CURRENT SEASON (reads SeasonService's cached top-N).
+    table.insert(defs, {
+        Board = { Key = "Season", Title = "Top Season" },
+        Source = SeasonService.GetTop,
+    })
 
-    -- M8.5: a 4th stand for the CURRENT SEASON board (reads SeasonService's cached top-N).
-    local seasonPos = base + Vector3.new(#boards * STAND_SPACING, 0, 0)
-    local seasonBoard = { Key = "Season", Title = "Top Season" }
-    local seasonUpdate = template ~= nil and buildTemplateStand(template, seasonBoard, seasonPos)
-        or buildGeneratedStand(seasonBoard, seasonPos)
-    table.insert(stands, { Update = seasonUpdate, Source = SeasonService.GetTop })
+    -- Dais anchor: centre + tangent (the row direction) + yaw (so the board fronts face down the path).
+    local LB = WorldConfig.Leaderboard
+    local a = math.rad(LB.AngleDeg)
+    local center = Vector3.new(math.cos(a) * LB.Radius, LB.BaseY, math.sin(a) * LB.Radius)
+    local tangent = Vector3.new(-math.sin(a), 0, math.cos(a))
+    local yaw = math.atan2(-math.cos(a), -math.sin(a)) -- forward = toward world center (the player)
+    local n = #defs
+    for index, def in ipairs(defs) do
+        local offset = (index - (n + 1) / 2) * LB.StandSpacing
+        local basePosition = center + tangent * offset
+        local update
+        if template ~= nil then
+            update = buildTemplateStand(template, def.Board, basePosition, yaw)
+        else
+            update = buildGeneratedStand(def.Board, basePosition, yaw)
+        end
+        table.insert(stands, { Update = update, Source = def.Source })
+    end
 
     -- Light redraw loop: reads each stand's cached top-N (no DataStore calls here).
     task.spawn(function()
