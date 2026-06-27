@@ -87,7 +87,12 @@ function Builder.applyDepth(obj, opts)
             Parent = obj,
         })
     end
-    if not opts.noSheen and obj:FindFirstChild("Sheen") == nil then
+    -- CRITICAL: the Sheen is a real Frame, so if `obj` is a layout container (UIListLayout / UIGridLayout
+    -- / UITableLayout) the layout would treat the Sheen as a flex CHILD -- shoving its real content
+    -- (e.g. the nav buttons) aside and adding a phantom row. Skip the Sheen entirely for layout
+    -- containers; the Depth gradient (not a layout item) still gives them their pillowy shade.
+    local hasLayout = obj:FindFirstChildWhichIsA("UIGridStyleLayout") ~= nil
+    if not opts.noSheen and not hasLayout and obj:FindFirstChild("Sheen") == nil then
         Builder.create("Frame", {
             Name = "Sheen",
             Size = UDim2.fromScale(1, g.SheenHeight),
