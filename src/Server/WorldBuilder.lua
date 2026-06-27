@@ -86,22 +86,36 @@ local function disc(r, topY, thickness, color, material, parent)
     return d
 end
 
--- A blocky 2-part cube tree (trunk + leaf cube). Capped by the caller.
+-- A leafy ROUND tree: a slim wood trunk + a rounded canopy of 3 overlapping leaf BALLS in graded green
+-- shades, with gentle per-tree height/scale variation (seeded rng). Reads as a real tree, not a cube.
 local function tree(parent, pos, trunkColor, leafColor)
-    local trunkH = S.TreeHeight * 0.45
+    local scale = rng:NextNumber(0.85, 1.25)
+    local trunkH = S.TreeHeight * 0.55 * scale
     part({
-        Size = Vector3.new(4, trunkH, 4),
+        Size = Vector3.new(3, trunkH, 3),
         Position = pos + Vector3.new(0, trunkH / 2, 0),
         Color = trunkColor or P.Wood,
         Material = Enum.Material.Wood,
     }, parent)
-    local leaf = S.TreeHeight * 0.6
-    part({
-        Size = Vector3.new(leaf, leaf, leaf),
-        Position = pos + Vector3.new(0, trunkH + leaf / 2 - 2, 0),
-        Color = leafColor or P.Grass,
-        Material = Enum.Material.Grass,
-    }, parent)
+    local baseLeaf = leafColor or P.Grass:Lerp(Color3.fromRGB(96, 176, 84), 0.4)
+    local r = S.TreeHeight * 0.34 * scale -- canopy blob radius
+    local topY = trunkH + r * 0.6
+    -- main blob + two offset side blobs -> a full, rounded crown
+    local blobs = {
+        { Vector3.new(0, 0, 0), 2.0 },
+        { Vector3.new(r * 0.7, -r * 0.15, r * 0.2), 1.45 },
+        { Vector3.new(-r * 0.6, -r * 0.05, -r * 0.3), 1.55 },
+    }
+    for i, b in ipairs(blobs) do
+        local d = r * b[2] * rng:NextNumber(0.92, 1.08)
+        local leafPart = part({
+            Size = Vector3.new(d, d, d),
+            Position = pos + Vector3.new(b[1].X, topY + b[1].Y, b[1].Z),
+            Color = baseLeaf:Lerp(Color3.fromRGB(40, 120, 70), (i - 1) * 0.14),
+            Material = Enum.Material.Grass,
+        }, parent)
+        leafPart.Shape = Enum.PartType.Ball
+    end
 end
 
 -- A blocky BUSH: 2 stacked rounded green cubes (cheap; capped by the caller).
@@ -123,26 +137,36 @@ end
 
 -- ── Forest props (all voxel/blocky, anchored; colliding ones are landmarks, the rest are floor cover) ──
 
--- A TALL voxel PINE: a slim wood trunk + 3 stacked tapering green cube tiers. Colliding landmark.
+-- A TALL CONIFER: a slim trunk + 4 overlapping tapering tiers (wide base -> narrow top) + a pointed cap,
+-- in deep greens that lighten slightly toward the tip. Per-tree scale variation (seeded rng). Colliding.
 local function pine(parent, pos, trunkColor, leafColor)
-    local trunkH = S.TreeHeight * 0.5
+    local scale = rng:NextNumber(0.9, 1.3)
+    local trunkH = S.TreeHeight * 0.4 * scale
     part({
-        Size = Vector3.new(3, trunkH, 3),
+        Size = Vector3.new(2.5, trunkH, 2.5),
         Position = pos + Vector3.new(0, trunkH / 2, 0),
         Color = trunkColor or P.Wood,
         Material = Enum.Material.Wood,
     }, parent)
-    local leaf = leafColor or P.Grass:Lerp(Color3.fromRGB(40, 116, 72), 0.5)
-    local tiers = 3
+    local leaf = leafColor or P.Grass:Lerp(Color3.fromRGB(36, 104, 64), 0.55)
+    local tiers = 4
+    local tierH = S.TreeHeight * 0.3 * scale
     for t = 0, tiers - 1 do
-        local w = (tiers - t) * 3 + 3
+        local frac = t / tiers
+        local w = (1 - frac) * 12 * scale + 2.5 -- wide at the bottom, narrow at the top
         part({
-            Size = Vector3.new(w, 4, w),
-            Position = pos + Vector3.new(0, trunkH + t * 3 + 2, 0),
-            Color = leaf,
+            Size = Vector3.new(w, tierH, w),
+            Position = pos + Vector3.new(0, trunkH + t * tierH * 0.75 + tierH / 2, 0),
+            Color = leaf:Lerp(P.Grass, frac * 0.22),
             Material = Enum.Material.Grass,
         }, parent)
     end
+    part({ -- pointed cap
+        Size = Vector3.new(2.4, tierH * 1.3, 2.4),
+        Position = pos + Vector3.new(0, trunkH + tiers * tierH * 0.75 + tierH * 0.35, 0),
+        Color = leaf,
+        Material = Enum.Material.Grass,
+    }, parent)
 end
 
 -- A mossy FALLEN LOG: a wood cylinder lying flat (rotated about Y by `rot`). Non-colliding cover detail.
@@ -449,17 +473,34 @@ end
 
 -- A vertical SHAFT track (thin glowing rails) running the full stack height at the elevator spot.
 local function buildElevatorShaft(folder)
+    -- A SHORT decorative elevator pylon over the base-level car -- a landmark arch with a glowing "up"
+    -- beacon. (Was two ~660-stud rails that speared into the sky; the car teleports the player up, so no
+    -- full-height track is needed.) Untagged decoration; the tagged Slingshot call panel lives on the car.
     local a = math.rad(WorldConfig.Levels.ElevatorAngleDeg)
     local r = WorldConfig.Levels.ElevatorRadius
-    local topY = WorldConfig.Biomes[#WorldConfig.Biomes].Y
-    local pos = Vector3.new(math.cos(a) * r, topY / 2, math.sin(a) * r)
+    local center = Vector3.new(math.cos(a) * r, 0, math.sin(a) * r)
+    local cf = CFrame.lookAt(center, WorldConfig.Center)
+    local h = 30
     for _, sx in ipairs({ -1, 1 }) do
         part({
-            Size = Vector3.new(1, topY + 20, 1),
-            Position = pos + Vector3.new(0, 0, sx * 8),
+            Size = Vector3.new(2, h, 2),
+            CFrame = cf * CFrame.new(sx * 8, h / 2 + 18, 0), -- start just above the car roof (~18)
             Color = P.HubStone,
+            Material = Enum.Material.Metal,
         }, folder)
     end
+    part({ -- top cross-beam
+        Size = Vector3.new(20, 2.5, 2),
+        CFrame = cf * CFrame.new(0, h + 18, 0),
+        Color = P.Gold,
+        Material = Enum.Material.Metal,
+    }, folder)
+    part({ -- glowing beacon
+        Size = Vector3.new(3, 3, 3),
+        CFrame = cf * CFrame.new(0, h + 18, 0),
+        Color = P.ShieldCyan,
+        Glow = true,
+    }, folder)
 end
 
 -- A modeled hub STRUCTURE for a tagged interactable. Builds a unique look per `tagName`, tags the base
