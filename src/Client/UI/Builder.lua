@@ -190,6 +190,7 @@ function Builder.glossButton(props, onClick)
             restore()
         end
     end)
+    Builder.bindHover(button, button)
     if onClick ~= nil then
         button.Activated:Connect(onClick)
     end
@@ -387,6 +388,7 @@ function Builder.diamond(props, onClick)
         ZIndex = 5,
         Parent = container,
     })
+    Builder.bindHover(button, diamond)
     if onClick ~= nil then
         button.Activated:Connect(onClick)
     end
@@ -478,6 +480,25 @@ function Builder.bindSquish(inputObj, target)
             restore()
         end
     end)
+end
+
+-- Pointer HOVER lift: on a PC mouse entering `inputObj`, `target` springs up to Theme.Anim.HoverScale
+-- via a dedicated "HoverScale" UIScale (composes with the press-squish Size tween + the pulse UIScale --
+-- they never fight). Restores on leave. Touch never fires MouseEnter/MouseLeave, so this is mobile-safe
+-- and costs nothing there. Idempotent-friendly: reuses an existing HoverScale child.
+function Builder.bindHover(inputObj, target)
+    target = target or inputObj
+    local scale = target:FindFirstChild("HoverScale")
+    if scale == nil then
+        scale = Builder.create("UIScale", { Name = "HoverScale", Scale = 1, Parent = target })
+    end
+    inputObj.MouseEnter:Connect(function()
+        TweenService:Create(scale, Theme.Tween.Hover, { Scale = Theme.Anim.HoverScale }):Play()
+    end)
+    inputObj.MouseLeave:Connect(function()
+        TweenService:Create(scale, Theme.Tween.Hover, { Scale = 1 }):Play()
+    end)
+    return inputObj
 end
 
 -- A SOFT DROP SHADOW placed behind `frame` as a sibling (for ABSOLUTELY-positioned elements: panels,
@@ -617,6 +638,7 @@ function Builder.iconBubble(props, onClick)
         Parent = container,
     })
     Builder.bindSquish(button, bubble)
+    Builder.bindHover(button, bubble)
     if onClick ~= nil then
         button.Activated:Connect(onClick)
     end
