@@ -359,50 +359,91 @@ local function buildElevatorCar(folder, y)
     local a = math.rad(WorldConfig.Levels.ElevatorAngleDeg)
     local r = WorldConfig.Levels.ElevatorRadius
     local center = Vector3.new(math.cos(a) * r, y, math.sin(a) * r)
-    local cf = CFrame.lookAt(center, WorldConfig.Center + Vector3.new(0, y, 0)) -- car faces the platform center
+    -- cf's -Z (LookVector) points to the platform centre -> the car FRONT (door) faces the player.
+    local cf = CFrame.lookAt(center, WorldConfig.Center + Vector3.new(0, y, 0))
+
+    -- Floor: stone pad + a metal inlay border + a glowing call-disc inset (reads as a real car).
     part(
-        { Size = Vector3.new(14, 1, 14), CFrame = cf * CFrame.new(0, 0.5, 0), Color = P.HubStone },
+        { Size = Vector3.new(15, 1, 15), CFrame = cf * CFrame.new(0, 0.5, 0), Color = P.HubStone },
         folder
     )
     part({
-        Size = Vector3.new(14, 16, 1),
-        CFrame = cf * CFrame.new(0, 8, -6.5),
+        Size = Vector3.new(11, 1.1, 11),
+        CFrame = cf * CFrame.new(0, 0.55, 0),
+        Color = P.Gold,
+        Material = Enum.Material.Metal,
+    }, folder)
+    part({
+        Size = Vector3.new(7.5, 1.2, 7.5),
+        CFrame = cf * CFrame.new(0, 0.6, 0),
         Color = P.ShieldCyan,
+        Glow = true,
+    }, folder)
+
+    -- GLASS back wall (away from centre, +Z) so the open front faces the player; HubStone side walls
+    -- with a gold top trim each. Slim, not a heavy box.
+    part({
+        Size = Vector3.new(14, 16, 0.6),
+        CFrame = cf * CFrame.new(0, 8.5, 6.7),
+        Color = P.ShieldCyan,
+        Transparency = 0.45,
+        Material = Enum.Material.Glass,
     }, folder)
     for _, sx in ipairs({ -1, 1 }) do
         part({
-            Size = Vector3.new(1, 16, 14),
-            CFrame = cf * CFrame.new(sx * 6.5, 8, 0),
+            Size = Vector3.new(0.8, 16, 13.4),
+            CFrame = cf * CFrame.new(sx * 6.7, 8.5, 0),
             Color = P.HubStone,
         }, folder)
+        part({
+            Size = Vector3.new(1, 1, 13.4),
+            CFrame = cf * CFrame.new(sx * 6.7, 16.2, 0),
+            Color = P.Gold,
+            Material = Enum.Material.Metal,
+        }, folder)
     end
-    part(
-        { Size = Vector3.new(15, 1, 15), CFrame = cf * CFrame.new(0, 16.5, 0), Color = P.HubStone },
-        folder
-    )
+
+    -- Roof + a glowing beacon on top.
+    part({
+        Size = Vector3.new(15.6, 1, 15.6),
+        CFrame = cf * CFrame.new(0, 17, 0),
+        Color = P.HubStone,
+    }, folder)
+    part({
+        Size = Vector3.new(3, 2.4, 3),
+        CFrame = cf * CFrame.new(0, 18.7, 0),
+        Color = P.Gold,
+        Glow = true,
+    }, folder)
+
+    -- Slim metal corner posts.
     for _, sx in ipairs({ -1, 1 }) do
         for _, sz in ipairs({ -1, 1 }) do
             part({
-                Size = Vector3.new(1.5, 17, 1.5),
-                CFrame = cf * CFrame.new(sx * 7, 8.5, sz * 7),
+                Size = Vector3.new(1, 17.5, 1),
+                CFrame = cf * CFrame.new(sx * 7, 8.75, sz * 7),
                 Color = P.Gold,
+                Material = Enum.Material.Metal,
             }, folder)
         end
     end
+
+    -- A glowing UP-indicator strip across the front lintel + the call panel pillar (tagged Slingshot).
+    part({
+        Size = Vector3.new(11, 1.6, 0.4),
+        CFrame = cf * CFrame.new(0, 15, -6.7),
+        Color = P.ShieldCyan,
+        Glow = true,
+    }, folder)
     local panel = fixture(
         folder,
-        (cf * CFrame.new(0, 0, -6)).Position,
-        Vector3.new(4, 6, 1),
+        (cf * CFrame.new(5, 3.5, -6.4)).Position,
+        Vector3.new(2.6, 6, 0.9),
         P.Gold,
         "Slingshot",
         "ELEVATOR"
     )
     panel:SetAttribute("LaunchHeight", 26)
-    part({
-        Size = Vector3.new(4, 6, 0.4),
-        CFrame = cf * CFrame.new(0, 9, -6.2),
-        Color = P.ShieldCyan,
-    }, folder)
     return panel
 end
 
@@ -530,28 +571,38 @@ local function buildStructure(folder, pos, tagName, label, accent)
             Material = Enum.Material.Wood,
         }, folder)
     elseif tagName == "SpinWheel" then
-        -- Two wood support LEGS (P.Beam) flanking the wheel axle
+        -- A proper VERTICAL prize wheel facing the player (+Z). Wheel centre well above the pedestal.
+        local wc = pos + Vector3.new(0, 21, 0)
+        -- Two stout wood support LEGS flanking the wheel + a back axle bar between them.
         for _, sx in ipairs({ -1, 1 }) do
             part({
-                Size = Vector3.new(2, 18, 2),
-                Position = pos + Vector3.new(sx * 5, 9, 0),
+                Size = Vector3.new(2.6, 24, 2.6),
+                Position = pos + Vector3.new(sx * 11, 12.5, -1),
                 Color = P.Beam,
                 Material = Enum.Material.Wood,
             }, folder)
         end
-        -- Horizontal axle bar connecting the legs at the top
         part({
-            Size = Vector3.new(14, 2, 2),
-            Position = pos + Vector3.new(0, 18, 0),
+            Size = Vector3.new(24, 2.4, 2.4),
+            Position = wc + Vector3.new(0, 0, -2),
             Color = P.Beam,
             Material = Enum.Material.Wood,
         }, folder)
-        -- Wheel HUB: a thick cylinder mounted on the axle, face pointing toward player (+Z)
-        local hubCF = CFrame.new(pos + Vector3.new(0, 18, 0)) * CFrame.Angles(0, 0, math.rad(90))
-        local hub =
-            part({ Size = Vector3.new(3, 13, 13), CFrame = hubCF, Color = P.HubStone }, folder)
-        hub.Shape = Enum.PartType.Cylinder
-        -- 8 colored wedge SPOKES rotated around the hub center (thin blocks at 45-deg steps)
+        -- Outer RIM (a thick dark wood ring behind the face) + the wheel HUB disc (faces +Z, the player).
+        local function faceDisc(size, offsetZ, color, mat)
+            local d = part({
+                Size = size,
+                CFrame = CFrame.new(wc + Vector3.new(0, 0, offsetZ))
+                    * CFrame.Angles(0, math.rad(90), 0),
+                Color = color,
+                Material = mat or Enum.Material.SmoothPlastic,
+            }, folder)
+            d.Shape = Enum.PartType.Cylinder
+            return d
+        end
+        faceDisc(Vector3.new(2.4, 26, 26), -1.4, P.Wood, Enum.Material.Wood) -- rim
+        faceDisc(Vector3.new(2.6, 23, 23), 0, P.Plaster) -- wheel face
+        -- 8 colored WEDGES radiating on the face (thin blocks rotated about Z, pushed out + proud of face).
         local spokeColors = {
             accent,
             P.RedTrim,
@@ -563,35 +614,60 @@ local function buildStructure(folder, pos, tagName, label, accent)
             P.Grass,
         }
         for i = 0, 7 do
-            local angle = math.rad(i * 45)
-            local spokeCF = CFrame.new(pos + Vector3.new(0, 18, 0))
-                * CFrame.Angles(angle, 0, math.rad(90))
-                * CFrame.new(0, 0, -4.5)
+            local angle = math.rad(i * 45 + 22.5)
+            local wedgeCF = CFrame.new(wc + Vector3.new(0, 0, 1.4))
+                * CFrame.Angles(0, 0, angle)
+                * CFrame.new(0, 5.4, 0)
             part({
-                Size = Vector3.new(2.2, 1.5, 9),
-                CFrame = spokeCF,
+                Size = Vector3.new(7.4, 10.4, 0.5),
+                CFrame = wedgeCF,
                 Color = spokeColors[i + 1],
                 Material = Enum.Material.SmoothPlastic,
             }, folder)
         end
-        -- Small pointer WEDGE at the 12-o'clock position (above the wheel)
+        -- Gold spoke dividers between wedges (thin radial bars) for a crisp segmented look.
+        for i = 0, 7 do
+            local angle = math.rad(i * 45)
+            local barCF = CFrame.new(wc + Vector3.new(0, 0, 1.7))
+                * CFrame.Angles(0, 0, angle)
+                * CFrame.new(0, 5.6, 0)
+            part({
+                Size = Vector3.new(0.7, 11.4, 0.5),
+                CFrame = barCF,
+                Color = P.Gold,
+                Material = Enum.Material.Metal,
+            }, folder)
+        end
+        -- Center bolt cap (a small gold disc on the face).
+        faceDisc(Vector3.new(1, 4.5, 4.5), 2, P.Gold, Enum.Material.Metal)
+        -- Bold POINTER at 12 o'clock: a gold diamond marker pointing down into the wheel.
         part({
-            Size = Vector3.new(2.5, 3, 2.5),
-            Position = pos + Vector3.new(0, 25, -1),
+            Size = Vector3.new(3.6, 3.6, 1.4),
+            CFrame = CFrame.new(wc + Vector3.new(0, 13.5, 1.6)) * CFrame.Angles(0, 0, math.rad(45)),
             Color = P.Gold,
+            Material = Enum.Material.Metal,
         }, folder)
-        -- Center cap disc (decorative bolt face)
-        local capCF = CFrame.new(pos + Vector3.new(0, 18, -6.6)) * CFrame.Angles(0, 0, math.rad(90))
-        local cap = part({ Size = Vector3.new(1.2, 3, 3), CFrame = capCF, Color = P.Gold }, folder)
-        cap.Shape = Enum.PartType.Cylinder
     else
         -- STALL KIOSK (NetShop / PremiumShop)
-        -- Wood counter slab (front face of the kiosk)
+        -- Chunky wood COUNTER: a solid body + an accent front kick-panel + an overhanging stone top lip
+        -- (reads as a real shop counter, not a thin slab).
         part({
-            Size = Vector3.new(13, 4, 5),
-            Position = pos + Vector3.new(0, 7, 3),
+            Size = Vector3.new(14, 6, 6),
+            Position = pos + Vector3.new(0, 7.5, 3.5),
             Color = P.Beam,
             Material = Enum.Material.Wood,
+        }, folder)
+        part({
+            Size = Vector3.new(13, 3.5, 0.6),
+            Position = pos + Vector3.new(0, 7, 6.6),
+            Color = accent,
+            Material = Enum.Material.SmoothPlastic,
+        }, folder)
+        part({
+            Size = Vector3.new(15.5, 1.2, 7.4),
+            Position = pos + Vector3.new(0, 10.7, 3.5),
+            Color = P.Stone,
+            Material = Enum.Material.SmoothPlastic,
         }, folder)
         -- 4 corner posts (bottom at y=6.5 = tier-3 pedestal top; centre = 6.5 + 8 = 14.5)
         for _, sx in ipairs({ -1, 1 }) do
@@ -604,25 +680,33 @@ local function buildStructure(folder, pos, tagName, label, accent)
                 }, folder)
             end
         end
-        -- PEAKED canopy: two sloped slabs meeting at a ridge above the posts (posts top at 22.5)
-        -- Left half slopes up-right; right half slopes up-left (mirrored via CFrame.Angles)
+        -- PEAKED canopy: two sloped slabs meeting at a ridge above the posts (better-proportioned, not
+        -- oversized) + a ridge beam capping the seam.
         for _, sx in ipairs({ -1, 1 }) do
-            local slopeCF = CFrame.new(pos + Vector3.new(sx * 3.5, 23.5, 0))
-                * CFrame.Angles(0, 0, sx * math.rad(25))
+            local slopeCF = CFrame.new(pos + Vector3.new(sx * 3.6, 23.5, 0))
+                * CFrame.Angles(0, 0, sx * math.rad(28))
             part({
-                Size = Vector3.new(8, 1.2, 15),
+                Size = Vector3.new(7.4, 1.2, 15),
                 CFrame = slopeCF,
                 Color = accent,
                 Material = Enum.Material.Fabric,
             }, folder)
         end
-        -- Plaster stripe along the canopy front eave
         part({
-            Size = Vector3.new(15, 1, 2),
-            Position = pos + Vector3.new(0, 21, 7.2),
-            Color = P.Plaster,
-            Material = Enum.Material.Fabric,
+            Size = Vector3.new(1.4, 1.4, 15.5),
+            Position = pos + Vector3.new(0, 25.2, 0),
+            Color = P.Wood,
+            Material = Enum.Material.Wood,
         }, folder)
+        -- Scalloped striped VALANCE hanging off the front eave (alternating accent / plaster tabs).
+        for i = -3, 3 do
+            part({
+                Size = Vector3.new(2, 2.2, 0.6),
+                Position = pos + Vector3.new(i * 2.1, 20.4, 7.3),
+                Color = (i % 2 == 0) and accent or P.Plaster,
+                Material = Enum.Material.Fabric,
+            }, folder)
+        end
         -- Back shelf board
         part({
             Size = Vector3.new(13, 1, 4),
