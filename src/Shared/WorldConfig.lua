@@ -91,27 +91,26 @@ WorldConfig.Terrain = {
 -- this richer, capped cover instead: tall grass + bushes + hedges + voxel tree clusters + rocks, giving
 -- wild brainrots places to roam + hide. Grass/bushes/hedges are CanCollide=false (walk-through cover, so
 -- the spawn area stays walkable); tree clusters + rocks collide but avoid the spawn cone. Capped for perf.
--- DENSE FOREST cover (Sunny Meadow = tier 1). All anchored/static (no scripts). The non-colliding
--- floor cover (grass, ferns, bushes, hedges, logs, mushrooms, flowers) packs the ring from just outside
--- the plaza (CoverInnerRadius) so the area AROUND the bases is lush; colliding props (tree clusters,
--- pines, stumps, rocks) start past the base/shop footprints (ColliderInnerRadius) and skip the spawn
--- cone / boss arena / elevator / leaderboard alcove AND every player base (BaseClearRadius), so they
--- never block a doorway, the plaza, or a stall. Counts tuned to ~1,650 anchored parts.
+-- CLEAN voxel forest (Sunny Meadow = tier 1). All anchored/static. TREES are the hero: lots of tidy
+-- clean trees + pines give the dense-forest read, on bright grass with only SPARSE underbrush. The old
+-- pass drowned the trees under ~1,200 small scattered floor parts (grass/ferns/hedges/flowers) that read
+-- as an overlapping jumble -- those are cut way down. Colliding props skip the spawn cone / arena /
+-- elevator / leaderboard / bases / shops (so nothing blocks a doorway or stall). ~850 anchored parts.
 WorldConfig.MeadowFoliage = {
     CoverInnerRadius = 118, -- non-colliding cover starts just outside the cobblestone plaza (r115/rim 119)
     ColliderInnerRadius = 138, -- colliding props start just past the base (~r135) + shop (~r133) footprints
     BaseClearRadius = 38, -- per-base exclusion circle (covers the ~35-stud base footprint + a margin)
-    GrassTufts = 240, -- cheap non-colliding tall-grass blades (dense ground cover, incl. near spawn)
-    Bushes = 120, -- rounded non-colliding bushes (cover to hide near/behind)
-    Hedges = 18, -- low non-colliding hedge rows (cover lines to weave around)
-    TreeClusters = 34, -- small voxel "forests" (2-4 round trees each), colliding, away from spawn cone
-    PineTrees = 42, -- tall colliding conifers that thicken the canopy, away from the spawn cone
-    Rocks = 30, -- mossy colliding rocks (accents), away from the spawn cone
-    Stumps = 16, -- low colliding cut stumps among the trees, away from the spawn cone
-    FallenLogs = 20, -- non-colliding mossy logs lying on the floor (walk-through detail)
-    Ferns = 110, -- non-colliding fern fronds blanketing the forest floor
-    Mushrooms = 60, -- non-colliding mushroom accents on the floor
-    FlowerPatches = 38, -- non-colliding color speckle (small bloom clusters)
+    GrassTufts = 40, -- a FEW short grass blades (the grass material already reads; tufts were just noise)
+    Bushes = 36, -- sparse rounded non-colliding bushes (occasional underbrush, not a carpet)
+    Hedges = 0, -- removed (the hedge rows read as messy cube walls)
+    TreeClusters = 42, -- the HERO: tight clusters of 2-3 clean trees -> a dense, even forest
+    PineTrees = 34, -- tall conifers thickening the canopy, away from the spawn cone
+    Rocks = 22, -- mossy colliding rocks (accents), away from the spawn cone
+    Stumps = 10, -- low colliding cut stumps among the trees, away from the spawn cone
+    FallenLogs = 8, -- a few non-colliding mossy logs (walk-through detail)
+    Ferns = 0, -- removed (the biggest floor-noise source -- ~330 overlapping fronds)
+    Mushrooms = 14, -- sparse mushroom accents on the floor
+    FlowerPatches = 14, -- sparse color speckle (small bloom clusters)
 }
 -- ── STACKED-LEVEL LAYOUT (a vertical TOWER: bases on the bottom 'start' platform; each biome a floating
 -- disc platform stacked ABOVE the previous with a big height gap; ride the ELEVATOR up to the next level.

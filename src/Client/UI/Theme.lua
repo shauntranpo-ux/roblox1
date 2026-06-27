@@ -77,7 +77,7 @@ Theme.Stroke = { Width = 3.5, Color = Theme.Colors.Outline, Transparency = 0.1 }
 Theme.Border = { Color = Color3.fromRGB(232, 236, 252), Width = 4, Transparency = 0.12 }
 Theme.BodyTransparency = 0.04 -- panel body is a near-opaque DARK navy (bubbly reference look)
 Theme.RowTransparency = 0 -- crisp opaque white cards
-Theme.HeaderHeight = 54
+Theme.HeaderHeight = 62 -- taller, chunkier glossy header bar (closer to the reference)
 
 -- ── Soft drop shadow + glow rim (the cohesive depth treatment used by every panel/chip) ──────
 -- softShadow: an ImageLabel using Theme.Assets.ShadowImage (a 9-slice soft-shadow id) when supplied,
