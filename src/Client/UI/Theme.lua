@@ -25,17 +25,17 @@ Theme.Font = Theme.FontDisplay
 --     and the bright voxel accents (DarkPill chips, Gold/HpFill/XpFill, ...). White-fill+dark-rim text
 --     reads on BOTH light and dark, so a panel label is legible even before it is upgraded to Ink.
 Theme.Colors = {
-    -- ── Light cloud panel interiors ─────────────────────────────────────────────────────────
-    Background = Color3.fromRGB(245, 242, 255), -- panel BODY base (soft lavender-white cloud)
-    Cloud = Color3.fromRGB(245, 242, 255), -- alias of Background (the cloud body)
-    CloudTop = Color3.fromRGB(255, 254, 255), -- panel body gradient TOP (bright gloss)
-    Panel = Color3.fromRGB(236, 232, 252), -- a deeper cloud for sub-surfaces (dropdown lists, wells)
-    Card = Color3.fromRGB(255, 255, 255), -- near-white item/row card fill
-    CardTop = Color3.fromRGB(255, 255, 255), -- card gloss top
-    Row = Color3.fromRGB(226, 221, 247), -- soft periwinkle (idle pill tabs / secondary chips)
-    Ink = Color3.fromRGB(74, 58, 122), -- PRIMARY text on light interiors (deep indigo)
-    InkSoft = Color3.fromRGB(132, 118, 168), -- muted ink (subtext on light)
-    InkHalo = Color3.fromRGB(255, 255, 255), -- soft light halo behind ink text (separates on pastels)
+    -- ── DARK NAVY panel interiors (bubbly reference look: dark body + bright glossy header + white text) ─
+    Background = Color3.fromRGB(40, 44, 68), -- panel BODY base (deep navy)
+    Cloud = Color3.fromRGB(40, 44, 68), -- alias of Background (the body)
+    CloudTop = Color3.fromRGB(58, 64, 98), -- panel body gradient TOP (lighter navy gloss)
+    Panel = Color3.fromRGB(30, 34, 54), -- a deeper navy for sub-surfaces (dropdown lists, wells)
+    Card = Color3.fromRGB(50, 55, 82), -- mid-navy item/row card fill (white text + bright rim read on it)
+    CardTop = Color3.fromRGB(66, 72, 106), -- card gloss top
+    Row = Color3.fromRGB(58, 62, 92), -- navy idle pill tab / secondary chip
+    Ink = Color3.fromRGB(238, 240, 252), -- PRIMARY text on the dark interiors (near-white)
+    InkSoft = Color3.fromRGB(176, 182, 214), -- muted subtext on dark
+    InkHalo = Color3.fromRGB(18, 20, 36), -- DARK rim behind the (now light) ink text -> reads on dark
 
     Accent = Color3.fromRGB(167, 120, 255), -- candy purple (primary accent)
     Positive = Color3.fromRGB(74, 232, 150), -- income green
@@ -71,8 +71,11 @@ Theme.Radius = {
     Bubble = UDim.new(0, 18), -- the unified HUD squircle "bubble" chip radius
     Pill = UDim.new(1, 0), -- fully rounded pill
 }
-Theme.Stroke = { Width = 3, Color = Theme.Colors.Outline, Transparency = 0.1 } -- WHITE-text/over-world rim
-Theme.BodyTransparency = 0.04 -- panel body is a near-opaque LIGHT cloud (was 0.82 see-through grape)
+Theme.Stroke = { Width = 3.5, Color = Theme.Colors.Outline, Transparency = 0.1 } -- WHITE-text/over-world rim
+-- Bright chunky border used by panels/cards for the bubbly reference look (thick light rim around the
+-- dark navy bodies). Distinct from Stroke (the dark over-world text rim).
+Theme.Border = { Color = Color3.fromRGB(232, 236, 252), Width = 4, Transparency = 0.12 }
+Theme.BodyTransparency = 0.04 -- panel body is a near-opaque DARK navy (bubbly reference look)
 Theme.RowTransparency = 0 -- crisp opaque white cards
 Theme.HeaderHeight = 54
 
@@ -109,9 +112,9 @@ Theme.Gloss = {
 
 -- ── Per-panel accent gradients (the glossy header bar color, top -> bottom) ─────────────────
 Theme.Accents = {
-    Default = { Top = Color3.fromRGB(180, 110, 255), Bottom = Color3.fromRGB(120, 55, 215) },
-    Shop = { Top = Color3.fromRGB(255, 214, 92), Bottom = Color3.fromRGB(240, 160, 32) }, -- gold
-    Index = { Top = Color3.fromRGB(255, 130, 205), Bottom = Color3.fromRGB(224, 66, 150) }, -- pink
+    Default = { Top = Color3.fromRGB(190, 108, 255), Bottom = Color3.fromRGB(124, 44, 232) },
+    Shop = { Top = Color3.fromRGB(255, 208, 56), Bottom = Color3.fromRGB(248, 146, 16) }, -- vivid gold
+    Index = { Top = Color3.fromRGB(255, 116, 212), Bottom = Color3.fromRGB(236, 48, 152) }, -- vivid pink
     Inventory = { Top = Color3.fromRGB(96, 226, 170), Bottom = Color3.fromRGB(36, 176, 138) }, -- teal
     Trade = { Top = Color3.fromRGB(96, 176, 255), Bottom = Color3.fromRGB(46, 120, 232) }, -- blue
     Rebirth = { Top = Color3.fromRGB(190, 120, 255), Bottom = Color3.fromRGB(132, 60, 232) }, -- purple
@@ -196,15 +199,16 @@ Theme.TextStyle = {
     ShadowTransparency = 0.1, -- tightened for legibility on near-transparent bubble panels
 }
 
--- INK variant: dark indigo fill + a soft light halo (no heavy black rim). Use on LIGHT panel interiors
--- (item names, descriptions, values) via Builder.styleText(label, { ink = true }).
+-- INK variant: now LIGHT fill + a DARK rim, for text on the DARK navy panel interiors (item names,
+-- descriptions, values) via Builder.styleText(label, { ink = true }). Ink/InkHalo were flipped (light
+-- text / dark halo), so every existing ink call-site reads correctly on the dark body with no per-file edit.
 Theme.TextStyleInk = {
     Font = Theme.FontDisplay,
-    Fill = Theme.Colors.Ink,
-    StrokeColor = Theme.Colors.InkHalo,
-    StrokeThickness = 1.5, -- soft light halo
-    StrokeTransparency = 0.55,
-    ShadowTransparency = 1, -- no dark drop shadow on light
+    Fill = Theme.Colors.Ink, -- near-white
+    StrokeColor = Theme.Colors.InkHalo, -- dark rim
+    StrokeThickness = 2,
+    StrokeTransparency = 0.25,
+    ShadowTransparency = 0.4, -- soft dark drop shadow for separation on the navy body
 }
 
 -- ── VM-THEME asset slots (DEV SUPPLIES THESE IDS; everything falls back cleanly when 0/empty) ──
