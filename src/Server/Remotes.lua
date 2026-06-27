@@ -77,6 +77,8 @@ Remotes.FreeRewardUpdate = nil -- RemoteEvent : server -> a client, a ping that 
 -- M12.3 inventory. Client sends a flag-toggle INTENT only (action + unit id + value); the server owns
 -- the flags. (Bulk-sell reuses SellRequest "Selection"; mass-fuse reuses FuseRequest "MassFuse".)
 Remotes.InventoryAction = nil -- RemoteFunction : client -> server (action, unitId, value) -> { Result, Locked?/Favorited?/Message }
+Remotes.GetUpgrades = nil -- RemoteFunction : client -> server () -> { Result, State?/Message } (upgrades cash-sink)
+Remotes.UpgradeAction = nil -- RemoteFunction : client -> server ({ Key }) -> { Result, State?/Message } (buy a level)
 -- M13.1 referrals. Client sends INTENT only ({ "get" | "invitelog" }); the server owns attribution +
 -- rewards. (The actual invite is client-side SocialService:PromptGameInvite.)
 Remotes.ReferralAction = nil -- RemoteFunction : client -> server (action) -> { Result, State?/Message }
@@ -152,6 +154,8 @@ Remotes.ExpectedNames = {
     "FreeRewardAction",
     "FreeRewardUpdate",
     "InventoryAction",
+    "GetUpgrades",
+    "UpgradeAction",
     "ReferralAction",
     "ReferralUpdate",
     "SocialAction",
@@ -343,6 +347,14 @@ function Remotes.Init()
     inventoryAction.Name = "InventoryAction"
     inventoryAction.Parent = folder
 
+    local getUpgrades = Instance.new("RemoteFunction")
+    getUpgrades.Name = "GetUpgrades"
+    getUpgrades.Parent = folder
+
+    local upgradeAction = Instance.new("RemoteFunction")
+    upgradeAction.Name = "UpgradeAction"
+    upgradeAction.Parent = folder
+
     local referralAction = Instance.new("RemoteFunction")
     referralAction.Name = "ReferralAction"
     referralAction.Parent = folder
@@ -430,6 +442,8 @@ function Remotes.Init()
     Remotes.FreeRewardAction = freeRewardAction
     Remotes.FreeRewardUpdate = freeRewardUpdate
     Remotes.InventoryAction = inventoryAction
+    Remotes.GetUpgrades = getUpgrades
+    Remotes.UpgradeAction = upgradeAction
     Remotes.ReferralAction = referralAction
     Remotes.ReferralUpdate = referralUpdate
     Remotes.SocialAction = socialAction
