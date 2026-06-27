@@ -73,7 +73,8 @@ function HUD.mount(context, actions)
     local stack = Builder.create("Frame", {
         AnchorPoint = Vector2.new(0, 1),
         Position = UDim2.fromScale(0.012, 0.86),
-        Size = UDim2.fromScale(0.3, 0.2),
+        Size = UDim2.new(0.3, 0, 0, 0), -- width scales; height HUGS the rows (no dead space)
+        AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundColor3 = Theme.Colors.DarkPill, -- grouped panel backing (was floating text)
         BackgroundTransparency = 0.22,
         BorderSizePixel = 0,
@@ -88,11 +89,11 @@ function HUD.mount(context, actions)
         Builder.create("UIListLayout", {
             Padding = UDim.new(0, 6),
             SortOrder = Enum.SortOrder.LayoutOrder,
-            VerticalAlignment = Enum.VerticalAlignment.Bottom,
+            HorizontalAlignment = Enum.HorizontalAlignment.Left,
         }),
         Builder.create("UISizeConstraint", {
-            MinSize = Vector2.new(200, 96),
-            MaxSize = Vector2.new(330, 150),
+            MinSize = Vector2.new(210, 0),
+            MaxSize = Vector2.new(340, 200),
         }),
     })
     Builder.softShadow(stack, { radius = Theme.Radius.Card, spread = 10 })

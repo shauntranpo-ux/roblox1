@@ -794,13 +794,13 @@ local function buildHub(folder)
     local hub = WorldConfig.Hub
     local c = hub.Center
 
-    -- COURTYARD: a warm cobblestone disc (radius 115) instead of a 360x360 white slab, so the
-    -- green meadow disc shows as a ring around the plaza. The base ring (r=100) sits right at
-    -- the courtyard edge -- deliberate town-square feel. A clay Roof border ring frames it.
-    disc(115, 0.4, S.GroundThickness, P.Stone, Enum.Material.Cobblestone, folder)
-    -- clay courtyard border ring (a slightly larger disc subtracted visually by the cobblestone -- two
-    -- thin disc halves make a perimeter strip; one Cylinder ring at r=117, thickness=4)
-    disc(119, 0.5, 2, P.Roof, Enum.Material.Slate, folder)
+    -- COURTYARD: a warm cobblestone disc (radius 115) instead of a 360x360 white slab, so the green
+    -- meadow disc shows as a ring around the plaza. The base ring (r=100) sits right at the courtyard
+    -- edge -- deliberate town-square feel. The clay Roof ring is built SLIGHTLY LOWER + larger so it
+    -- peeks out only as a thin rim; the cobblestone disc sits ON TOP (else the clay disc, being both
+    -- bigger AND higher, floods the entire plaza red -- the old bug).
+    disc(119, 0.34, 2, P.Roof, Enum.Material.Slate, folder) -- clay rim (lower, larger -> shows as a ring)
+    disc(115, 0.5, S.GroundThickness, P.Stone, Enum.Material.Cobblestone, folder) -- cobblestone ON TOP
 
     -- SpawnLocation (players spawn on the plaza; PlotService then moves them to their base).
     local spawn = Instance.new("SpawnLocation")
