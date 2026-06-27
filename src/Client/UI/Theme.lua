@@ -92,6 +92,21 @@ Theme.Rim = {
     GlowTransparency = 0.78, -- the outer halo frame
 }
 
+-- ── Pillowy DEPTH (the "not-flat" treatment) ────────────────────────────────────────────────
+-- Builder.applyDepth multiplies a SOLID surface by this vertical gradient (top bright -> bottom
+-- shaded) so flat color reads as a rounded 3D pillow, and lays a glossy top sheen that fades to
+-- nothing by mid-height. The multiply tints are < white, so they DARKEN the lower half of whatever
+-- base color the surface carries (works on white cards AND bright accent buttons alike). Tune the
+-- whole game's depth from here.
+Theme.Gloss = {
+    TopTint = Color3.fromRGB(255, 255, 255), -- top edge catches the light (no change)
+    MidTint = Color3.fromRGB(246, 245, 250), -- gentle rolloff through the middle
+    BottomTint = Color3.fromRGB(202, 197, 214), -- bottom ~22% cool shade -> the pillow falloff
+    SheenTop = 0.4, -- top sheen highlight strength (lower = glossier); fades to invisible by mid
+    SheenHeight = 0.52, -- fraction of the surface the gloss sheen covers
+    InnerHighlight = 0.55, -- thin bright top-edge inner highlight transparency (the lit rim)
+}
+
 -- ── Per-panel accent gradients (the glossy header bar color, top -> bottom) ─────────────────
 Theme.Accents = {
     Default = { Top = Color3.fromRGB(180, 110, 255), Bottom = Color3.fromRGB(120, 55, 215) },
