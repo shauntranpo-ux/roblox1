@@ -106,7 +106,7 @@ local function gridCard(order, opts)
             TextScaled = true,
             Parent = portrait,
         }, { Builder.padding(16) })
-        Builder.applyChrome(lock)
+        Builder.styleText(lock, { ink = true })
     end
 
     local nameLabel = Builder.create("TextLabel", {
@@ -120,7 +120,7 @@ local function gridCard(order, opts)
         TextTruncate = Enum.TextTruncate.AtEnd,
         Parent = card,
     })
-    Builder.applyChrome(nameLabel, { stroke = 2 })
+    Builder.styleText(nameLabel, { ink = true, keepColor = true })
 
     Builder.create("TextLabel", {
         Position = UDim2.fromOffset(0, 100),
@@ -168,7 +168,7 @@ local function setCard(order, set, state)
         TextWrapped = true,
         Parent = card,
     })
-    Builder.applyChrome(nameLabel, { stroke = 2 })
+    Builder.styleText(nameLabel, { ink = true, keepColor = true })
 
     Builder.create("TextLabel", {
         Position = UDim2.fromOffset(0, 34),
@@ -222,7 +222,7 @@ local function setCard(order, set, state)
             TextSize = 14,
             Parent = card,
         })
-        Builder.applyChrome(stateLabel, { stroke = 2 })
+        Builder.styleText(stateLabel, { ink = true, keepColor = true })
     end
 
     card.Parent = grid
@@ -355,7 +355,7 @@ local function renderBottom(state)
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = bottomBar,
     })
-    Builder.applyChrome(label, { font = Theme.FontBody, stroke = 2, softShadow = false })
+    Builder.styleText(label, { ink = true, keepColor = true, font = Theme.FontBody })
 
     local barBg = Builder.create("Frame", {
         Position = UDim2.fromOffset(2, 30),

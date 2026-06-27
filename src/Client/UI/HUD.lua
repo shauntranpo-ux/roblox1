@@ -169,12 +169,11 @@ function HUD.mount(context, actions)
     -- ===== BOTTOM-RIGHT LUCK =====
     local luckPill = Builder.pill({
         AnchorPoint = Vector2.new(1, 1),
-        Position = UDim2.fromScale(0.988, 0.86),
+        Position = UDim2.new(1, -76, 0.86, 0), -- inset 76px from the right edge -> clear of the edge rail
         Size = UDim2.fromScale(0.16, 0.07),
         radius = Theme.Radius.Bubble,
         Parent = gui,
     })
-    Builder.glossify(luckPill, "Codes")
     Builder.create(
         "UISizeConstraint",
         { MinSize = Vector2.new(96, 40), MaxSize = Vector2.new(190, 70), Parent = luckPill }
@@ -195,7 +194,7 @@ function HUD.mount(context, actions)
         Size = UDim2.fromScale(0.6, 0.8),
         BackgroundTransparency = 1,
         Text = "x1",
-        TextColor3 = Theme.Colors.Outline,
+        TextColor3 = Theme.Colors.White,
         TextScaled = true,
         TextXAlignment = Enum.TextXAlignment.Right,
         Parent = luckPill,
@@ -206,12 +205,11 @@ function HUD.mount(context, actions)
     -- ===== BOTTOM-RIGHT TEAM POWER (M11.3-combat: combat strength of the equipped team) =====
     local powerPill = Builder.pill({
         AnchorPoint = Vector2.new(1, 1),
-        Position = UDim2.fromScale(0.988, 0.78),
+        Position = UDim2.new(1, -76, 0.78, 0),
         Size = UDim2.fromScale(0.16, 0.07),
         radius = Theme.Radius.Bubble,
         Parent = gui,
     })
-    Builder.glossify(powerPill, "Loadout")
     Builder.create(
         "UISizeConstraint",
         { MinSize = Vector2.new(96, 40), MaxSize = Vector2.new(190, 70), Parent = powerPill }
@@ -232,7 +230,7 @@ function HUD.mount(context, actions)
         Size = UDim2.fromScale(0.6, 0.8),
         BackgroundTransparency = 1,
         Text = "0",
-        TextColor3 = Theme.Colors.Outline,
+        TextColor3 = Theme.Colors.White,
         TextScaled = true,
         TextXAlignment = Enum.TextXAlignment.Right,
         Parent = powerPill,
@@ -243,12 +241,11 @@ function HUD.mount(context, actions)
     -- ===== BOTTOM-RIGHT INVITE BOOST (M13.1: "+X% Invite Friends") =====
     local invitePill = Builder.pill({
         AnchorPoint = Vector2.new(1, 1),
-        Position = UDim2.fromScale(0.988, 0.70),
+        Position = UDim2.new(1, -76, 0.70, 0),
         Size = UDim2.fromScale(0.16, 0.07),
         radius = Theme.Radius.Bubble,
         Parent = gui,
     })
-    Builder.glossify(invitePill, "Referral")
     Builder.create(
         "UISizeConstraint",
         { MinSize = Vector2.new(96, 40), MaxSize = Vector2.new(190, 70), Parent = invitePill }
@@ -269,7 +266,7 @@ function HUD.mount(context, actions)
         Size = UDim2.fromScale(0.6, 0.8),
         BackgroundTransparency = 1,
         Text = "+0%",
-        TextColor3 = Theme.Colors.Outline,
+        TextColor3 = Theme.Colors.White,
         TextScaled = true,
         TextXAlignment = Enum.TextXAlignment.Right,
         Parent = invitePill,
@@ -280,7 +277,7 @@ function HUD.mount(context, actions)
     -- ===== BOTTOM-CENTER NAV BAR (panel access -- kept; restyled as the hotbar) =====
     local bar = Builder.create("Frame", {
         AnchorPoint = Vector2.new(0.5, 1),
-        Position = UDim2.fromScale(0.5, 0.98),
+        Position = UDim2.new(0.5, 0, 1, -12), -- fixed 12px off the bottom (top sits ~90px up, predictable)
         Size = UDim2.fromScale(0.62, 0.1),
         BackgroundTransparency = 1,
         Parent = gui,

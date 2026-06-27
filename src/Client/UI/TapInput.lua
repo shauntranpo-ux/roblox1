@@ -232,7 +232,7 @@ function TapInput.mount(context)
 
     panel = Builder.create("Frame", {
         AnchorPoint = Vector2.new(0.5, 1),
-        Position = UDim2.new(0.5, 0, 1, -16),
+        Position = UDim2.new(0.5, 0, 1, -104), -- lifted so the TAP button clears the bottom nav bar
         Size = UDim2.fromOffset(220, 200),
         BackgroundTransparency = 1,
         Visible = false,
@@ -260,7 +260,7 @@ function TapInput.mount(context)
     tapButton = Builder.create("TextButton", {
         AnchorPoint = Vector2.new(0.5, 1),
         Position = UDim2.fromScale(0.5, 1),
-        Size = UDim2.fromOffset(150, 150),
+        Size = UDim2.fromOffset(138, 138),
         BackgroundColor3 = Theme.accentColor("Default"),
         AutoButtonColor = false,
         Font = Theme.FontDisplay,

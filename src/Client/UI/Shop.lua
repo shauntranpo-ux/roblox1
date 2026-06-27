@@ -101,7 +101,7 @@ local function buildRow(item, order, parent)
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = row,
     })
-    Builder.applyChrome(nameLabel, { stroke = 2 })
+    Builder.styleText(nameLabel, { ink = true, keepColor = true }) -- clean ink, not a heavy dark outline
 
     Builder.create("TextLabel", {
         Name = "Detail",
