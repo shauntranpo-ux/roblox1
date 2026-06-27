@@ -86,48 +86,34 @@ local function disc(r, topY, thickness, color, material, parent)
     return d
 end
 
--- A leafy ROUND tree: a slim wood trunk + a rounded canopy of 3 overlapping leaf BALLS in graded green
--- shades, with gentle per-tree height/scale variation (seeded rng). Reads as a real tree, not a cube.
+-- A CLEAN voxel tree: a tall blocky trunk + a tidy 2-layer cube canopy (wide bottom block + a smaller
+-- centered top block), ALIGNED with no random offsets so each tree reads as ONE clean Minecraft-style
+-- object instead of a lumpy jumble. Per-tree scale variation (seeded rng). 3 parts.
 local function tree(parent, pos, trunkColor, leafColor)
-    local scale = rng:NextNumber(0.9, 1.3)
-    local trunkH = S.TreeHeight * 0.5 * scale
-    part({ -- thick blocky trunk
+    local scale = rng:NextNumber(0.95, 1.35)
+    local trunkH = S.TreeHeight * 0.6 * scale
+    part({ -- tall blocky trunk (visible below the canopy)
         Size = Vector3.new(4, trunkH, 4),
         Color = trunkColor or P.Wood,
         Material = Enum.Material.Wood,
         Position = pos + Vector3.new(0, trunkH / 2, 0),
     }, parent)
-    -- CHUNKY voxel crown: a big bright-green CORE cube, four offset cubes to round it, and a smaller cap,
-    -- with the offset cubes a shade darker so the crown reads as layered leaf blocks (Minecraft style).
-    local bright = leafColor or Color3.fromRGB(96, 206, 86)
-    local dark = bright:Lerp(Color3.fromRGB(40, 130, 60), 0.45)
-    local core = S.TreeHeight * 0.6 * scale
-    local cy = trunkH + core * 0.42
-    part({ -- core
-        Size = Vector3.new(core, core * 0.82, core),
-        Color = bright,
+    local bright = leafColor or Color3.fromRGB(102, 208, 92)
+    local dark = bright:Lerp(Color3.fromRGB(48, 142, 70), 0.4)
+    local w = S.TreeHeight * 0.64 * scale
+    local h = S.TreeHeight * 0.36 * scale
+    local baseY = trunkH + h * 0.42 -- canopy sits onto the trunk top
+    part({ -- wide bottom layer (a shade darker)
+        Size = Vector3.new(w, h, w),
+        Color = dark,
         Material = Enum.Material.Grass,
-        Position = pos + Vector3.new(0, cy, 0),
+        Position = pos + Vector3.new(0, baseY, 0),
     }, parent)
-    local side = core * 0.62
-    for _, off in ipairs({
-        Vector2.new(1, 0),
-        Vector2.new(-1, 0),
-        Vector2.new(0, 1),
-        Vector2.new(0, -1),
-    }) do
-        part({ -- four side blocks rounding the crown (a shade darker = layered look)
-            Size = Vector3.new(side, side, side),
-            Color = dark,
-            Material = Enum.Material.Grass,
-            Position = pos + Vector3.new(off.X * core * 0.5, cy - core * 0.12, off.Y * core * 0.5),
-        }, parent)
-    end
-    part({ -- bright top cap
-        Size = Vector3.new(core * 0.66, core * 0.5, core * 0.66),
+    part({ -- smaller bright top layer, centered
+        Size = Vector3.new(w * 0.64, h * 0.82, w * 0.64),
         Color = bright,
         Material = Enum.Material.Grass,
-        Position = pos + Vector3.new(0, cy + core * 0.55, 0),
+        Position = pos + Vector3.new(0, baseY + h * 0.7, 0),
     }, parent)
 end
 
@@ -1515,8 +1501,10 @@ local function meadowFoliage(folder, cfg)
         end
         local a, r, pos = pick(false, colliderInner)
         if not blockedForColliders(a, r) then
-            for _ = 1, math.floor(rng:NextNumber(2, 4)) do
-                local off = Vector3.new(rng:NextNumber(-7, 7), 0, rng:NextNumber(-7, 7))
+            -- 2-3 clean trees spaced WIDE enough (~16-stud spread) that their canopies stay distinct
+            -- instead of merging into a blob -> a tidy, even forest rather than a jumble.
+            for _ = 1, math.floor(rng:NextNumber(2, 3.99)) do
+                local off = Vector3.new(rng:NextNumber(-16, 16), 0, rng:NextNumber(-16, 16))
                 tree(folder, pos + off, P.Wood, P.Grass:Lerp(Color3.fromRGB(122, 202, 92), 0.4))
             end
             clusters += 1
