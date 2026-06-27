@@ -48,9 +48,16 @@ function NetService.EffectiveCatch(player)
     local hasGp = player:GetAttribute("ProNet") == true
     local gpHold = hasGp and NetConfig.Gamepass.HoldReduce or 0
     local gpRange = hasGp and NetConfig.Gamepass.RangeAdd or 0
+    -- UpgradeService catch upgrades (server-set attributes; default 0). Additive into the clamped sums.
+    local upHoldAttr = player:GetAttribute("UpgradeHoldReduce")
+    local upRangeAttr = player:GetAttribute("UpgradeRangeAdd")
+    local upHold = type(upHoldAttr) == "number" and upHoldAttr or 0
+    local upRange = type(upRangeAttr) == "number" and upRangeAttr or 0
 
-    local holdReduce = math.clamp(tier.HoldReduce + gpHold + huntSpeed, 0, NetConfig.MaxHoldReduce)
-    local rangeAdd = math.clamp(tier.RangeAdd + gpRange + huntRange, 0, NetConfig.MaxRangeAdd)
+    local holdReduce =
+        math.clamp(tier.HoldReduce + gpHold + huntSpeed + upHold, 0, NetConfig.MaxHoldReduce)
+    local rangeAdd =
+        math.clamp(tier.RangeAdd + gpRange + huntRange + upRange, 0, NetConfig.MaxRangeAdd)
     local autoCatch = math.clamp((tier.AutoCatch or 0) + huntAuto, 0, NetConfig.MaxAutoCatch)
     local fleeResist = math.clamp(tier.FleeResist or 0, 0, NetConfig.MaxFleeResist)
     return {

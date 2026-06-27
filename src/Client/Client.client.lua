@@ -43,6 +43,7 @@ local WildCatch = require(UI.WildCatch)
 local Biomes = require(UI.Biomes)
 local SharedEventHud = require(UI.SharedEventHud)
 local NetShop = require(UI.NetShop)
+local UpgradesShop = require(UI.UpgradesShop)
 local Objective = require(UI.Objective)
 local QuestLog = require(UI.QuestLog)
 local FreeRewards = require(UI.FreeRewards)
@@ -60,6 +61,8 @@ local remotes = {
     PurchaseRequest = remotesFolder:WaitForChild("PurchaseRequest"),
     GetInventory = remotesFolder:WaitForChild("GetInventory"),
     InventoryAction = remotesFolder:WaitForChild("InventoryAction"),
+    GetUpgrades = remotesFolder:WaitForChild("GetUpgrades"),
+    UpgradeAction = remotesFolder:WaitForChild("UpgradeAction"),
     Notify = remotesFolder:WaitForChild("Notify"),
     KillFeed = remotesFolder:WaitForChild("KillFeed"),
     PromptGamepass = remotesFolder:WaitForChild("PromptGamepass"),
@@ -224,6 +227,9 @@ end)
 safeMount("NetShop", function()
     NetShop.mount(context)
 end)
+safeMount("UpgradesShop", function()
+    UpgradesShop.mount(context)
+end)
 safeMount("Objective", function()
     Objective.mount(context)
 end)
@@ -367,6 +373,7 @@ safeMount("PanelManager registry", function()
     PanelManager.register("Evolution", Evolution.toggle)
     PanelManager.register("Exclusives", Exclusives.toggle)
     PanelManager.register("NetShop", NetShop.toggle)
+    PanelManager.register("UpgradesShop", UpgradesShop.toggle)
     PanelManager.register("QuestLog", QuestLog.toggle)
     PanelManager.register("FreeRewards", FreeRewards.toggle)
     PanelManager.register("Referral", Referral.toggle)
