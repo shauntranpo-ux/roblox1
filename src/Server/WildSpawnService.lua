@@ -9,10 +9,10 @@
 -- (a) SERVER-AUTHORITATIVE: the registry, rarity roll, positions, flee behavior, and catch validation
 --     all live here. The client only renders from WildUpdate + sends a spawn id to WildCatch -- it
 --     cannot spawn a unit or assert a catch (the server re-checks existence/owner/uncaught/real range).
--- (b) ATOMIC + DUPE-SAFE: commitCatch checks a free pad FIRST (pad-full -> reject, spawn STAYS, no
---     loss), then sets spawn.Caught + removes from the registry + mints via the factory, all with NO
---     yields -> a concurrent/double catch finds it gone (or Caught) and misses cleanly. Exactly one
---     unit, never two, never lost.
+-- (b) ATOMIC + DUPE-SAFE: commitCatch mints the unit to the BAG (PadIndex=nil) via the factory, then
+--     sets spawn.Caught + removes from the registry, all with NO yields -> a concurrent/double catch
+--     finds it gone (or Caught) and misses cleanly. Exactly one unit, never two, never lost. Catching
+--     never requires a free pad (M9): the catch goes to storage and the player deploys it manually.
 -- (c) NO CATCH-RNG: WildConfig.RollRarity decides rarity at SPAWN (weighted, + HUNT spawn-rate);
 --     the catch is deterministic skill (approach + the client hold). No hidden success roll.
 -- (d) HUNT PERKS LIVE (M11.1) + CATCH-XP (M11.2): catch range/hold-speed, no-flee, rare spawn-rate,
@@ -33,11 +33,8 @@ local TapConfig = require(ReplicatedStorage.Shared.TapConfig) -- tap-to-progress
 
 local ProfileManager = require(script.Parent.ProfileManager)
 local BrainrotFactory = require(script.Parent.BrainrotFactory)
-local BrainrotService = require(script.Parent.BrainrotService)
-local PlotService = require(script.Parent.PlotService)
 local PlayerStats = require(script.Parent.PlayerStats)
 local Leaderstats = require(script.Parent.Leaderstats)
-local ProtectionService = require(script.Parent.ProtectionService)
 local PerkEffects = require(script.Parent.PerkEffects)
 local EvolutionService = require(script.Parent.EvolutionService)
 local Analytics = require(script.Parent.Analytics)
@@ -197,32 +194,28 @@ local function commitCatch(player, spawn)
     if profile == nil then
         return false, "Not ready yet."
     end
-    local plot = PlotService.GetPlot(player)
-    if plot == nil then
-        return false, "Your base isn't ready."
-    end
-    -- PAD-FULL SAFE: check a free pad BEFORE committing -> on no pad we reject and the spawn STAYS
-    -- (catchable later); nothing is removed or minted, so no loss + no dupe.
-    local padIndex = PlotService.FindFreePad(player, profile)
-    if padIndex == nil then
-        return false, "Free a pad first, then catch!"
-    end
-
-    -- ===== COMMIT: guard + remove + mint, NO yields between. =====
-    spawn.Caught = true
-    removeSpawn(spawn.Id, true)
     local def = Catalog.Get(spawn.Type)
     if def == nil then
         return false, "That creature is unknown."
     end
-    local unit = BrainrotFactory.create(player, def, padIndex, BrainrotFactory.RollFor.Catch)
+
+    -- ===== COMMIT: mint to the BAG (PadIndex=nil), then guard + remove, NO yields between. =====
+    -- M9: a catch ALWAYS goes to the player's BAG (storage) -- never auto-deployed onto a pad (deploy is
+    -- manual, M10), so a full base no longer blocks catching. Minting first (create() never yields) keeps
+    -- it dupe-safe: a concurrent/double catch hits the spawn.Caught guard and finds it gone -> exactly one.
+    local unit = BrainrotFactory.create(player, def, nil, BrainrotFactory.RollFor.Catch)
+    if unit == nil then
+        return false, "That creature can't be caught right now."
+    end
+    spawn.Caught = true
+    removeSpawn(spawn.Id, true)
     local isNewSpecies = profile.Data.Discovered[def.Id] ~= true
     table.insert(profile.Data.OwnedBrainrots, unit)
     profile.Data.Discovered[def.Id] = true
     -- ===========================================================
 
-    BrainrotService.SpawnBrainrot(player, plot, unit)
-    ProtectionService.RefreshPrompts(player)
+    -- Bag units earn NO income (only on-pad units do), so the rate is unchanged -- but recompute anyway
+    -- so the display stays canonical, and persist immediately so a caught unit is never lost on a crash.
     EvolutionService.AwardAllXP(player, WildConfig.CatchXP) -- M11.2 catch-XP hook
     PlayerStats.PushCash(player, profile)
     PlayerStats.UpdateIncome(player, profile)

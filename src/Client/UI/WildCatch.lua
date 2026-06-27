@@ -385,7 +385,7 @@ function WildCatch.onUpdate(payload)
                 Effects.playSfx(info.Order >= 4 and "catch_rare" or "catch")
                 Notifications.show(
                     "success",
-                    "Caught a " .. tostring(model.name or "brainrot") .. "!"
+                    "Caught a " .. tostring(model.name or "brainrot") .. "! (in your bag)"
                 )
                 -- Tutorial: increment client-local catch counter on each confirmed catch.
                 catchCount += 1
