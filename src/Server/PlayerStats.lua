@@ -21,12 +21,14 @@ local MAX_INT_VALUE = 2147483647
 
 local rateCache = {} -- [Player] = base income/sec (non-transit units), PRE-multiplier
 
--- A carried (in-transit) unit earns for no one, so it's excluded from the base rate exactly as
--- the income loop excludes it from accrual.
+-- Only DEPLOYED (on-pad) units earn income (M9): a unit sitting in the BAG (PadIndex == nil) is pure
+-- storage and contributes nothing, and a carried (in-transit) unit earns for no one -- both excluded
+-- from the base rate exactly as the income loop excludes them from accrual. (Existing rosters all have a
+-- PadIndex, so this is a no-op for them; only newly bagged catches start at zero until deployed.)
 local function computeBaseRate(profile)
     local sum = 0
     for _, brainrot in ipairs(profile.Data.OwnedBrainrots) do
-        if not TransitRegistry.Has(brainrot.Id) then
+        if brainrot.PadIndex ~= nil and not TransitRegistry.Has(brainrot.Id) then
             sum += UnitIncome.effective(brainrot) -- canonical helper: base * mutation multiplier
         end
     end
