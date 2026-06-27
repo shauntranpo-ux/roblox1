@@ -96,6 +96,7 @@ function HUD.mount(context, actions)
         }),
     })
     Builder.softShadow(stack, { radius = Theme.Radius.Card, spread = 10 })
+    Builder.applyDepth(stack, { radius = Theme.Radius.Card, sheenZIndex = 1 })
 
     -- (a) CASH -- gold coin + bold gold "$<amount>".
     cashRow = statRow(stack, 1, "🪙", 40)
@@ -205,6 +206,7 @@ function HUD.mount(context, actions)
         ),
     })
     Builder.softShadow(rightInfo, { radius = Theme.Radius.Card, spread = 10 })
+    Builder.applyDepth(rightInfo, { radius = Theme.Radius.Card, sheenZIndex = 1 })
 
     -- One info row: an icon on the left + a right-aligned white value. Returns the value label.
     local function infoRow(order, icon, iconColor, initial)
@@ -268,6 +270,7 @@ function HUD.mount(context, actions)
         Builder.create("UISizeConstraint", { MaxSize = Vector2.new(540, 84) }),
     })
     Builder.softShadow(bar, { radius = Theme.Radius.Card, spread = 12 }) -- depth so it reads as a hotbar
+    Builder.applyDepth(bar, { radius = Theme.Radius.Card, sheenZIndex = 1 })
     local navDefs = {
         { key = "Shop", label = "Shop", accent = "Shop", click = actions.onShop },
         { key = "Inventory", label = "Items", accent = "Inventory", click = actions.onInventory },
