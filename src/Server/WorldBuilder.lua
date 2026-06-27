@@ -121,6 +121,130 @@ local function bush(parent, pos, leafColor)
     }, parent)
 end
 
+-- ── Forest props (all voxel/blocky, anchored; colliding ones are landmarks, the rest are floor cover) ──
+
+-- A TALL voxel PINE: a slim wood trunk + 3 stacked tapering green cube tiers. Colliding landmark.
+local function pine(parent, pos, trunkColor, leafColor)
+    local trunkH = S.TreeHeight * 0.5
+    part({
+        Size = Vector3.new(3, trunkH, 3),
+        Position = pos + Vector3.new(0, trunkH / 2, 0),
+        Color = trunkColor or P.Wood,
+        Material = Enum.Material.Wood,
+    }, parent)
+    local leaf = leafColor or P.Grass:Lerp(Color3.fromRGB(40, 116, 72), 0.5)
+    local tiers = 3
+    for t = 0, tiers - 1 do
+        local w = (tiers - t) * 3 + 3
+        part({
+            Size = Vector3.new(w, 4, w),
+            Position = pos + Vector3.new(0, trunkH + t * 3 + 2, 0),
+            Color = leaf,
+            Material = Enum.Material.Grass,
+        }, parent)
+    end
+end
+
+-- A mossy FALLEN LOG: a wood cylinder lying flat (rotated about Y by `rot`). Non-colliding cover detail.
+local function fallenLog(parent, pos, rot)
+    local len = rng:NextNumber(8, 14)
+    local center = pos + Vector3.new(0, 1.2, 0)
+    local logPart = part({
+        Size = Vector3.new(len, 2.4, 2.4),
+        Color = P.Wood:Lerp(Color3.fromRGB(96, 132, 80), 0.25),
+        Material = Enum.Material.Wood,
+        CanCollide = false,
+        CFrame = CFrame.new(center) * CFrame.Angles(0, rot, 0),
+    }, parent)
+    logPart.Shape = Enum.PartType.Cylinder
+    return logPart
+end
+
+-- A small FERN: a few thin angled green fronds from one point (cheap non-colliding ground detail).
+local function fern(parent, pos)
+    local base = Color3.fromRGB(96, 168, 84)
+    for _ = 1, 3 do
+        local h = rng:NextNumber(3, 5)
+        part({
+            Size = Vector3.new(0.6, h, 2.4),
+            Color = base:Lerp(P.Grass, rng:NextNumber(0, 0.4)),
+            Material = Enum.Material.Grass,
+            CanCollide = false,
+            CFrame = CFrame.new(pos + Vector3.new(0, h / 2, 0)) * CFrame.Angles(
+                0,
+                rng:NextNumber(0, math.pi * 2),
+                math.rad(rng:NextNumber(-28, 28))
+            ),
+        }, parent)
+    end
+end
+
+-- A MUSHROOM: a short cream stalk + a colored ball cap (non-colliding forest-floor accent).
+local function mushroom(parent, pos)
+    local capColor = rng:NextNumber(0, 1) < 0.5 and Color3.fromRGB(214, 84, 84)
+        or Color3.fromRGB(228, 188, 120)
+    part({
+        Size = Vector3.new(0.8, 1.6, 0.8),
+        Position = pos + Vector3.new(0, 0.8, 0),
+        Color = Color3.fromRGB(240, 234, 214),
+        Material = Enum.Material.SmoothPlastic,
+        CanCollide = false,
+    }, parent)
+    local cap = part({
+        Size = Vector3.new(2.2, 1.2, 2.2),
+        Position = pos + Vector3.new(0, 1.8, 0),
+        Color = capColor,
+        Material = Enum.Material.SmoothPlastic,
+        CanCollide = false,
+    }, parent)
+    cap.Shape = Enum.PartType.Ball
+end
+
+-- A FLOWER PATCH: a few tiny colored blooms on short green stems (non-colliding color speckle).
+local function flowerPatch(parent, pos)
+    local petals = {
+        Color3.fromRGB(255, 180, 210),
+        Color3.fromRGB(255, 224, 120),
+        Color3.fromRGB(180, 170, 255),
+        Color3.fromRGB(255, 140, 140),
+    }
+    for _ = 1, math.floor(rng:NextNumber(3, 6)) do
+        local off = Vector3.new(rng:NextNumber(-2.5, 2.5), 0, rng:NextNumber(-2.5, 2.5))
+        local h = rng:NextNumber(1.5, 3)
+        part({
+            Size = Vector3.new(0.3, h, 0.3),
+            Position = pos + off + Vector3.new(0, h / 2, 0),
+            Color = Color3.fromRGB(96, 168, 84),
+            Material = Enum.Material.Grass,
+            CanCollide = false,
+        }, parent)
+        local bloom = part({
+            Size = Vector3.new(1, 1, 1),
+            Position = pos + off + Vector3.new(0, h + 0.4, 0),
+            Color = petals[math.floor(rng:NextNumber(1, #petals + 0.999))],
+            Material = Enum.Material.SmoothPlastic,
+            CanCollide = false,
+        }, parent)
+        bloom.Shape = Enum.PartType.Ball
+    end
+end
+
+-- A cut STUMP: a short wide wood block + a lighter cut-top cap (colliding low landmark).
+local function stump(parent, pos)
+    part({
+        Size = Vector3.new(4.5, 3, 4.5),
+        Position = pos + Vector3.new(0, 1.5, 0),
+        Color = P.Wood,
+        Material = Enum.Material.Wood,
+    }, parent)
+    part({
+        Size = Vector3.new(4, 0.4, 4),
+        Position = pos + Vector3.new(0, 3.2, 0),
+        Color = P.Wood:Lerp(Color3.fromRGB(222, 196, 150), 0.6),
+        Material = Enum.Material.Wood,
+    }, parent)
+end
+
 -- A complete framed Fredoka-One world sign: backing board (boardColor) + 4 P.Beam border strips +
 -- two P.Beam wood posts reaching the ground + a SurfaceGui text label (white fill, dark stroke).
 -- Signature is UNCHANGED so all callers (`buildPlatform`, `fixture`, `buildStructure`) work as-is.
@@ -1119,6 +1243,61 @@ local function meadowFoliage(folder, cfg)
             }, folder)
             rocks += 1
         end
+    end
+
+    -- (f) Tall PINES: colliding conifer landmarks that thicken the canopy; skip the colliding zones.
+    local pines = 0
+    for _ = 1, (F.PineTrees or 0) * 3 do
+        if pines >= (F.PineTrees or 0) then
+            break
+        end
+        local a, r, pos = pick(false)
+        if not blockedForColliders(a, r) then
+            pine(
+                folder,
+                pos,
+                P.Wood,
+                P.Grass:Lerp(Color3.fromRGB(40, 116, 72), rng:NextNumber(0.3, 0.6))
+            )
+            pines += 1
+        end
+    end
+
+    -- (g) Cut STUMPS: low colliding wood landmarks scattered among the trees; skip the colliding zones.
+    local stumps = 0
+    for _ = 1, (F.Stumps or 0) * 3 do
+        if stumps >= (F.Stumps or 0) then
+            break
+        end
+        local a, r, pos = pick(false)
+        if not blockedForColliders(a, r) then
+            stump(folder, pos)
+            stumps += 1
+        end
+    end
+
+    -- (h) Fallen LOGS: non-colliding ground detail (walk-through), anywhere in the ring.
+    for _ = 1, (F.FallenLogs or 0) do
+        local _, _, pos = pick(false)
+        fallenLog(folder, pos, rng:NextNumber(0, math.pi * 2))
+    end
+
+    -- (i) FERNS: dense non-colliding fronds covering the forest floor (incl. near spawn for lushness).
+    for i = 1, (F.Ferns or 0) do
+        local _, _, pos = pick(i % 2 == 0)
+        fern(folder, pos)
+    end
+
+    -- (j) MUSHROOMS: small non-colliding floor accents clustered near logs/roots.
+    for _ = 1, (F.Mushrooms or 0) do
+        local _, _, pos = pick(false)
+        mushroom(folder, pos)
+    end
+
+    -- (k) FLOWER PATCHES: non-colliding color speckle across the meadow floor.
+    for i = 1, (F.FlowerPatches or 0) do
+        local _, _, pos = pick(i % 2 == 0)
+        flowerPatch(folder, pos)
     end
 end
 
