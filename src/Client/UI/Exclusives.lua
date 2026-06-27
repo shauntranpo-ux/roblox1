@@ -118,7 +118,7 @@ local function exclusiveCard(ex)
         TextXAlignment = Enum.TextXAlignment.Left,
         Parent = card,
     })
-    Builder.applyChrome(title, { stroke = 2 })
+    Builder.styleText(title, { ink = true, keepColor = true })
 
     Builder.create("TextLabel", {
         Position = UDim2.fromOffset(2, 28),
@@ -145,7 +145,7 @@ local function exclusiveCard(ex)
             TextSize = 16,
             Parent = card,
         })
-        Builder.applyChrome(owned, { stroke = 2 })
+        Builder.styleText(owned, { ink = true, keepColor = true })
     elseif ex.Source == "shop" and ex.Obtainable then
         Builder.glossButton({
             AnchorPoint = Vector2.new(1, 0.5),
