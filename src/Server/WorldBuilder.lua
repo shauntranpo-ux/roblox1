@@ -1319,11 +1319,30 @@ local function meadowFoliage(folder, cfg)
     local F = WorldConfig.MeadowFoliage
     local y = cfg.Y
     local rad = cfg.Radius
-    local innerR = F.InnerRadius
+    local coverInner = F.CoverInnerRadius -- non-colliding floor cover (close, fills around the bases)
+    local colliderInner = F.ColliderInnerRadius -- colliding props (start past base/shop footprints)
     local spawnA = math.rad(90)
     local arenaA = math.rad(270)
     local elevA = math.rad(WorldConfig.Levels.ElevatorAngleDeg)
     local elevR = WorldConfig.Levels.ElevatorRadius
+
+    -- Per-base exclusion: BOTH cover and colliding props skip a circle around each player base (placed by
+    -- buildDistrict at PlotRingRadius, evenly spaced), so nothing spawns on a base floor or blocks a door.
+    local ringR = WorldConfig.Levels.PlotRingRadius
+    local baseClearSq = F.BaseClearRadius * F.BaseClearRadius
+    local baseCenters = {}
+    for i = 1, Config.Plots.Count do
+        local ba = math.rad((i - 1) * (360 / Config.Plots.Count))
+        baseCenters[i] = { math.cos(ba) * ringR, math.sin(ba) * ringR }
+    end
+    local function nearBase(px, pz)
+        for _, c in ipairs(baseCenters) do
+            if (px - c[1]) ^ 2 + (pz - c[2]) ^ 2 < baseClearSq then
+                return true
+            end
+        end
+        return false
+    end
 
     local function angDiff(x, ref)
         local d = (x - ref) % (math.pi * 2)
@@ -1356,19 +1375,38 @@ local function meadowFoliage(folder, cfg)
             return true
         end
         local lx, lz = math.cos(lbA) * LB.Radius, math.sin(lbA) * LB.Radius
-        return (px - lx) ^ 2 + (pz - lz) ^ 2 < LB.ClearRadius ^ 2
+        if (px - lx) ^ 2 + (pz - lz) ^ 2 < LB.ClearRadius ^ 2 then
+            return true
+        end
+        return nearBase(px, pz) -- never overgrow a player base / block a doorway
     end
-    -- A polar point in the meadow ring [innerR, rad-12]; `towardSpawn` biases it to the spawn side.
-    local function pick(towardSpawn)
+    -- A polar point in the ring [inner, rad-12]; `towardSpawn` biases it to the spawn side.
+    local function pick(towardSpawn, inner)
         local a = towardSpawn and (spawnA + rng:NextNumber(-math.rad(60), math.rad(60)))
             or rng:NextNumber(0, math.pi * 2)
-        local r = rng:NextNumber(innerR, rad - 12)
+        local r = rng:NextNumber(inner, rad - 12)
         return a, r, Vector3.new(math.cos(a) * r, y, math.sin(a) * r)
     end
 
-    -- (a) Tall grass tufts: cheap non-colliding green blades; dense cover including near the spawn.
-    for i = 1, F.GrassTufts do
-        local _, _, pos = pick(i % 2 == 0)
+    -- Scatter `count` NON-colliding cover items from CoverInnerRadius, skipping any base footprint (so the
+    -- dense floor cover fills the inter-base ring but never the base floors). `bias` alternates the
+    -- spawn-side weighting; `place(pos)` builds one item.
+    local function scatterCover(count, bias, place)
+        local made = 0
+        for i = 1, count * 2 do
+            if made >= count then
+                break
+            end
+            local _, _, pos = pick(bias and (i % 2 == 0), coverInner)
+            if not nearBase(pos.X, pos.Z) then
+                place(pos)
+                made += 1
+            end
+        end
+    end
+
+    -- (a) Tall grass tufts: cheap non-colliding green blades; dense cover incl. around the bases.
+    scatterCover(F.GrassTufts, true, function(pos)
         local h = rng:NextNumber(3, 6)
         part({
             Size = Vector3.new(rng:NextNumber(1.5, 3), h, rng:NextNumber(1.5, 3)),
@@ -1377,11 +1415,10 @@ local function meadowFoliage(folder, cfg)
             Material = Enum.Material.Grass,
             CanCollide = false,
         }, folder)
-    end
+    end)
 
     -- (b) Bushes: rounded non-colliding cover to hide near/behind (walk-through; 2 cubes each).
-    for i = 1, F.Bushes do
-        local _, _, pos = pick(i % 2 == 0)
+    scatterCover(F.Bushes, true, function(pos)
         local base = P.Grass:Lerp(Color3.fromRGB(80, 152, 72), 0.3)
         part({
             Size = Vector3.new(5, 3.5, 5),
@@ -1397,11 +1434,11 @@ local function meadowFoliage(folder, cfg)
             Material = Enum.Material.Grass,
             CanCollide = false,
         }, folder)
-    end
+    end)
 
     -- (c) Hedge rows: low non-colliding green walls (tangent to the ring) -- cover lines to weave around.
     for _ = 1, F.Hedges do
-        local a, _, pos = pick(false)
+        local a, _, pos = pick(false, coverInner)
         local seg = math.floor(rng:NextNumber(3, 5))
         local dirA = a + math.rad(90)
         for s = 0, seg - 1 do
@@ -1422,7 +1459,7 @@ local function meadowFoliage(folder, cfg)
         if clusters >= F.TreeClusters then
             break
         end
-        local a, r, pos = pick(false)
+        local a, r, pos = pick(false, colliderInner)
         if not blockedForColliders(a, r) then
             for _ = 1, math.floor(rng:NextNumber(2, 4)) do
                 local off = Vector3.new(rng:NextNumber(-7, 7), 0, rng:NextNumber(-7, 7))
@@ -1438,7 +1475,7 @@ local function meadowFoliage(folder, cfg)
         if rocks >= F.Rocks then
             break
         end
-        local a, r, pos = pick(false)
+        local a, r, pos = pick(false, colliderInner)
         if not blockedForColliders(a, r) then
             local s = rng:NextNumber(4, 9)
             part({
@@ -1457,7 +1494,7 @@ local function meadowFoliage(folder, cfg)
         if pines >= (F.PineTrees or 0) then
             break
         end
-        local a, r, pos = pick(false)
+        local a, r, pos = pick(false, colliderInner)
         if not blockedForColliders(a, r) then
             pine(
                 folder,
@@ -1475,36 +1512,35 @@ local function meadowFoliage(folder, cfg)
         if stumps >= (F.Stumps or 0) then
             break
         end
-        local a, r, pos = pick(false)
+        local a, r, pos = pick(false, colliderInner)
         if not blockedForColliders(a, r) then
             stump(folder, pos)
             stumps += 1
         end
     end
 
-    -- (h) Fallen LOGS: non-colliding ground detail (walk-through), anywhere in the ring.
+    -- (h) Fallen LOGS: non-colliding ground detail (walk-through); cover ring, off the bases.
     for _ = 1, (F.FallenLogs or 0) do
-        local _, _, pos = pick(false)
-        fallenLog(folder, pos, rng:NextNumber(0, math.pi * 2))
+        local _, _, pos = pick(false, coverInner)
+        if not nearBase(pos.X, pos.Z) then
+            fallenLog(folder, pos, rng:NextNumber(0, math.pi * 2))
+        end
     end
 
-    -- (i) FERNS: dense non-colliding fronds covering the forest floor (incl. near spawn for lushness).
-    for i = 1, (F.Ferns or 0) do
-        local _, _, pos = pick(i % 2 == 0)
+    -- (i) FERNS: dense non-colliding fronds covering the forest floor (incl. around the bases).
+    scatterCover(F.Ferns or 0, true, function(pos)
         fern(folder, pos)
-    end
+    end)
 
-    -- (j) MUSHROOMS: small non-colliding floor accents clustered near logs/roots.
-    for _ = 1, (F.Mushrooms or 0) do
-        local _, _, pos = pick(false)
+    -- (j) MUSHROOMS: small non-colliding floor accents.
+    scatterCover(F.Mushrooms or 0, false, function(pos)
         mushroom(folder, pos)
-    end
+    end)
 
     -- (k) FLOWER PATCHES: non-colliding color speckle across the meadow floor.
-    for i = 1, (F.FlowerPatches or 0) do
-        local _, _, pos = pick(i % 2 == 0)
+    scatterCover(F.FlowerPatches or 0, true, function(pos)
         flowerPatch(folder, pos)
-    end
+    end)
 end
 
 -- ── PLATFORM TERRAIN: seeded blocky hills / mounds / stepped blocks per biome style (PROBLEM 1 fix).
