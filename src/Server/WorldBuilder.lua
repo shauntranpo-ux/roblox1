@@ -1837,7 +1837,6 @@ end
 -- The platform center is (0, cfg.Y, 0); spawn/boss/sign are forward-compat tags (gameplay spawns track
 -- the player). Level 1 (the bottom 'start' platform) is the hub/district ground, so it skips the scatter.
 local function buildPlatform(folder, cfg)
-    local L = WorldConfig.Levels
     local y = cfg.Y
     local rad = cfg.Radius
     local function onDisc(angleDeg, r, dy)
