@@ -133,6 +133,11 @@ local function paintCell(cell, entry)
         and not entry.Locked
         and (entry.Value or 0) > 0
     cell.sellBtn.Text = "Sell $" .. Format.short(entry.Value or 0)
+    -- M10: deploy/undeploy toggle -- ⬆ to put a bag unit on a pad (green), ⬇ to send it back to the bag.
+    local deployed = entry.PadIndex ~= nil
+    cell.deployBtn.Visible = not multiSelect
+    cell.deployBtn.Text = deployed and "⬇" or "⬆"
+    cell.deployBtn.TextColor3 = deployed and Theme.Colors.SubText or Theme.Colors.Positive
 end
 
 local function render()
@@ -204,6 +209,68 @@ local function sellOne(entry)
         elseif result.Message ~= nil then
             Notifications.show("error", result.Message)
         end
+    end
+end
+
+local function nameFromId(unitId)
+    for _, e in ipairs(owned) do
+        if e.Id == unitId then
+            return e.Name
+        end
+    end
+    return nil
+end
+
+-- M10: deploy a BAG unit onto a pad; if the base is full, offer a one-tap swap with the weakest placed
+-- unit the server suggests. The server owns the pad assignment + all validation; this sends intent only.
+local function deployOne(entry)
+    local ok, result = pcall(function()
+        return remotes.InventoryAction:InvokeServer("deploy", entry.Id)
+    end)
+    if not ok or type(result) ~= "table" then
+        return
+    end
+    if result.Result == "Success" then
+        Inventory.refresh()
+    elseif result.Result == "Full" and result.SwapId ~= nil then
+        local swapName = nameFromId(result.SwapId) or "your weakest unit"
+        Inventory.showConfirm(
+            "Base full. Swap out " .. swapName .. " for " .. entry.Name .. "?",
+            function()
+                local ok2, r2 = pcall(function()
+                    return remotes.InventoryAction:InvokeServer("swap", entry.Id, result.SwapId)
+                end)
+                if ok2 and type(r2) == "table" and r2.Result == "Success" then
+                    Inventory.refresh()
+                elseif type(r2) == "table" and r2.Message ~= nil then
+                    Notifications.show("error", r2.Message)
+                end
+            end
+        )
+    elseif result.Message ~= nil then
+        Notifications.show("error", result.Message)
+    end
+end
+
+-- M10: pull a placed unit off its pad back into the bag (it stops earning).
+local function undeployOne(entry)
+    local ok, result = pcall(function()
+        return remotes.InventoryAction:InvokeServer("undeploy", entry.Id)
+    end)
+    if ok and type(result) == "table" then
+        if result.Result == "Success" then
+            Inventory.refresh()
+        elseif result.Message ~= nil then
+            Notifications.show("error", result.Message)
+        end
+    end
+end
+
+local function deployToggle(entry)
+    if entry.PadIndex ~= nil then
+        undeployOne(entry)
+    else
+        deployOne(entry)
     end
 end
 
@@ -425,7 +492,7 @@ local function buildCell(index)
 
     local name = Builder.create("TextLabel", {
         Position = UDim2.fromOffset(30, 2),
-        Size = UDim2.new(1, -260, 0, 24),
+        Size = UDim2.new(1, -300, 0, 24),
         BackgroundTransparency = 1,
         Font = Theme.FontDisplay,
         Text = "",
@@ -437,7 +504,7 @@ local function buildCell(index)
     })
     local info = Builder.create("TextLabel", {
         Position = UDim2.fromOffset(30, 28),
-        Size = UDim2.new(1, -260, 0, 18),
+        Size = UDim2.new(1, -300, 0, 18),
         BackgroundTransparency = 1,
         Font = Theme.FontBody,
         Text = "",
@@ -447,8 +514,8 @@ local function buildCell(index)
     })
     local income = Builder.create("TextLabel", {
         AnchorPoint = Vector2.new(1, 0),
-        Position = UDim2.new(1, -150, 0, 4),
-        Size = UDim2.fromOffset(120, 20),
+        Position = UDim2.new(1, -220, 0, 4),
+        Size = UDim2.fromOffset(110, 20),
         BackgroundTransparency = 1,
         Font = Theme.FontBody,
         Text = "",
@@ -477,10 +544,21 @@ local function buildCell(index)
         TextSize = 20,
         Parent = frame,
     })
+    -- M10: deploy/undeploy toggle (⬆ bag->pad / ⬇ pad->bag). Sits left of the lock icon.
+    local deployBtn = Builder.create("TextButton", {
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -72, 0.5, 0),
+        Size = UDim2.fromOffset(34, 34),
+        BackgroundTransparency = 1,
+        Font = Theme.FontDisplay,
+        Text = "⬆",
+        TextSize = 22,
+        Parent = frame,
+    })
     local sellBtn = Builder.glossButton({
         AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -74, 0.5, 0),
-        Size = UDim2.fromOffset(110, 30),
+        Position = UDim2.new(1, -112, 0.5, 0),
+        Size = UDim2.fromOffset(100, 30),
         color = Theme.Colors.Danger,
         Text = "Sell",
         maxText = 14,
@@ -494,6 +572,7 @@ local function buildCell(index)
         income = income,
         favBtn = favBtn,
         lockBtn = lockBtn,
+        deployBtn = deployBtn,
         sellBtn = sellBtn,
         selDot = selDot,
         entry = nil,
@@ -512,6 +591,7 @@ local function buildCell(index)
         toggleFlag(e, "Locked")
     end))
     sellBtn.Activated:Connect(act(sellOne))
+    deployBtn.Activated:Connect(act(deployToggle))
     selDot.Activated:Connect(act(function(e)
         selected[e.Id] = (not selected[e.Id]) or nil
         render()
