@@ -49,7 +49,7 @@ local activeChevronId = nil -- id of the model whose chevron is currently the ac
 local function makeTutorialBubble(parent)
     local frame = Builder.create("Frame", {
         AnchorPoint = Vector2.new(0.5, 1),
-        Position = UDim2.new(0.5, 0, 1, -220), -- above the TAP button panel
+        Position = UDim2.new(0.5, 0, 1, -330), -- above the lifted catch cluster (meter/prompt/button)
         Size = UDim2.fromOffset(280, 52),
         BackgroundColor3 = Theme.Colors.Accent,
         BackgroundTransparency = 0.22,
@@ -252,10 +252,11 @@ local function makeModel(payload)
     -- The species 2D sprite (or a clean rarity-tinted placeholder card if the asset id is missing).
     local def = Catalog.Get(payload.Type)
     local sprite = BrainrotBillboard.attach(part, def, {
-        size = UDim2.fromScale(5, 5.5),
+        size = UDim2.fromScale(5.5, 6),
         offset = Vector3.new(0, SPRITE_OFFSET_Y, 0),
         maxDistance = 140,
-        tint = Rarity.Get(payload.Rarity).Color,
+        -- darken/saturate the rarity tint so the no-sprite placeholder card reads (not a pale blob).
+        tint = Rarity.Get(payload.Rarity).Color:Lerp(Color3.fromRGB(40, 30, 60), 0.3),
         -- no `name`: the separate name label below sits above the sprite, so the card stays clean.
     })
 

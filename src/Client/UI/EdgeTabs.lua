@@ -34,6 +34,7 @@ end
 function EdgeTabs.mount(context)
     local player = context.player
     gui = Builder.screenGui("EdgeTabs", player:WaitForChild("PlayerGui"), true)
+    gui.DisplayOrder = 7 -- HUD level (below panels=10); was unset/0 -> undefined layering
     rails.Left = makeRail("Left")
     rails.Right = makeRail("Right")
 end

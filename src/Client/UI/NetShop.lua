@@ -133,7 +133,7 @@ function NetShop.refresh()
             TextXAlignment = Enum.TextXAlignment.Left,
             Parent = card,
         })
-        Builder.applyChrome(title, { stroke = 2 })
+        Builder.styleText(title, { ink = true, keepColor = true })
         Builder.create("TextLabel", {
             Position = UDim2.fromOffset(2, 28),
             Size = UDim2.new(1, -120, 0, 36),
