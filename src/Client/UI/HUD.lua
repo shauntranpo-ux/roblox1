@@ -73,7 +73,7 @@ function HUD.mount(context, actions)
     local stack = Builder.create("Frame", {
         AnchorPoint = Vector2.new(0, 1),
         Position = UDim2.fromScale(0.012, 0.86),
-        Size = UDim2.new(0.3, 0, 0, 0), -- width scales; height HUGS the rows (no dead space)
+        Size = UDim2.fromScale(0.3, 0), -- width scales; height HUGS the rows (no dead space)
         AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundColor3 = Theme.Colors.DarkPill, -- grouped panel backing (was floating text)
         BackgroundTransparency = 0.22,
