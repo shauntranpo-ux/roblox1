@@ -19,18 +19,20 @@ local KIND_COLORS = {
 
 function Notifications.mount(context)
     local gui = Builder.screenGui("Toasts", context.player:WaitForChild("PlayerGui"), true)
+    gui.DisplayOrder = 15 -- toasts always on top (above panels=10), and clear of the bottom catch UI
 
+    -- TOP-center stack (under the objective strip) so toasts never pile onto the bottom catch button.
     container = Builder.create("Frame", {
         Name = "Container",
-        AnchorPoint = Vector2.new(0.5, 1),
-        Position = UDim2.fromScale(0.5, 0.82),
+        AnchorPoint = Vector2.new(0.5, 0),
+        Position = UDim2.fromScale(0.5, 0.17),
         Size = UDim2.fromScale(0.9, 0.4),
         BackgroundTransparency = 1,
         Parent = gui,
     }, {
         Builder.create("UIListLayout", {
             FillDirection = Enum.FillDirection.Vertical,
-            VerticalAlignment = Enum.VerticalAlignment.Bottom,
+            VerticalAlignment = Enum.VerticalAlignment.Top,
             HorizontalAlignment = Enum.HorizontalAlignment.Center,
             SortOrder = Enum.SortOrder.LayoutOrder,
             Padding = UDim.new(0, 8),
@@ -82,27 +84,27 @@ function Notifications.show(kind, message)
         }, { Builder.corner(UDim.new(1, 0)) }),
         label,
     })
-    -- Bouncy slide in from below + fade in (overshoot Back/Out).
-    toast.Position = UDim2.fromOffset(0, 22) -- start below the final resting position
+    -- Bouncy slide in from ABOVE + fade in (top-center stack, overshoot Back/Out).
+    toast.Position = UDim2.fromOffset(0, -22) -- start above the final resting position
     toast.BackgroundTransparency = 1
     toast.Parent = container
     local fadeTi = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
     local inTi = TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
     TweenService:Create(toast, fadeTi, { BackgroundTransparency = 0.08 }):Play()
     TweenService:Create(toast, inTi, { Position = UDim2.new(0, 0, 0, 0) }):Play()
-    -- Success toasts get a pooled sparkle pop near the toast stack.
+    -- Success toasts get a pooled sparkle pop near the top-center toast stack.
     if kind == "success" then
-        Effects.burst(UDim2.fromScale(0.5, 0.74), color, 10)
+        Effects.burst(UDim2.fromScale(0.5, 0.2), color, 10)
     end
 
     task.delay(3, function()
         if toast.Parent == nil then
             return
         end
-        -- Slide down + fade out (~0.25s) then destroy.
+        -- Slide up + fade out (~0.25s) then destroy.
         local outTi = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
         TweenService:Create(toast, outTi, { BackgroundTransparency = 1 }):Play()
-        local slideOut = TweenService:Create(toast, outTi, { Position = UDim2.fromOffset(0, 20) })
+        local slideOut = TweenService:Create(toast, outTi, { Position = UDim2.fromOffset(0, -20) })
         slideOut:Play()
         slideOut.Completed:Wait()
         toast:Destroy()
