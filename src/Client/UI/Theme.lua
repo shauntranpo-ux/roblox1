@@ -153,11 +153,12 @@ end
 -- ── Tween presets (TUNE ANIMATION SPEEDS HERE) ──────────────────────────────────────────────
 Theme.Tween = {
     Open = TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-    OpenBouncy = TweenInfo.new(0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out), -- springier pop
+    OpenBouncy = TweenInfo.new(0.42, Enum.EasingStyle.Back, Enum.EasingDirection.Out), -- springier pop
     Close = TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-    Squish = TweenInfo.new(0.16, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+    Squish = TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
     Fade = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
     BarFill = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), -- progress fill
+    Hover = TweenInfo.new(0.16, Enum.EasingStyle.Back, Enum.EasingDirection.Out), -- pointer hover lift
 }
 
 -- ── Idle-life motion (looping, GPU-driven tweens; pooled, no per-frame Lua churn) ────────────
@@ -169,7 +170,8 @@ Theme.Anim = {
     BobAmplitude = 5, -- px the bob travels
     ShimmerPeriod = 1.4, -- soft sheen shimmer on important elements
     GlossSweepPeriod = 1.6, -- the moving gloss sweep across progress bars
-    OverShoot = 0.86, -- start scale for the bouncy panel pop-in (lower = bouncier)
+    OverShoot = 0.8, -- start scale for the bouncy panel pop-in (lower = bouncier)
+    HoverScale = 1.06, -- pointer-hover lift on buttons/chips (PC only; touch never fires MouseEnter)
 }
 
 -- ── Click juice tuning ───────────────────────────────────────────────────────────────────
