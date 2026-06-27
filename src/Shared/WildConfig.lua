@@ -19,6 +19,11 @@ WildConfig.DespawnTime = 45 -- s an uncaught spawn roams before it leaves + free
 WildConfig.SpawnRadiusMin = 24 -- studs: nearest a spawn appears to the player
 WildConfig.SpawnRadiusMax = 60 -- studs: farthest a spawn appears to the player
 WildConfig.CatchBaseRange = 12 -- studs: server-validated catch distance (+ Big Net perk range)
+-- M8 CONFINEMENT: keep spawns on the level platform (concentric discs). EdgeMargin = how far inside the
+-- platform rim to clamp the roam/flee (off the very edge); GroundOffset = studs above the level floor the
+-- spawn sits at after Y is pinned to the player's current level.
+WildConfig.EdgeMargin = 22 -- studs kept clear of the platform rim
+WildConfig.GroundOffset = 1.5 -- studs above the level floor the spawn anchor sits
 WildConfig.BehaviorHz = 8 -- server wander/flee update rate
 WildConfig.MoveSendHz = 5 -- replicated position-update rate to the owner (client lerps between)
 WildConfig.CatchXP = 200 -- M11.2: XP each of the player's units gains on a catch
