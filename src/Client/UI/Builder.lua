@@ -213,10 +213,10 @@ function Builder.glossHeader(parent, title, accentKey, onClose)
     }, {
         Builder.corner(Theme.Radius.Card),
         Theme.gradient(accentKey),
-        Builder.create("UIStroke", { -- bright thick header rim (matches the panel border)
+        Builder.create("UIStroke", { -- bright thick header rim (matches the panel border exactly)
             Color = Theme.Border.Color,
-            Thickness = 3,
-            Transparency = 0.2,
+            Thickness = Theme.Border.Width,
+            Transparency = Theme.Border.Transparency,
         }),
         Builder.create("Frame", { -- glossy top sheen (stronger -> the vibrant glossy header look)
             Size = UDim2.fromScale(1, 0.5),
@@ -272,7 +272,7 @@ function Builder.pillTab(parent, text, order, onClick)
         Builder.create("UIStroke", {
             Color = Theme.Border.Color,
             Thickness = 2.5,
-            Transparency = 0.3, -- brighter, chunkier pill rim
+            Transparency = Theme.Stroke.Transparency, -- unified rim opacity
         }),
     })
     if onClick ~= nil then
@@ -418,7 +418,7 @@ function Builder.pill(props)
         Builder.create("UIStroke", {
             Color = props.stroke or Theme.Colors.White,
             Thickness = 2,
-            Transparency = 0.2,
+            Transparency = Theme.Stroke.Transparency, -- unified rim opacity
         }),
     })
     -- Pillowy depth shade + a faint top gloss (chips read as rounded, not flat).
@@ -618,7 +618,7 @@ function Builder.iconBubble(props, onClick)
         Builder.create("UIStroke", {
             Color = Theme.Colors.White,
             Thickness = 2.5,
-            Transparency = 0.2,
+            Transparency = Theme.Stroke.Transparency, -- unified rim opacity
         }),
     })
     Builder.applyDepth(bubble, { radius = radius, sheenZIndex = 2 })
@@ -672,7 +672,7 @@ function Builder.progressBar(props)
         Builder.create("UIStroke", {
             Color = Theme.Colors.White,
             Thickness = 2,
-            Transparency = 0.25,
+            Transparency = Theme.Stroke.Transparency, -- unified rim opacity
         }),
     })
     local fill = Builder.create("Frame", {

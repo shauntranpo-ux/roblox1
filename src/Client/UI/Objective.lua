@@ -56,7 +56,7 @@ function Objective.mount(context)
     -- biome label + boss HP bar.
     frame = Builder.pill({
         AnchorPoint = Vector2.new(0.5, 0),
-        Position = UDim2.fromScale(0.5, 0.06),
+        Position = UDim2.fromScale(0.5, 0.18), -- stacked clearly BELOW the announcement banner (no overlap)
         Size = UDim2.fromScale(0.6, 0.05),
         radius = Theme.Radius.Card,
         transparency = 0.25,

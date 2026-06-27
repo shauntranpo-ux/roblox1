@@ -33,6 +33,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local WorldConfig = require(ReplicatedStorage.Shared.WorldConfig)
 local Config = require(ReplicatedStorage.Shared.Config)
+local ObstacleField = require(ReplicatedStorage.Shared.ObstacleField)
 
 local WorldBuilder = {}
 
@@ -90,7 +91,7 @@ end
 -- centered top block), ALIGNED with no random offsets so each tree reads as ONE clean Minecraft-style
 -- object instead of a lumpy jumble. Per-tree scale variation (seeded rng). 3 parts.
 local function tree(parent, pos, trunkColor, leafColor)
-    local scale = rng:NextNumber(0.95, 1.35)
+    local scale = rng:NextNumber(0.9, 1.7) -- wide range -> a natural mix of short + towering trees
     local trunkH = S.TreeHeight * 0.6 * scale
     part({ -- tall blocky trunk (visible below the canopy)
         Size = Vector3.new(4, trunkH, 4),
@@ -115,6 +116,7 @@ local function tree(parent, pos, trunkColor, leafColor)
         Material = Enum.Material.Grass,
         Position = pos + Vector3.new(0, baseY + h * 0.7, 0),
     }, parent)
+    ObstacleField.Add(pos.X, pos.Z, pos.Y, w * 0.5) -- wild brainrots steer around the canopy footprint
 end
 
 -- A blocky BUSH: 2 stacked rounded green cubes (cheap; capped by the caller).
@@ -132,6 +134,7 @@ local function bush(parent, pos, leafColor)
         Color = base:Lerp(Color3.new(0, 0, 0), 0.12),
         Material = Enum.Material.Grass,
     }, parent)
+    ObstacleField.Add(pos.X, pos.Z, pos.Y, 3) -- small solid bush footprint
 end
 
 -- ── Forest props (all voxel/blocky, anchored; colliding ones are landmarks, the rest are floor cover) ──
@@ -166,6 +169,7 @@ local function pine(parent, pos, trunkColor, leafColor)
         Color = leaf,
         Material = Enum.Material.Grass,
     }, parent)
+    ObstacleField.Add(pos.X, pos.Z, pos.Y, 6 * scale + 1.5) -- keep brainrots off the conifer base
 end
 
 -- A mossy FALLEN LOG: a wood cylinder lying flat (rotated about Y by `rot`). Non-colliding cover detail.
@@ -266,6 +270,7 @@ local function stump(parent, pos)
         Color = P.Wood:Lerp(Color3.fromRGB(222, 196, 150), 0.6),
         Material = Enum.Material.Wood,
     }, parent)
+    ObstacleField.Add(pos.X, pos.Z, pos.Y, 2.5) -- small solid stump footprint
 end
 
 -- A complete framed Fredoka-One world sign: backing board (boardColor) + 4 P.Beam border strips +
@@ -360,6 +365,44 @@ local function worldSign(parent, pos, text, boardColor)
     return board
 end
 
+-- A COMPACT floating label (BillboardGui) that hovers above a structure -- always camera-facing, so it
+-- never clips into a neighbouring building the way the old posted worldSign-behind did. Used for the
+-- reward blocks (gift/chest/spin) that have no canopy to mount a flat plaque on.
+local function floatSign(adornee, text, accent, height)
+    local bb = Instance.new("BillboardGui")
+    bb.Name = "Sign"
+    bb.Size = UDim2.fromOffset(160, 50)
+    bb.StudsOffsetWorldSpace = Vector3.new(0, height or 18, 0)
+    bb.MaxDistance = 260
+    bb.Adornee = adornee
+    bb.Parent = adornee
+    local pill = Instance.new("Frame")
+    pill.Size = UDim2.fromScale(1, 1)
+    pill.BackgroundColor3 = (accent or P.RedTrim):Lerp(Color3.fromRGB(20, 22, 36), 0.18)
+    pill.BorderSizePixel = 0
+    pill.Parent = bb
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0.4, 0)
+    corner.Parent = pill
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = 3
+    stroke.Color = Color3.fromRGB(248, 250, 255)
+    stroke.Transparency = 0.1
+    stroke.Parent = pill
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.fromScale(0.9, 0.78)
+    lbl.Position = UDim2.fromScale(0.05, 0.11)
+    lbl.BackgroundTransparency = 1
+    lbl.Font = Enum.Font.FredokaOne
+    lbl.Text = text
+    lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+    lbl.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    lbl.TextStrokeTransparency = 0
+    lbl.TextScaled = true
+    lbl.Parent = pill
+    return bb
+end
+
 -- A tagged hub fixture block (stall/chest/etc.) with a name sign.
 local function fixture(parent, pos, size, color, tagName, label, neon)
     local block = part({
@@ -382,6 +425,7 @@ local function buildElevatorCar(folder, y)
     local a = math.rad(WorldConfig.Levels.ElevatorAngleDeg)
     local r = WorldConfig.Levels.ElevatorRadius
     local center = Vector3.new(math.cos(a) * r, y, math.sin(a) * r)
+    ObstacleField.Add(center.X, center.Z, y, 11) -- car footprint keep-out for wild brainrots
     -- cf's -Z (LookVector) points to the platform centre -> the car FRONT (door) faces the player.
     local cf = CFrame.lookAt(center, WorldConfig.Center + Vector3.new(0, y, 0))
 
@@ -472,31 +516,24 @@ end
 
 -- A vertical SHAFT track (thin glowing rails) running the full stack height at the elevator spot.
 local function buildElevatorShaft(folder)
-    -- A SHORT decorative elevator pylon over the base-level car -- a landmark arch with a glowing "up"
-    -- beacon. (Was two ~660-stud rails that speared into the sky; the car teleports the player up, so no
-    -- full-height track is needed.) Untagged decoration; the tagged Slingshot call panel lives on the car.
+    -- A LOW, grounded landmark over the base-level car -- NO vertical poles. (Earlier versions speared two
+    -- ~30-48 stud pylons into the sky; the car teleports the player up, so no track is needed at all.) Just
+    -- a flat gold ring on the ground + a small glowing beacon at knee height so the elevator reads as a
+    -- "spot" without an eyesore. Untagged decoration; the tagged Slingshot call panel lives on the car.
     local a = math.rad(WorldConfig.Levels.ElevatorAngleDeg)
     local r = WorldConfig.Levels.ElevatorRadius
     local center = Vector3.new(math.cos(a) * r, 0, math.sin(a) * r)
     local cf = CFrame.lookAt(center, WorldConfig.Center)
-    local h = 30
-    for _, sx in ipairs({ -1, 1 }) do
-        part({
-            Size = Vector3.new(2, h, 2),
-            CFrame = cf * CFrame.new(sx * 8, h / 2 + 18, 0), -- start just above the car roof (~18)
-            Color = P.HubStone,
-            Material = Enum.Material.Metal,
-        }, folder)
-    end
-    part({ -- top cross-beam
-        Size = Vector3.new(20, 2.5, 2),
-        CFrame = cf * CFrame.new(0, h + 18, 0),
+    local pad = part({ -- flat gold launch ring on the ground at the car (no pole)
+        Size = Vector3.new(2, 22, 22),
+        CFrame = cf * CFrame.new(0, 3.2, 0) * CFrame.Angles(0, 0, math.rad(90)),
         Color = P.Gold,
         Material = Enum.Material.Metal,
     }, folder)
-    part({ -- glowing beacon
-        Size = Vector3.new(3, 3, 3),
-        CFrame = cf * CFrame.new(0, h + 18, 0),
+    pad.Shape = Enum.PartType.Cylinder
+    part({ -- small glowing beacon, knee-height (no pole)
+        Size = Vector3.new(2.5, 2.5, 2.5),
+        CFrame = cf * CFrame.new(0, 6, 0),
         Color = P.ShieldCyan,
         Glow = true,
     }, folder)
@@ -504,12 +541,19 @@ end
 
 -- A modeled hub STRUCTURE for a tagged interactable. Builds a unique look per `tagName`, tags the base
 -- block with `tagName` (the contract), floats a label, and returns the tagged block.
-local function buildStructure(folder, pos, tagName, label, accent)
-    -- Cobblestone grounding PAD so every stall reads as planted on a plaza pad (esp. the meadow-edge
-    -- ones); sits flush on the ground beneath the plinth.
+local function buildStructure(folder, pos, tagName, label, accent, yaw)
+    -- Build the whole structure relative to an ORIGIN CFrame (position + yaw) so it can FACE a given
+    -- direction (e.g. the plaza centre). `ori(x,y,z)` returns the structure-local CFrame, so setting a
+    -- part's CFrame to it places AND orients the block with the structure -- the whole kiosk rotates
+    -- coherently instead of just shuffling axis-aligned boxes around. yaw defaults to 0 (front = +Z).
+    local origin = CFrame.new(pos) * CFrame.Angles(0, yaw or 0, 0)
+    local function ori(x, y, z)
+        return origin * CFrame.new(x, y, z)
+    end
+    -- Cobblestone grounding PAD so every stall reads as planted on a plaza pad; flush on the ground.
     part({
         Size = Vector3.new(17, 0.5, 17),
-        Position = pos + Vector3.new(0, 0.25, 0),
+        CFrame = ori(0, 0.25, 0),
         Color = P.Stone,
         Material = Enum.Material.Cobblestone,
     }, folder)
@@ -517,123 +561,104 @@ local function buildStructure(folder, pos, tagName, label, accent)
     -- Tier 1 (widest) = base, tagged with tagName so the game systems bind to it.
     local base = part({
         Size = Vector3.new(14, 3, 14),
-        Position = pos + Vector3.new(0, 1.5, 0),
+        CFrame = ori(0, 1.5, 0),
         Color = P.HubStone,
     }, folder)
     base.Name = tagName
     tag(base, tagName)
     -- Tier 2
-    part(
-        { Size = Vector3.new(12, 2, 12), Position = pos + Vector3.new(0, 4, 0), Color = P.Stone },
-        folder
-    )
+    part({ Size = Vector3.new(12, 2, 12), CFrame = ori(0, 4, 0), Color = P.Stone }, folder)
     -- Tier 3 (top stepping-stone)
-    part({
-        Size = Vector3.new(10, 1.5, 10),
-        Position = pos + Vector3.new(0, 5.75, 0),
-        Color = P.Plaster,
-    }, folder)
+    part({ Size = Vector3.new(10, 1.5, 10), CFrame = ori(0, 5.75, 0), Color = P.Plaster }, folder)
+    -- Footprint keep-out: wild brainrots slide around the kiosk instead of clipping through it.
+    ObstacleField.Add(pos.X, pos.Z, pos.Y, 12)
+
+    local labelHeight = 20 -- billboard hover height for the non-stall reward blocks
 
     if tagName == "FreeGift" then
+        labelHeight = 21
         -- Main gift box sitting on the pedestal
-        part({
-            Size = Vector3.new(8, 8, 8),
-            Position = pos + Vector3.new(0, 10.5, 0),
-            Color = accent,
-        }, folder)
+        part({ Size = Vector3.new(8, 8, 8), CFrame = ori(0, 10.5, 0), Color = accent }, folder)
         -- Ribbon bands (two crossing strips)
-        part({
-            Size = Vector3.new(8.4, 1.6, 1.6),
-            Position = pos + Vector3.new(0, 10.5, 0),
-            Color = P.Roof,
-        }, folder)
-        part({
-            Size = Vector3.new(1.6, 1.6, 8.4),
-            Position = pos + Vector3.new(0, 10.5, 0),
-            Color = P.Roof,
-        }, folder)
+        part(
+            { Size = Vector3.new(8.4, 1.6, 1.6), CFrame = ori(0, 10.5, 0), Color = P.Roof },
+            folder
+        )
+        part(
+            { Size = Vector3.new(1.6, 1.6, 8.4), CFrame = ori(0, 10.5, 0), Color = P.Roof },
+            folder
+        )
         -- Bow knot on top
-        part({
-            Size = Vector3.new(3, 2.5, 3),
-            Position = pos + Vector3.new(0, 15, 0),
+        part({ Size = Vector3.new(3, 2.5, 3), CFrame = ori(0, 15, 0), Color = P.Gold }, folder)
+        -- Small side decoration boxes (depth dressing)
+        part({ Size = Vector3.new(4, 4, 4), CFrame = ori(-7, 7.5, 2), Color = P.Grape }, folder)
+        part({ Size = Vector3.new(3, 3, 3), CFrame = ori(6, 7, -2), Color = P.RedTrim }, folder)
+        -- Coin scatter
+        local coin = part({
+            Size = Vector3.new(0.8, 2.5, 2.5),
+            CFrame = ori(5, 7.5, 4) * CFrame.Angles(0, 0, math.rad(90)),
             Color = P.Gold,
         }, folder)
-        -- Small side decoration boxes (depth dressing)
-        part({
-            Size = Vector3.new(4, 4, 4),
-            Position = pos + Vector3.new(-7, 7.5, 2),
-            Color = P.Grape,
-        }, folder)
-        part({
-            Size = Vector3.new(3, 3, 3),
-            Position = pos + Vector3.new(6, 7, -2),
-            Color = P.RedTrim,
-        }, folder)
-        -- Coin scatter
-        local coinCF = CFrame.new(pos + Vector3.new(5, 7.5, 4)) * CFrame.Angles(0, 0, math.rad(90))
-        local coin =
-            part({ Size = Vector3.new(0.8, 2.5, 2.5), CFrame = coinCF, Color = P.Gold }, folder)
         coin.Shape = Enum.PartType.Cylinder
     elseif tagName == "DailyChest" then
+        labelHeight = 19
         -- Chest body (wood lower half)
         part({
             Size = Vector3.new(10, 6, 7),
-            Position = pos + Vector3.new(0, 9, 0),
+            CFrame = ori(0, 9, 0),
             Color = P.Wood,
             Material = Enum.Material.Wood,
         }, folder)
         -- Chest lid (accent color arched top)
-        part({
-            Size = Vector3.new(10, 3.5, 7),
-            Position = pos + Vector3.new(0, 13, 0),
-            Color = accent,
-        }, folder)
+        part({ Size = Vector3.new(10, 3.5, 7), CFrame = ori(0, 13, 0), Color = accent }, folder)
         -- Gold lock hasp
-        part({
-            Size = Vector3.new(1.8, 3.5, 1.8),
-            Position = pos + Vector3.new(0, 10.5, 3.6),
+        part(
+            { Size = Vector3.new(1.8, 3.5, 1.8), CFrame = ori(0, 10.5, 3.6), Color = P.Gold },
+            folder
+        )
+        -- Side coin scatter (give depth)
+        local c1 = part({
+            Size = Vector3.new(0.8, 2.8, 2.8),
+            CFrame = ori(-6, 8, 1) * CFrame.Angles(0, 0, math.rad(90)),
             Color = P.Gold,
         }, folder)
-        -- Side coin scatter (give depth)
-        local coinCF1 = CFrame.new(pos + Vector3.new(-6, 8, 1)) * CFrame.Angles(0, 0, math.rad(90))
-        local c1 =
-            part({ Size = Vector3.new(0.8, 2.8, 2.8), CFrame = coinCF1, Color = P.Gold }, folder)
         c1.Shape = Enum.PartType.Cylinder
-        local coinCF2 = CFrame.new(pos + Vector3.new(6, 8, -1)) * CFrame.Angles(0, 0, math.rad(90))
-        local c2 =
-            part({ Size = Vector3.new(0.8, 2.2, 2.2), CFrame = coinCF2, Color = P.Gold }, folder)
+        local c2 = part({
+            Size = Vector3.new(0.8, 2.2, 2.2),
+            CFrame = ori(6, 8, -1) * CFrame.Angles(0, 0, math.rad(90)),
+            Color = P.Gold,
+        }, folder)
         c2.Shape = Enum.PartType.Cylinder
         -- Small treasure box beside it
         part({
             Size = Vector3.new(4, 3.5, 4),
-            Position = pos + Vector3.new(7, 8, 2),
+            CFrame = ori(7, 8, 2),
             Color = P.Beam,
             Material = Enum.Material.Wood,
         }, folder)
     elseif tagName == "SpinWheel" then
-        -- A proper VERTICAL prize wheel facing the player (+Z). Wheel centre well above the pedestal.
-        local wc = pos + Vector3.new(0, 21, 0)
+        labelHeight = 40
+        -- A proper VERTICAL prize wheel facing the structure front (+Z local). Centre above the pedestal.
         -- Two stout wood support LEGS flanking the wheel + a back axle bar between them.
         for _, sx in ipairs({ -1, 1 }) do
             part({
                 Size = Vector3.new(2.6, 24, 2.6),
-                Position = pos + Vector3.new(sx * 11, 12.5, -1),
+                CFrame = ori(sx * 11, 12.5, -1),
                 Color = P.Beam,
                 Material = Enum.Material.Wood,
             }, folder)
         end
         part({
             Size = Vector3.new(24, 2.4, 2.4),
-            Position = wc + Vector3.new(0, 0, -2),
+            CFrame = ori(0, 21, -2),
             Color = P.Beam,
             Material = Enum.Material.Wood,
         }, folder)
-        -- Outer RIM (a thick dark wood ring behind the face) + the wheel HUB disc (faces +Z, the player).
+        -- Outer RIM (a thick dark wood ring behind the face) + the wheel HUB disc (faces +Z local).
         local function faceDisc(size, offsetZ, color, mat)
             local d = part({
                 Size = size,
-                CFrame = CFrame.new(wc + Vector3.new(0, 0, offsetZ))
-                    * CFrame.Angles(0, math.rad(90), 0),
+                CFrame = ori(0, 21, offsetZ) * CFrame.Angles(0, math.rad(90), 0),
                 Color = color,
                 Material = mat or Enum.Material.SmoothPlastic,
             }, folder)
@@ -655,12 +680,9 @@ local function buildStructure(folder, pos, tagName, label, accent)
         }
         for i = 0, 7 do
             local angle = math.rad(i * 45 + 22.5)
-            local wedgeCF = CFrame.new(wc + Vector3.new(0, 0, 1.4))
-                * CFrame.Angles(0, 0, angle)
-                * CFrame.new(0, 5.4, 0)
             part({
                 Size = Vector3.new(7.4, 10.4, 0.5),
-                CFrame = wedgeCF,
+                CFrame = ori(0, 21, 1.4) * CFrame.Angles(0, 0, angle) * CFrame.new(0, 5.4, 0),
                 Color = spokeColors[i + 1],
                 Material = Enum.Material.SmoothPlastic,
             }, folder)
@@ -668,12 +690,9 @@ local function buildStructure(folder, pos, tagName, label, accent)
         -- Gold spoke dividers between wedges (thin radial bars) for a crisp segmented look.
         for i = 0, 7 do
             local angle = math.rad(i * 45)
-            local barCF = CFrame.new(wc + Vector3.new(0, 0, 1.7))
-                * CFrame.Angles(0, 0, angle)
-                * CFrame.new(0, 5.6, 0)
             part({
                 Size = Vector3.new(0.7, 11.4, 0.5),
-                CFrame = barCF,
+                CFrame = ori(0, 21, 1.7) * CFrame.Angles(0, 0, angle) * CFrame.new(0, 5.6, 0),
                 Color = P.Gold,
                 Material = Enum.Material.Metal,
             }, folder)
@@ -683,7 +702,7 @@ local function buildStructure(folder, pos, tagName, label, accent)
         -- Bold POINTER at 12 o'clock: a gold diamond marker pointing down into the wheel.
         part({
             Size = Vector3.new(3.6, 3.6, 1.4),
-            CFrame = CFrame.new(wc + Vector3.new(0, 13.5, 1.6)) * CFrame.Angles(0, 0, math.rad(45)),
+            CFrame = ori(0, 34.5, 1.6) * CFrame.Angles(0, 0, math.rad(45)),
             Color = P.Gold,
             Material = Enum.Material.Metal,
         }, folder)
@@ -693,19 +712,19 @@ local function buildStructure(folder, pos, tagName, label, accent)
         -- (reads as a real shop counter, not a thin slab).
         part({
             Size = Vector3.new(14, 6, 6),
-            Position = pos + Vector3.new(0, 7.5, 3.5),
+            CFrame = ori(0, 7.5, 3.5),
             Color = P.Beam,
             Material = Enum.Material.Wood,
         }, folder)
         part({
             Size = Vector3.new(13, 3.5, 0.6),
-            Position = pos + Vector3.new(0, 7, 6.6),
+            CFrame = ori(0, 7, 6.6),
             Color = accent,
             Material = Enum.Material.SmoothPlastic,
         }, folder)
         part({
             Size = Vector3.new(15.5, 1.2, 7.4),
-            Position = pos + Vector3.new(0, 10.7, 3.5),
+            CFrame = ori(0, 10.7, 3.5),
             Color = P.Stone,
             Material = Enum.Material.SmoothPlastic,
         }, folder)
@@ -714,7 +733,7 @@ local function buildStructure(folder, pos, tagName, label, accent)
             for _, sz in ipairs({ -1, 1 }) do
                 part({
                     Size = Vector3.new(1.5, 16, 1.5),
-                    Position = pos + Vector3.new(sx * 6.5, 14.5, sz * 6),
+                    CFrame = ori(sx * 6.5, 14.5, sz * 6),
                     Color = P.Beam,
                     Material = Enum.Material.Wood,
                 }, folder)
@@ -723,18 +742,16 @@ local function buildStructure(folder, pos, tagName, label, accent)
         -- PEAKED canopy: two sloped slabs meeting at a ridge above the posts (better-proportioned, not
         -- oversized) + a ridge beam capping the seam.
         for _, sx in ipairs({ -1, 1 }) do
-            local slopeCF = CFrame.new(pos + Vector3.new(sx * 3.6, 23.5, 0))
-                * CFrame.Angles(0, 0, sx * math.rad(28))
             part({
                 Size = Vector3.new(7.4, 1.2, 15),
-                CFrame = slopeCF,
+                CFrame = ori(sx * 3.6, 23.5, 0) * CFrame.Angles(0, 0, sx * math.rad(28)),
                 Color = accent,
                 Material = Enum.Material.Fabric,
             }, folder)
         end
         part({
             Size = Vector3.new(1.4, 1.4, 15.5),
-            Position = pos + Vector3.new(0, 25.2, 0),
+            CFrame = ori(0, 25.2, 0),
             Color = P.Wood,
             Material = Enum.Material.Wood,
         }, folder)
@@ -742,7 +759,7 @@ local function buildStructure(folder, pos, tagName, label, accent)
         for i = -3, 3 do
             part({
                 Size = Vector3.new(2, 2.2, 0.6),
-                Position = pos + Vector3.new(i * 2.1, 20.4, 7.3),
+                CFrame = ori(i * 2.1, 20.4, 7.3),
                 Color = (i % 2 == 0) and accent or P.Plaster,
                 Material = Enum.Material.Fabric,
             }, folder)
@@ -750,22 +767,20 @@ local function buildStructure(folder, pos, tagName, label, accent)
         -- Back shelf board
         part({
             Size = Vector3.new(13, 1, 4),
-            Position = pos + Vector3.new(0, 14.5, -5.5),
+            CFrame = ori(0, 14.5, -5.5),
             Color = P.Beam,
             Material = Enum.Material.Wood,
         }, folder)
         -- Hanging product cube on the shelf
-        part({
-            Size = Vector3.new(3.5, 3.5, 3.5),
-            Position = pos + Vector3.new(0, 17, -5.5),
-            Color = P.Gold,
-        }, folder)
+        part(
+            { Size = Vector3.new(3.5, 3.5, 3.5), CFrame = ori(0, 17, -5.5), Color = P.Gold },
+            folder
+        )
         -- Small framed wood plaque mounted on the canopy front (replaces the giant floating sign).
         -- Frame: a flat P.Beam board slightly proud of the canopy front face
-        local plaquePos = pos + Vector3.new(0, 22.5, 7.6)
         local plaqueBoard = part({
             Size = Vector3.new(10, 3.5, 0.6),
-            Position = plaquePos,
+            CFrame = ori(0, 22.5, 7.6),
             Color = P.Beam,
             Material = Enum.Material.Wood,
         }, folder)
@@ -801,30 +816,31 @@ local function buildStructure(folder, pos, tagName, label, accent)
         -- Thin frame border around the plaque (4 P.Beam strips)
         part({
             Size = Vector3.new(10.8, 0.6, 0.4),
-            Position = plaquePos + Vector3.new(0, 1.75, 0.1),
+            CFrame = ori(0, 24.25, 7.7),
             Color = P.Wood,
             Material = Enum.Material.Wood,
         }, folder) -- top bar
         part({
             Size = Vector3.new(10.8, 0.6, 0.4),
-            Position = plaquePos + Vector3.new(0, -1.75, 0.1),
+            CFrame = ori(0, 20.75, 7.7),
             Color = P.Wood,
             Material = Enum.Material.Wood,
         }, folder) -- bottom bar
         for _, sx in ipairs({ -1, 1 }) do
             part({
                 Size = Vector3.new(0.6, 3.5, 0.4),
-                Position = plaquePos + Vector3.new(sx * 5.4, 0, 0.1),
+                CFrame = ori(sx * 5.4, 22.5, 7.7),
                 Color = P.Wood,
                 Material = Enum.Material.Wood,
             }, folder) -- side bars
         end
-        -- For stalls the label is rendered on the plaque above; skip the old worldSign call below.
+        -- For stalls the label is rendered on the plaque above; skip the floating sign below.
         return base
     end
 
+    -- Non-stall reward blocks (gift/chest/spin): a compact camera-facing label that never clips a neighbour.
     if label ~= nil then
-        worldSign(folder, pos + Vector3.new(0, 0, -8), label, accent)
+        floatSign(base, label, accent, labelHeight)
     end
     return base
 end
@@ -874,15 +890,25 @@ local function buildHub(folder)
         Neon = true,
     }, folder)
 
+    ObstacleField.Add(c.X, c.Z - 70, c.Y, 13) -- monument footprint (wild brainrots steer around it)
+
     -- ELEVATOR CAR on the bottom 'start' level (tagged "Slingshot" -> the client elevator menu lives on it).
     buildElevatorCar(folder, 0)
 
-    -- shop stalls + free-reward blocks (modeled structures), arranged around the plaza.
-    buildStructure(folder, c + Vector3.new(-90, 0, -40), "NetShop", "NET SHOP", P.Grass)
-    buildStructure(folder, c + Vector3.new(90, 0, -40), "PremiumShop", "PREMIUM", P.Gold)
-    buildStructure(folder, c + Vector3.new(-130, 0, 30), "DailyChest", "DAILY", P.Roof)
-    buildStructure(folder, c + Vector3.new(-110, 0, 50), "FreeGift", "GIFT", P.Grape)
-    buildStructure(folder, c + Vector3.new(130, 0, 30), "SpinWheel", "SPIN", P.Gold)
+    -- Shop stalls + reward blocks on an EVEN ring in the gaps BETWEEN the player bases. Bases sit at
+    -- 0/60/.../300 deg, so the 30/90/150/210/330 gaps are clear; each kiosk is ~80 studs from its
+    -- neighbours (no canopy clipping) and FACES the plaza centre so all five fronts read as a town square.
+    local function placeShop(deg, tagName, label, accent)
+        local rad = math.rad(deg)
+        local sp = c + Vector3.new(math.cos(rad) * 80, 0, math.sin(rad) * 80)
+        local yaw = math.atan2(-math.cos(rad), -math.sin(rad)) -- front (+Z) faces the centre
+        buildStructure(folder, sp, tagName, label, accent, yaw)
+    end
+    placeShop(90, "SpinWheel", "SPIN", P.Gold) -- front showpiece
+    placeShop(30, "NetShop", "NET SHOP", P.Grass)
+    placeShop(330, "PremiumShop", "PREMIUM", P.Gold)
+    placeShop(150, "DailyChest", "DAILY", P.Roof)
+    placeShop(210, "FreeGift", "GIFT", P.Grape)
 
     -- LeaderboardPillar anchors: INVISIBLE tagged markers (the dark slabs are retired). The VISIBLE
     -- leaderboard displays are the soft scrolling boards built by LeaderboardBillboards as a tidy
@@ -1428,6 +1454,22 @@ local function meadowFoliage(folder, cfg)
         return a, r, Vector3.new(math.cos(a) * r, y, math.sin(a) * r)
     end
 
+    -- EVEN distribution for the colliding props (trees/pines/rocks/stumps): a sunflower / phyllotaxis
+    -- layout -- the golden angle spreads successive points all the way around with no clumping, and a
+    -- golden-ratio low-discrepancy radial fraction blankets the ring evenly (no bare arcs). A single
+    -- shared index across ALL colliding categories means trees, pines, rocks + stumps interleave into one
+    -- continuous forest instead of stacking on the same spots. Small jitter keeps it natural, not robotic.
+    local GOLDEN = math.rad(137.50776)
+    local evenIdx = 0
+    local function nextEven(inner)
+        evenIdx += 1
+        local a = evenIdx * GOLDEN + rng:NextNumber(-0.1, 0.1)
+        local span = (rad - 12) - inner
+        local frac = (evenIdx * 0.61803398875) % 1
+        local r = math.clamp(inner + frac * span + rng:NextNumber(-7, 7), inner, rad - 12)
+        return a, r, Vector3.new(math.cos(a) * r, y, math.sin(a) * r)
+    end
+
     -- Scatter `count` NON-colliding cover items from CoverInnerRadius, skipping any base footprint (so the
     -- dense floor cover fills the inter-base ring but never the base floors). `bias` alternates the
     -- spawn-side weighting; `place(pos)` builds one item.
@@ -1474,6 +1516,7 @@ local function meadowFoliage(folder, cfg)
             Material = Enum.Material.Grass,
             CanCollide = false,
         }, folder)
+        ObstacleField.Add(pos.X, pos.Z, pos.Y, 3) -- brainrots can't pass through a bush
     end)
 
     -- (c) Hedge rows: low non-colliding green walls (tangent to the ring) -- cover lines to weave around.
@@ -1493,31 +1536,32 @@ local function meadowFoliage(folder, cfg)
         end
     end
 
-    -- (d) Voxel tree CLUSTERS (small forests): colliding landmarks; skip the spawn cone/arena/elevator.
+    -- (d) Voxel tree CLUSTERS (small forests): EVEN sunflower spread so the canopy blankets the whole ring
+    -- with no clumps + no bare arcs; skip the spawn cone/arena/elevator/bases via blockedForColliders.
     local clusters = 0
-    for _ = 1, F.TreeClusters * 3 do
+    for _ = 1, F.TreeClusters * 4 do
         if clusters >= F.TreeClusters then
             break
         end
-        local a, r, pos = pick(false, colliderInner)
+        local a, r, pos = nextEven(colliderInner)
         if not blockedForColliders(a, r) then
-            -- 2-3 clean trees spaced WIDE enough (~16-stud spread) that their canopies stay distinct
+            -- 2-3 clean trees spaced wide enough (~13-stud spread) that their canopies stay distinct
             -- instead of merging into a blob -> a tidy, even forest rather than a jumble.
             for _ = 1, math.floor(rng:NextNumber(2, 3.99)) do
-                local off = Vector3.new(rng:NextNumber(-16, 16), 0, rng:NextNumber(-16, 16))
+                local off = Vector3.new(rng:NextNumber(-13, 13), 0, rng:NextNumber(-13, 13))
                 tree(folder, pos + off, P.Wood, P.Grass:Lerp(Color3.fromRGB(122, 202, 92), 0.4))
             end
             clusters += 1
         end
     end
 
-    -- (e) Mossy rocks: colliding accents; skip the spawn cone/arena/elevator.
+    -- (e) Mossy rocks: colliding accents interleaved into the same even sunflower.
     local rocks = 0
-    for _ = 1, F.Rocks * 2 do
+    for _ = 1, F.Rocks * 4 do
         if rocks >= F.Rocks then
             break
         end
-        local a, r, pos = pick(false, colliderInner)
+        local a, r, pos = nextEven(colliderInner)
         if not blockedForColliders(a, r) then
             local s = rng:NextNumber(4, 9)
             part({
@@ -1526,17 +1570,18 @@ local function meadowFoliage(folder, cfg)
                 Color = P.Stone:Lerp(P.Grass, 0.2),
                 Material = Enum.Material.Slate,
             }, folder)
+            ObstacleField.Add(pos.X, pos.Z, pos.Y, s * 0.5)
             rocks += 1
         end
     end
 
-    -- (f) Tall PINES: colliding conifer landmarks that thicken the canopy; skip the colliding zones.
+    -- (f) Tall PINES: colliding conifer landmarks that thicken the canopy; same even sunflower.
     local pines = 0
-    for _ = 1, (F.PineTrees or 0) * 3 do
+    for _ = 1, (F.PineTrees or 0) * 4 do
         if pines >= (F.PineTrees or 0) then
             break
         end
-        local a, r, pos = pick(false, colliderInner)
+        local a, r, pos = nextEven(colliderInner)
         if not blockedForColliders(a, r) then
             pine(
                 folder,
@@ -1548,13 +1593,13 @@ local function meadowFoliage(folder, cfg)
         end
     end
 
-    -- (g) Cut STUMPS: low colliding wood landmarks scattered among the trees; skip the colliding zones.
+    -- (g) Cut STUMPS: low colliding wood landmarks scattered among the trees; same even sunflower.
     local stumps = 0
-    for _ = 1, (F.Stumps or 0) * 3 do
+    for _ = 1, (F.Stumps or 0) * 4 do
         if stumps >= (F.Stumps or 0) then
             break
         end
-        local a, r, pos = pick(false, colliderInner)
+        local a, r, pos = nextEven(colliderInner)
         if not blockedForColliders(a, r) then
             stump(folder, pos)
             stumps += 1
@@ -1828,7 +1873,11 @@ local function buildPlatform(folder, cfg)
     tag(arena, "BossArena")
     arena:SetAttribute("Biome", cfg.Id)
 
-    worldSign(folder, onDisc(L.ElevatorAngleDeg, 52, 0), string.upper(cfg.Name), cfg.Accent)
+    -- Biome welcome sign: its OWN designated spot at the SPAWN entrance (angle 90, on the plaza rim) so it
+    -- greets arriving players and never sits on the elevator or a shop. Front (+Z) faces the spawn.
+    local signPos = onDisc(90, 104, 0)
+    worldSign(folder, signPos, string.upper(cfg.Name), cfg.Accent)
+    ObstacleField.Add(signPos.X, signPos.Z, signPos.Y, 9)
 
     if cfg.Tier > 1 then
         platformProps(folder, cfg) -- level 1 = the hub; upper levels get the biome flavor scatter
@@ -1914,6 +1963,7 @@ function WorldBuilder.Init()
         old:Destroy()
     end
     clearDefaults()
+    ObstacleField.Clear() -- rebuild the brainrot keep-out registry in lockstep with the world
     rng = Random.new(WorldConfig.Seed) -- reset -> deterministic
 
     worldFolder = Instance.new("Folder")
