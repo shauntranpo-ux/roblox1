@@ -89,33 +89,46 @@ end
 -- A leafy ROUND tree: a slim wood trunk + a rounded canopy of 3 overlapping leaf BALLS in graded green
 -- shades, with gentle per-tree height/scale variation (seeded rng). Reads as a real tree, not a cube.
 local function tree(parent, pos, trunkColor, leafColor)
-    local scale = rng:NextNumber(0.85, 1.25)
-    local trunkH = S.TreeHeight * 0.55 * scale
-    part({
-        Size = Vector3.new(3, trunkH, 3),
-        Position = pos + Vector3.new(0, trunkH / 2, 0),
+    local scale = rng:NextNumber(0.9, 1.3)
+    local trunkH = S.TreeHeight * 0.5 * scale
+    part({ -- thick blocky trunk
+        Size = Vector3.new(4, trunkH, 4),
         Color = trunkColor or P.Wood,
         Material = Enum.Material.Wood,
+        Position = pos + Vector3.new(0, trunkH / 2, 0),
     }, parent)
-    local baseLeaf = leafColor or P.Grass:Lerp(Color3.fromRGB(96, 176, 84), 0.4)
-    local r = S.TreeHeight * 0.34 * scale -- canopy blob radius
-    local topY = trunkH + r * 0.6
-    -- main blob + two offset side blobs -> a full, rounded crown
-    local blobs = {
-        { Vector3.new(0, 0, 0), 2.0 },
-        { Vector3.new(r * 0.7, -r * 0.15, r * 0.2), 1.45 },
-        { Vector3.new(-r * 0.6, -r * 0.05, -r * 0.3), 1.55 },
-    }
-    for i, b in ipairs(blobs) do
-        local d = r * b[2] * rng:NextNumber(0.92, 1.08)
-        local leafPart = part({
-            Size = Vector3.new(d, d, d),
-            Position = pos + Vector3.new(b[1].X, topY + b[1].Y, b[1].Z),
-            Color = baseLeaf:Lerp(Color3.fromRGB(40, 120, 70), (i - 1) * 0.14),
+    -- CHUNKY voxel crown: a big bright-green CORE cube, four offset cubes to round it, and a smaller cap,
+    -- with the offset cubes a shade darker so the crown reads as layered leaf blocks (Minecraft style).
+    local bright = leafColor or Color3.fromRGB(96, 206, 86)
+    local dark = bright:Lerp(Color3.fromRGB(40, 130, 60), 0.45)
+    local core = S.TreeHeight * 0.6 * scale
+    local cy = trunkH + core * 0.42
+    part({ -- core
+        Size = Vector3.new(core, core * 0.82, core),
+        Color = bright,
+        Material = Enum.Material.Grass,
+        Position = pos + Vector3.new(0, cy, 0),
+    }, parent)
+    local side = core * 0.62
+    for _, off in ipairs({
+        Vector2.new(1, 0),
+        Vector2.new(-1, 0),
+        Vector2.new(0, 1),
+        Vector2.new(0, -1),
+    }) do
+        part({ -- four side blocks rounding the crown (a shade darker = layered look)
+            Size = Vector3.new(side, side, side),
+            Color = dark,
             Material = Enum.Material.Grass,
+            Position = pos + Vector3.new(off.X * core * 0.5, cy - core * 0.12, off.Y * core * 0.5),
         }, parent)
-        leafPart.Shape = Enum.PartType.Ball
     end
+    part({ -- bright top cap
+        Size = Vector3.new(core * 0.66, core * 0.5, core * 0.66),
+        Color = bright,
+        Material = Enum.Material.Grass,
+        Position = pos + Vector3.new(0, cy + core * 0.55, 0),
+    }, parent)
 end
 
 -- A blocky BUSH: 2 stacked rounded green cubes (cheap; capped by the caller).
@@ -148,7 +161,7 @@ local function pine(parent, pos, trunkColor, leafColor)
         Color = trunkColor or P.Wood,
         Material = Enum.Material.Wood,
     }, parent)
-    local leaf = leafColor or P.Grass:Lerp(Color3.fromRGB(36, 104, 64), 0.55)
+    local leaf = leafColor or Color3.fromRGB(74, 174, 78) -- deep vivid conifer green
     local tiers = 4
     local tierH = S.TreeHeight * 0.3 * scale
     for t = 0, tiers - 1 do
